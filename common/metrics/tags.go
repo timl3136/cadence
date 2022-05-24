@@ -92,6 +92,11 @@ func InstanceTag(value string) Tag {
 	return simpleMetric{key: instance, value: value}
 }
 
+// SourceClusterTag returns a new source cluster tag
+func SourceClusterTag(value string) Tag {
+	return simpleMetric{key: "source_cluster", value: value}
+}
+
 // TargetClusterTag returns a new target cluster tag.
 func TargetClusterTag(value string) Tag {
 	return metricWithUnknown(targetCluster, value)
