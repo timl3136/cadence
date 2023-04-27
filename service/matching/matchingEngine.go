@@ -303,24 +303,21 @@ func (e *matchingEngineImpl) AddDecisionTask(
 	}
 
 	// Only emit traffic metrics if the tasklist is not sticky and is not forwarded
-	if int32(request.GetTaskList().GetKind()) == 0 && request.ForwardedFrom == "" {
+	if request.GetTaskList().GetKind() == types.TaskListKindNormal && request.ForwardedFrom == "" {
 		e.metricsClient.Scope(metrics.MatchingAddTaskScope).Tagged(metrics.DomainTag(domainName),
 			metrics.TaskListTag(taskListName), metrics.TaskListTypeTag("decision_task")).IncCounter(metrics.CadenceTasklistRequests)
 		e.emitInfoOrDebugLog(domainID, "Emitting tasklist counter on decision task", tag.Dynamic("tasklistName", taskListName),
 			tag.Dynamic("taskListBaseName", taskList.baseName),
 			tag.Dynamic("tasklistType", *taskListKind))
 	} else {
-		if domainName == "compliance-process-pipeline-manager-v2" {
-			if request.ForwardedFrom == "" {
-				e.logger.Info("forwardedFrom working as expected")
-			}
-			if int32(request.GetTaskList().GetKind()) == 0 {
-				e.logger.Info("tasklistKind check sticky working as expected")
-			} else {
-				e.logger.Info("tasklistKind check failing", tag.Dynamic("kind", request.GetTaskList().GetKind()))
-			}
+		if request.ForwardedFrom == "" {
+			e.logger.Info("forwardedFrom working as expected")
 		}
-
+		if int32(request.GetTaskList().GetKind()) == 0 {
+			e.logger.Info("tasklistKind check sticky working as expected")
+		} else {
+			e.logger.Info("tasklistKind check failing", tag.Dynamic("kind", request.GetTaskList().GetKind()))
+		}
 	}
 
 	tlMgr, err := e.getTaskListManager(taskList, taskListKind)
