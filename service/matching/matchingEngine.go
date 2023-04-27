@@ -316,6 +316,8 @@ func (e *matchingEngineImpl) AddDecisionTask(
 			}
 			if int32(request.GetTaskList().GetKind()) == 0 {
 				e.logger.Info("tasklistKind check sticky working as expected")
+			} else {
+				e.logger.Info("tasklistKind check failing", tag.Dynamic("kind", request.GetTaskList().GetKind()))
 			}
 		}
 
