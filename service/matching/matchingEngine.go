@@ -314,7 +314,7 @@ func (e *matchingEngineImpl) AddDecisionTask(
 			if request.ForwardedFrom == "" {
 				e.logger.Info("forwardedFrom working as expected")
 			}
-			if taskListKind != nil && *taskListKind != types.TaskListKindSticky {
+			if int32(request.GetTaskList().GetKind()) == 0 {
 				e.logger.Info("tasklistKind check sticky working as expected")
 			}
 		}
