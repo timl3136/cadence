@@ -307,7 +307,7 @@ func (e *matchingEngineImpl) AddDecisionTask(
 		e.metricsClient.Scope(metrics.MatchingAddTaskScope).Tagged(metrics.DomainTag(domainName),
 			metrics.TaskListTag(taskListName), metrics.TaskListTypeTag("decision_task"),
 			metrics.MatchingHostTag(e.config.HostName)).IncCounter(metrics.CadenceTasklistRequests)
-		e.logger.Info("hostname in decision task", tag.Dynamic("hostname", e.config.HostName))
+		e.logger.Info("hostname in decision task", tag.Dynamic("host", e.config.HostName))
 		e.emitInfoOrDebugLog(domainID, "Emitting tasklist counter on decision task",
 			tag.Dynamic("tasklistName", taskListName),
 			tag.Dynamic("taskListBaseName", taskList.baseName))
@@ -380,7 +380,7 @@ func (e *matchingEngineImpl) AddActivityTask(
 		e.metricsClient.Scope(metrics.MatchingAddTaskScope).Tagged(metrics.DomainTag(domainName),
 			metrics.TaskListTag(taskListName), metrics.TaskListTypeTag("activity_task"),
 			metrics.MatchingHostTag(e.config.HostName)).IncCounter(metrics.CadenceTasklistRequests)
-		e.logger.Info("hostname in activity task", tag.Dynamic("hostname", e.config.HostName))
+		e.logger.Info("hostname in activity task", tag.Dynamic("host", e.config.HostName))
 		e.emitInfoOrDebugLog(domainID, "Emitting tasklist counter on activity task",
 			tag.Dynamic("tasklistName", taskListName),
 			tag.Dynamic("taskListBaseName", taskList.baseName))
