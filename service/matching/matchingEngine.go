@@ -308,14 +308,20 @@ func (e *matchingEngineImpl) AddDecisionTask(
 		return false, err
 	}
 
-	// Only emit traffic metrics if the tasklist is not sticky and is not forwarded
+	// Only emit traffic metrics if the tasklist is not forwarded
 	if int32(request.GetTaskList().GetKind()) == 0 && request.ForwardedFrom == "" {
+		// Emit tasklist name if tasklist is not sticky
 		e.metricsClient.Scope(metrics.MatchingAddTaskScope).Tagged(metrics.DomainTag(domainName),
 			metrics.TaskListTag(taskListName), metrics.TaskListTypeTag("decision_task"),
 			metrics.MatchingHostTag(e.config.HostName)).IncCounter(metrics.CadenceTasklistRequests)
 		e.emitInfoOrDebugLog(domainID, "Emitting tasklist counter on decision task",
 			tag.Dynamic("tasklistName", taskListName),
 			tag.Dynamic("taskListBaseName", taskList.baseName))
+	} else if int32(request.GetTaskList().GetKind()) == 1 && request.ForwardedFrom == "" {
+		// Emit if tasklist is sticky
+		e.metricsClient.Scope(metrics.MatchingAddTaskScope).Tagged(metrics.DomainTag(domainName),
+			metrics.TaskListTag("sticky-tasklist"), metrics.TaskListTypeTag("activity_task"),
+			metrics.MatchingHostTag(e.config.HostName)).IncCounter(metrics.CadenceTasklistRequests)
 	}
 
 	tlMgr, err := e.getTaskListManager(taskList, taskListKind)
@@ -381,14 +387,20 @@ func (e *matchingEngineImpl) AddActivityTask(
 		return false, err
 	}
 
-	// Only emit traffic metrics if the tasklist is not sticky and is not forwarded
+	// Only emit traffic metrics if the tasklist is not forwarded
 	if int32(request.GetTaskList().GetKind()) == 0 && request.ForwardedFrom == "" {
+		// Emit tasklist name if not sticky
 		e.metricsClient.Scope(metrics.MatchingAddTaskScope).Tagged(metrics.DomainTag(domainName),
 			metrics.TaskListTag(taskListName), metrics.TaskListTypeTag("activity_task"),
 			metrics.MatchingHostTag(e.config.HostName)).IncCounter(metrics.CadenceTasklistRequests)
 		e.emitInfoOrDebugLog(domainID, "Emitting tasklist counter on activity task",
 			tag.Dynamic("tasklistName", taskListName),
 			tag.Dynamic("taskListBaseName", taskList.baseName))
+	} else if int32(request.GetTaskList().GetKind()) == 1 && request.ForwardedFrom == "" {
+		// Emit if tasklist is sticky
+		e.metricsClient.Scope(metrics.MatchingAddTaskScope).Tagged(metrics.DomainTag(domainName),
+			metrics.TaskListTag("sticky-tasklist"), metrics.TaskListTypeTag("activity_task"),
+			metrics.MatchingHostTag(e.config.HostName)).IncCounter(metrics.CadenceTasklistRequests)
 	}
 
 	tlMgr, err := e.getTaskListManager(taskList, taskListKind)
