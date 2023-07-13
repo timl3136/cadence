@@ -401,6 +401,7 @@ func (e *matchingEngineImpl) AddActivityTask(
 		e.metricsClient.Scope(metrics.MatchingAddTaskScope).Tagged(metrics.DomainTag(domainName),
 			metrics.TaskListTag("sticky-tasklist"), metrics.TaskListTypeTag("activity_task"),
 			metrics.MatchingHostTag(e.config.HostName)).IncCounter(metrics.CadenceTasklistRequests)
+		e.logger.Info("Discovered sticky tasklist traffic")
 	}
 
 	tlMgr, err := e.getTaskListManager(taskList, taskListKind)
