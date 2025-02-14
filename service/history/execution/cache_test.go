@@ -121,7 +121,7 @@ func (s *historyCacheSuite) TestHistoryCacheBasic() {
 }
 
 func (s *historyCacheSuite) TestHistoryCachePinning() {
-	s.mockShard.GetConfig().HistoryCacheMaxSize = dynamicconfig.GetIntPropertyFn(2)
+	s.mockShard.GetConfig().HistoryCacheMaxSize = dynamicconfig.GetIntPropertyFn(10)
 	domainID := "test_domain_id"
 	s.cache = NewCache(s.mockShard)
 	we := types.WorkflowExecution{

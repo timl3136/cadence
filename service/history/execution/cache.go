@@ -24,6 +24,7 @@ package execution
 
 import (
 	"context"
+	"reflect"
 	"sync/atomic"
 	"time"
 
@@ -108,6 +109,11 @@ const (
 	cacheReleased    int32 = 1
 )
 
+// GetCacheItemSize returns the size of interface{} using reflect
+func GetCacheItemSize(i interface{}) uint64 {
+	return uint64(reflect.TypeOf(i).Size())
+}
+
 // NewCache creates a new workflow execution context cache
 func NewCache(shard shard.Context) Cache {
 	opts := &cache.Options{}
@@ -115,7 +121,9 @@ func NewCache(shard shard.Context) Cache {
 	opts.InitialCapacity = config.HistoryCacheInitialSize()
 	opts.TTL = config.HistoryCacheTTL()
 	opts.Pin = true
-	opts.MaxCount = config.HistoryCacheMaxSize()
+	opts.MaxSize = uint64(config.HistoryCacheMaxSize())
+
+	opts.GetCacheItemSizeFunc = GetCacheItemSize
 
 	return &cacheImpl{
 		Cache:            cache.New(opts),
