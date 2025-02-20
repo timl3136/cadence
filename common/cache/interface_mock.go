@@ -389,12 +389,11 @@ func (m *MockSizeable) EXPECT() *MockSizeableMockRecorder {
 }
 
 // Size mocks base method.
-func (m *MockSizeable) Size() (uint64, error) {
+func (m *MockSizeable) Size() uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Size")
 	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // Size indicates an expected call of Size.
