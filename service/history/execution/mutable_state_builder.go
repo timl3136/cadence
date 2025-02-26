@@ -1595,7 +1595,7 @@ func (e *mutableStateBuilder) SetHistorySize(size int64) {
 	e.executionStats.HistorySize = size
 }
 
-func (e *mutableStateBuilder) GetEstimatedMutableStateSize() int {
+func (e *mutableStateBuilder) Size() int {
 	// TODO: To be implemented
 	return 0
 }
