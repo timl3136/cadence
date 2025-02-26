@@ -1401,7 +1401,7 @@ func (c *contextImpl) Size() uint64 {
 	size += 512   // MetricsClient estimation
 	size += 256   // ExecutionManager estimation
 	size += 8     // Mutex
-	size += c.mutableState.GetEstimatedMutableStateSize()
+	size += c.mutableState.Size()
 	size += 8 // stats pointer
 
 	size += 18 * 8 // 18 function pointers with 8 bytes each
