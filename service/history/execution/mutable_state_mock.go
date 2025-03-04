@@ -2479,10 +2479,10 @@ func (mr *MockMutableStateMockRecorder) SetVersionHistories(arg0 any) *gomock.Ca
 }
 
 // Size mocks base method.
-func (m *MockMutableState) Size() int {
+func (m *MockMutableState) Size() uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Size")
-	ret0, _ := ret[0].(int)
+	ret0, _ := ret[0].(uint64)
 	return ret0
 }
 
