@@ -65,7 +65,17 @@ func (v *ActivityTaskCancelRequestedEventAttributes) GetActivityID() (o string) 
 
 // Size returns the approximate memory used in bytes
 func (v *ActivityTaskCancelRequestedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24)
+
+	if v.ActivityID != "" {
+		size += uint64(16 + len(v.ActivityID))
+	}
+
+	return size
 }
 
 // ActivityTaskCanceledEventAttributes is an internal type (TBD...)
@@ -87,7 +97,21 @@ func (v *ActivityTaskCanceledEventAttributes) GetScheduledEventID() (o int64) {
 
 // Size returns the approximate memory used in bytes
 func (v *ActivityTaskCanceledEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24)
+
+	if v.Details != nil {
+		size += uint64(len(v.Details))
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	return size
 }
 
 // ActivityTaskCompletedEventAttributes is an internal type (TBD...)
@@ -116,7 +140,21 @@ func (v *ActivityTaskCompletedEventAttributes) GetStartedEventID() (o int64) {
 
 // Size returns the approximate memory used in bytes
 func (v *ActivityTaskCompletedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24)
+
+	if v.Result != nil {
+		size += uint64(len(v.Result))
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	return size
 }
 
 // ActivityTaskFailedEventAttributes is an internal type (TBD...)
@@ -146,7 +184,25 @@ func (v *ActivityTaskFailedEventAttributes) GetStartedEventID() (o int64) {
 
 // Size returns the approximate memory used in bytes
 func (v *ActivityTaskFailedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24)
+
+	if v.Reason != nil {
+		size += uint64(16 + len(*v.Reason))
+	}
+
+	if v.Details != nil {
+		size += uint64(len(v.Details))
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	return size
 }
 
 // ActivityTaskScheduledEventAttributes is an internal type (TBD...)
@@ -231,7 +287,60 @@ func (v *ActivityTaskScheduledEventAttributes) GetHeartbeatTimeoutSeconds() (o i
 
 // Size returns the approximate memory used in bytes
 func (v *ActivityTaskScheduledEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(40)
+
+	if v.ActivityID != "" {
+		size += uint64(16 + len(v.ActivityID))
+	}
+
+	if v.ActivityType != nil {
+		if v.ActivityType.Name != "" {
+			size += uint64(16 + len(v.ActivityType.Name))
+		}
+		size += 8
+	}
+
+	if v.Domain != nil {
+		size += uint64(16 + len(*v.Domain))
+		size += 8
+	}
+
+	if v.TaskList != nil {
+		if v.TaskList.Name != "" {
+			size += uint64(16 + len(v.TaskList.Name))
+		}
+		size += 16
+	}
+
+	if v.Input != nil {
+		size += uint64(len(v.Input))
+	}
+
+	if v.ScheduleToCloseTimeoutSeconds != nil {
+		size += 8
+	}
+	if v.ScheduleToStartTimeoutSeconds != nil {
+		size += 8
+	}
+	if v.StartToCloseTimeoutSeconds != nil {
+		size += 8
+	}
+	if v.HeartbeatTimeoutSeconds != nil {
+		size += 8
+	}
+
+	if v.RetryPolicy != nil {
+		size += 24
+	}
+	if v.Header != nil {
+		size += 16
+	}
+
+	return size
 }
 
 // ActivityTaskStartedEventAttributes is an internal type (TBD...)
@@ -262,7 +371,30 @@ func (v *ActivityTaskStartedEventAttributes) GetRequestID() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *ActivityTaskStartedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24)
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	if v.RequestID != "" {
+		size += uint64(16 + len(v.RequestID))
+	}
+
+	if v.LastFailureReason != nil {
+		size += uint64(16 + len(*v.LastFailureReason))
+		size += 8
+	}
+
+	if v.LastFailureDetails != nil {
+		size += uint64(len(v.LastFailureDetails))
+	}
+
+	return size
 }
 
 // ActivityTaskTimedOutEventAttributes is an internal type (TBD...)
@@ -293,7 +425,29 @@ func (v *ActivityTaskTimedOutEventAttributes) GetTimeoutType() (o TimeoutType) {
 
 // Size returns the approximate memory used in bytes
 func (v *ActivityTaskTimedOutEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24)
+
+	if v.Details != nil {
+		size += uint64(len(v.Details))
+	}
+
+	if v.TimeoutType != nil {
+		size += 8
+	}
+
+	if v.LastFailureReason != nil {
+		size += uint64(16 + len(*v.LastFailureReason))
+	}
+
+	if v.LastFailureDetails != nil {
+		size += uint64(len(v.LastFailureDetails))
+	}
+
+	return size
 }
 
 // ActivityType is an internal type (TBD...)
@@ -474,7 +628,25 @@ type CancelTimerFailedEventAttributes struct {
 
 // Size returns the approximate memory used in bytes
 func (v *CancelTimerFailedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24)
+
+	if v.TimerID != "" {
+		size += uint64(16 + len(v.TimerID))
+	}
+
+	if v.Cause != "" {
+		size += uint64(16 + len(v.Cause))
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	return size
 }
 
 // CancelWorkflowExecutionDecisionAttributes is an internal type (TBD...)
@@ -507,7 +679,38 @@ func (v *ChildWorkflowExecutionCanceledEventAttributes) GetInitiatedEventID() (o
 
 // Size returns the approximate memory used in bytes
 func (v *ChildWorkflowExecutionCanceledEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(40)
+
+	if v.Details != nil {
+		size += uint64(len(v.Details))
+	}
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.WorkflowType != nil {
+		size += 16
+		if v.WorkflowType.Name != "" {
+			size += uint64(16 + len(v.WorkflowType.Name))
+		}
+	}
+
+	return size
 }
 
 // ChildWorkflowExecutionCompletedEventAttributes is an internal type (TBD...)
@@ -530,7 +733,38 @@ func (v *ChildWorkflowExecutionCompletedEventAttributes) GetInitiatedEventID() (
 
 // Size returns the approximate memory used in bytes
 func (v *ChildWorkflowExecutionCompletedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(40)
+
+	if v.Result != nil {
+		size += uint64(len(v.Result))
+	}
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.WorkflowType != nil {
+		size += 16
+		if v.WorkflowType.Name != "" {
+			size += uint64(16 + len(v.WorkflowType.Name))
+		}
+	}
+
+	return size
 }
 
 // ChildWorkflowExecutionFailedCause is an internal type (TBD...)
@@ -598,7 +832,42 @@ func (v *ChildWorkflowExecutionFailedEventAttributes) GetInitiatedEventID() (o i
 
 // Size returns the approximate memory used in bytes
 func (v *ChildWorkflowExecutionFailedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(40)
+
+	if v.Reason != nil {
+		size += uint64(16 + len(*v.Reason))
+	}
+
+	if v.Details != nil {
+		size += uint64(len(v.Details))
+	}
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.WorkflowType != nil {
+		size += 16
+		if v.WorkflowType.Name != "" {
+			size += uint64(16 + len(v.WorkflowType.Name))
+		}
+	}
+
+	return size
 }
 
 // ChildWorkflowExecutionStartedEventAttributes is an internal type (TBD...)
@@ -636,7 +905,38 @@ func (v *ChildWorkflowExecutionStartedEventAttributes) GetWorkflowExecution() (o
 
 // Size returns the approximate memory used in bytes
 func (v *ChildWorkflowExecutionStartedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(32)
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.WorkflowType != nil {
+		size += 16
+		if v.WorkflowType.Name != "" {
+			size += uint64(16 + len(v.WorkflowType.Name))
+		}
+	}
+
+	if v.Header != nil {
+		size += 16
+	}
+
+	return size
 }
 
 // ChildWorkflowExecutionTerminatedEventAttributes is an internal type (TBD...)
@@ -658,7 +958,34 @@ func (v *ChildWorkflowExecutionTerminatedEventAttributes) GetInitiatedEventID() 
 
 // Size returns the approximate memory used in bytes
 func (v *ChildWorkflowExecutionTerminatedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(40)
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.WorkflowType != nil {
+		size += 16
+		if v.WorkflowType.Name != "" {
+			size += uint64(16 + len(v.WorkflowType.Name))
+		}
+	}
+
+	return size
 }
 
 // ChildWorkflowExecutionTimedOutEventAttributes is an internal type (TBD...)
@@ -681,7 +1008,38 @@ func (v *ChildWorkflowExecutionTimedOutEventAttributes) GetInitiatedEventID() (o
 
 // Size returns the approximate memory used in bytes
 func (v *ChildWorkflowExecutionTimedOutEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(40)
+
+	if v.TimeoutType != nil {
+		size += 8
+	}
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.WorkflowType != nil {
+		size += 16
+		if v.WorkflowType.Name != "" {
+			size += uint64(16 + len(v.WorkflowType.Name))
+		}
+	}
+
+	return size
 }
 
 // ClientVersionNotSupportedError is an internal type (TBD...)
@@ -999,7 +1357,25 @@ func (v *DecisionTaskCompletedEventAttributes) GetBinaryChecksum() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *DecisionTaskCompletedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24)
+
+	if v.ExecutionContext != nil {
+		size += uint64(len(v.ExecutionContext))
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	if v.BinaryChecksum != "" {
+		size += uint64(16 + len(v.BinaryChecksum))
+	}
+
+	return size
 }
 
 // DecisionTaskFailedCause is an internal type (TBD...)
@@ -1265,7 +1641,45 @@ func (v *DecisionTaskFailedEventAttributes) GetRequestID() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *DecisionTaskFailedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(40)
+
+	if v.Details != nil {
+		size += uint64(len(v.Details))
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	if v.Reason != nil {
+		size += uint64(16 + len(*v.Reason))
+	}
+
+	if v.BaseRunID != "" {
+		size += uint64(16 + len(v.BaseRunID))
+	}
+
+	if v.NewRunID != "" {
+		size += uint64(16 + len(v.NewRunID))
+	}
+
+	if v.BinaryChecksum != "" {
+		size += uint64(16 + len(v.BinaryChecksum))
+	}
+
+	if v.RequestID != "" {
+		size += uint64(16 + len(v.RequestID))
+	}
+
+	if v.Cause != nil {
+		size += 8
+	}
+
+	return size
 }
 
 // DecisionTaskScheduledEventAttributes is an internal type (TBD...)
@@ -1301,7 +1715,24 @@ func (v *DecisionTaskScheduledEventAttributes) GetAttempt() (o int64) {
 
 // Size returns the approximate memory used in bytes
 func (v *DecisionTaskScheduledEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16)
+
+	if v.TaskList != nil {
+		size += 16
+		if v.TaskList.Name != "" {
+			size += uint64(16 + len(v.TaskList.Name))
+		}
+	}
+
+	if v.StartToCloseTimeoutSeconds != nil {
+		size += 8
+	}
+
+	return size
 }
 
 // DecisionTaskStartedEventAttributes is an internal type (TBD...)
@@ -1329,7 +1760,21 @@ func (v *DecisionTaskStartedEventAttributes) GetRequestID() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *DecisionTaskStartedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16)
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	if v.RequestID != "" {
+		size += uint64(16 + len(v.RequestID))
+	}
+
+	return size
 }
 
 // DecisionTaskTimedOutCause is an internal type (TBD...)
@@ -1454,7 +1899,37 @@ func (v *DecisionTaskTimedOutEventAttributes) GetRequestID() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *DecisionTaskTimedOutEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(32)
+
+	if v.TimeoutType != nil {
+		size += 8
+	}
+
+	if v.BaseRunID != "" {
+		size += uint64(16 + len(v.BaseRunID))
+	}
+
+	if v.NewRunID != "" {
+		size += uint64(16 + len(v.NewRunID))
+	}
+
+	if v.Reason != "" {
+		size += uint64(16 + len(v.Reason))
+	}
+
+	if v.Cause != nil {
+		size += 8
+	}
+
+	if v.RequestID != "" {
+		size += uint64(16 + len(v.RequestID))
+	}
+
+	return size
 }
 
 // DecisionType is an internal type (TBD...)
@@ -2531,7 +3006,27 @@ func (v *ExternalWorkflowExecutionCancelRequestedEventAttributes) GetDomain() (o
 
 // Size returns the approximate memory used in bytes
 func (v *ExternalWorkflowExecutionCancelRequestedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + initiatedEventId
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24 // Struct overhead
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	return size
 }
 
 // ExternalWorkflowExecutionSignaledEventAttributes is an internal type (TBD...)
@@ -2560,7 +3055,31 @@ func (v *ExternalWorkflowExecutionSignaledEventAttributes) GetDomain() (o string
 
 // Size returns the approximate memory used in bytes
 func (v *ExternalWorkflowExecutionSignaledEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + initiatedEventId
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24 // Struct overhead
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.Control != nil {
+		size += uint64(len(v.Control))
+	}
+
+	return size
 }
 
 // FailWorkflowExecutionDecisionAttributes is an internal type (TBD...)
@@ -3803,7 +4322,31 @@ func (v *MarkerRecordedEventAttributes) GetMarkerName() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *MarkerRecordedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + decisionTaskCompletedEventId
+
+	if v.MarkerName != "" {
+		size += uint64(16 + len(v.MarkerName))
+	}
+
+	if v.Details != nil {
+		size += uint64(len(v.Details))
+	}
+
+	if v.Header != nil {
+		size += 16
+		if v.Header.Fields != nil {
+			size += 16
+			for k, v := range v.Header.Fields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	return size
 }
 
 // Memo is an internal type (TBD...)
@@ -4955,7 +5498,21 @@ type RequestCancelActivityTaskFailedEventAttributes struct {
 
 // Size returns the approximate memory used in bytes
 func (v *RequestCancelActivityTaskFailedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + decisionTaskCompletedEventId
+
+	if v.ActivityID != "" {
+		size += uint64(16 + len(v.ActivityID))
+	}
+
+	if v.Cause != "" {
+		size += uint64(16 + len(v.Cause))
+	}
+
+	return size
 }
 
 // RequestCancelExternalWorkflowExecutionDecisionAttributes is an internal type (TBD...)
@@ -4992,8 +5549,36 @@ func (v *RequestCancelExternalWorkflowExecutionDecisionAttributes) GetRunID() (o
 }
 
 // Size returns the approximate memory used in bytes
-func (v *RequestCancelExternalWorkflowExecutionDecisionAttributes) Size() uint64 {
-	return 0
+func (v *RequestCancelExternalWorkflowExecutionFailedEventAttributes) Size() uint64 {
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + decision task and initiated event IDs
+
+	if v.Cause != nil {
+		size += 8
+	}
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24 // Struct overhead
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.Control != nil {
+		size += uint64(len(v.Control))
+	}
+
+	return size
 }
 
 // RequestCancelExternalWorkflowExecutionFailedEventAttributes is an internal type (TBD...)
@@ -5031,8 +5616,32 @@ func (v *RequestCancelExternalWorkflowExecutionFailedEventAttributes) GetInitiat
 }
 
 // Size returns the approximate memory used in bytes
-func (v *RequestCancelExternalWorkflowExecutionFailedEventAttributes) Size() uint64 {
-	return 0
+func (v *RequestCancelExternalWorkflowExecutionInitiatedEventAttributes) Size() uint64 {
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + decisionTaskCompletedEventId
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24 // Struct overhead
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.Control != nil {
+		size += uint64(len(v.Control))
+	}
+
+	return size
 }
 
 // RequestCancelExternalWorkflowExecutionInitiatedEventAttributes is an internal type (TBD...)
@@ -5066,11 +5675,6 @@ func (v *RequestCancelExternalWorkflowExecutionInitiatedEventAttributes) GetChil
 		return v.ChildWorkflowOnly
 	}
 	return
-}
-
-// Size returns the approximate memory used in bytes
-func (v *RequestCancelExternalWorkflowExecutionInitiatedEventAttributes) Size() uint64 {
-	return 0
 }
 
 // RequestCancelWorkflowExecutionRequest is an internal type (TBD...)
@@ -6029,7 +6633,35 @@ func (v *SignalExternalWorkflowExecutionFailedEventAttributes) GetInitiatedEvent
 
 // Size returns the approximate memory used in bytes
 func (v *SignalExternalWorkflowExecutionFailedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + decision task and initiated event IDs
+
+	if v.Cause != nil {
+		size += 8
+	}
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24 // Struct overhead
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.Control != nil {
+		size += uint64(len(v.Control))
+	}
+
+	return size
 }
 
 // SignalExternalWorkflowExecutionInitiatedEventAttributes is an internal type (TBD...)
@@ -6077,7 +6709,39 @@ func (v *SignalExternalWorkflowExecutionInitiatedEventAttributes) GetChildWorkfl
 
 // Size returns the approximate memory used in bytes
 func (v *SignalExternalWorkflowExecutionInitiatedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + decisionTaskCompletedEventId
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowExecution != nil {
+		size += 24 // Struct overhead
+		if v.WorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.WorkflowID))
+		}
+		if v.WorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.WorkflowExecution.RunID))
+		}
+	}
+
+	if v.SignalName != "" {
+		size += uint64(16 + len(v.SignalName))
+	}
+
+	if v.Input != nil {
+		size += uint64(len(v.Input))
+	}
+
+	if v.Control != nil {
+		size += uint64(len(v.Control))
+	}
+
+	return size
 }
 
 // SignalWithStartWorkflowExecutionRequest is an internal type (TBD...)
@@ -6365,7 +7029,36 @@ func (v *StartChildWorkflowExecutionFailedEventAttributes) GetInitiatedEventID()
 
 // Size returns the approximate memory used in bytes
 func (v *StartChildWorkflowExecutionFailedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + decision task and initiated event IDs
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowID != "" {
+		size += uint64(16 + len(v.WorkflowID))
+	}
+
+	if v.WorkflowType != nil {
+		size += 16 // Struct overhead
+		if v.WorkflowType.Name != "" {
+			size += uint64(16 + len(v.WorkflowType.Name))
+		}
+	}
+
+	if v.Cause != nil {
+		size += 8
+	}
+
+	if v.Control != nil {
+		size += uint64(len(v.Control))
+	}
+
+	return size
 }
 
 // StartChildWorkflowExecutionInitiatedEventAttributes is an internal type (TBD...)
@@ -6433,7 +7126,97 @@ func (v *StartChildWorkflowExecutionInitiatedEventAttributes) GetExecutionStartT
 
 // Size returns the approximate memory used in bytes
 func (v *StartChildWorkflowExecutionInitiatedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(48) // Base struct size + decisionTaskCompletedEventId + various int fields
+
+	if v.Domain != "" {
+		size += uint64(16 + len(v.Domain))
+	}
+
+	if v.WorkflowID != "" {
+		size += uint64(16 + len(v.WorkflowID))
+	}
+
+	if v.WorkflowType != nil {
+		size += 16 // Struct overhead
+		if v.WorkflowType.Name != "" {
+			size += uint64(16 + len(v.WorkflowType.Name))
+		}
+	}
+
+	if v.TaskList != nil {
+		size += 16 // Struct overhead
+		if v.TaskList.Name != "" {
+			size += uint64(16 + len(v.TaskList.Name))
+		}
+	}
+
+	if v.Input != nil {
+		size += uint64(len(v.Input))
+	}
+
+	if v.ExecutionStartToCloseTimeoutSeconds != nil {
+		size += 8
+	}
+
+	if v.TaskStartToCloseTimeoutSeconds != nil {
+		size += 8
+	}
+
+	if v.ParentClosePolicy != nil {
+		size += 8
+	}
+
+	if v.Control != nil {
+		size += uint64(len(v.Control))
+	}
+
+	if v.WorkflowIDReusePolicy != nil {
+		size += 8
+	}
+
+	if v.RetryPolicy != nil {
+		size += 40 // Approximate size for retry policy struct
+	}
+
+	if v.CronSchedule != "" {
+		size += uint64(16 + len(v.CronSchedule))
+	}
+
+	if v.Header != nil {
+		size += 16
+		if v.Header.Fields != nil {
+			size += 16
+			for k, v := range v.Header.Fields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	if v.Memo != nil {
+		size += 16
+		if v.Memo.Fields != nil {
+			size += 16
+			for k, v := range v.Memo.Fields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	if v.SearchAttributes != nil {
+		size += 16
+		if v.SearchAttributes.IndexedFields != nil {
+			size += 16
+			for k, v := range v.SearchAttributes.IndexedFields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	return size
 }
 
 // StartTimeFilter is an internal type (TBD...)
@@ -7078,7 +7861,21 @@ func (v *TimerCanceledEventAttributes) GetTimerID() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *TimerCanceledEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + startedEventId + decisionTaskCompletedEventId
+
+	if v.TimerID != "" {
+		size += uint64(16 + len(v.TimerID))
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	return size
 }
 
 // TimerFiredEventAttributes is an internal type (TBD...)
@@ -7105,7 +7902,17 @@ func (v *TimerFiredEventAttributes) GetStartedEventID() (o int64) {
 
 // Size returns the approximate memory used in bytes
 func (v *TimerFiredEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16) // Base struct size + startedEventId
+
+	if v.TimerID != "" {
+		size += uint64(16 + len(v.TimerID))
+	}
+
+	return size
 }
 
 // TimerStartedEventAttributes is an internal type (TBD...)
@@ -7133,7 +7940,17 @@ func (v *TimerStartedEventAttributes) GetStartToFireTimeoutSeconds() (o int64) {
 
 // Size returns the approximate memory used in bytes
 func (v *TimerStartedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(24) // Base struct size + startToFireTimeoutSeconds + decisionTaskCompletedEventId
+
+	if v.TimerID != "" {
+		size += uint64(16 + len(v.TimerID))
+	}
+
+	return size
 }
 
 // TransientDecisionInfo is an internal type (TBD...)
@@ -7256,7 +8073,23 @@ func (v *UpsertWorkflowSearchAttributesEventAttributes) GetSearchAttributes() (o
 
 // Size returns the approximate memory used in bytes
 func (v *UpsertWorkflowSearchAttributesEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16) // Base struct size + decisionTaskCompletedEventId
+
+	if v.SearchAttributes != nil {
+		size += 16
+		if v.SearchAttributes.IndexedFields != nil {
+			size += 16
+			for k, v := range v.SearchAttributes.IndexedFields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	return size
 }
 
 // VersionHistories is an internal type (TBD...)
@@ -7371,7 +8204,31 @@ type WorkflowExecutionCancelRequestedEventAttributes struct {
 
 // Size returns the approximate memory used in bytes
 func (v *WorkflowExecutionCancelRequestedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16) // Base struct size
+
+	if v.Cause != "" {
+		size += uint64(16 + len(v.Cause))
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	if v.ExternalWorkflowExecution != nil {
+		size += 24 // Struct overhead
+		if v.ExternalWorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.ExternalWorkflowExecution.WorkflowID))
+		}
+		if v.ExternalWorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.ExternalWorkflowExecution.RunID))
+		}
+	}
+
+	return size
 }
 
 // WorkflowExecutionCanceledEventAttributes is an internal type (TBD...)
@@ -7382,7 +8239,17 @@ type WorkflowExecutionCanceledEventAttributes struct {
 
 // Size returns the approximate memory used in bytes
 func (v *WorkflowExecutionCanceledEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16) // Base struct size + decisionTaskCompletedEventId
+
+	if v.Details != nil {
+		size += uint64(len(v.Details))
+	}
+
+	return size
 }
 
 // WorkflowExecutionCloseStatus is an internal type (TBD...)
@@ -7472,7 +8339,17 @@ type WorkflowExecutionCompletedEventAttributes struct {
 
 // Size returns the approximate memory used in bytes
 func (v *WorkflowExecutionCompletedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16) // Base struct size + decisionTaskCompletedEventId
+
+	if v.Result != nil {
+		size += uint64(len(v.Result))
+	}
+
+	return size
 }
 
 // WorkflowExecutionConfiguration is an internal type (TBD...)
@@ -7536,7 +8413,95 @@ func (v *WorkflowExecutionContinuedAsNewEventAttributes) GetLastCompletionResult
 
 // Size returns the approximate memory used in bytes
 func (v *WorkflowExecutionContinuedAsNewEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(48) // Base struct size + various int fields
+
+	if v.NewExecutionRunID != "" {
+		size += uint64(16 + len(v.NewExecutionRunID))
+	}
+
+	if v.WorkflowType != nil {
+		size += 16 // Struct overhead
+		if v.WorkflowType.Name != "" {
+			size += uint64(16 + len(v.WorkflowType.Name))
+		}
+	}
+
+	if v.TaskList != nil {
+		size += 16 // Struct overhead
+		if v.TaskList.Name != "" {
+			size += uint64(16 + len(v.TaskList.Name))
+		}
+	}
+
+	if v.Input != nil {
+		size += uint64(len(v.Input))
+	}
+
+	if v.ExecutionStartToCloseTimeoutSeconds != nil {
+		size += 8
+	}
+
+	if v.TaskStartToCloseTimeoutSeconds != nil {
+		size += 8
+	}
+
+	if v.DecisionTaskCompletedEventID != 0 {
+		size += 8
+	}
+
+	if v.BackoffStartIntervalInSeconds != nil {
+		size += 8
+	}
+
+	if v.Initiator != nil {
+		size += 8
+	}
+
+	if v.FailureReason != nil {
+		size += 8
+	}
+
+	size += uint64(len(v.FailureDetails))
+
+	if v.LastCompletionResult != nil {
+		size += uint64(len(v.LastCompletionResult))
+	}
+
+	if v.Header != nil {
+		size += 16
+		if v.Header.Fields != nil {
+			size += 16
+			for k, v := range v.Header.Fields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	if v.Memo != nil {
+		size += 16
+		if v.Memo.Fields != nil {
+			size += 16
+			for k, v := range v.Memo.Fields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	if v.SearchAttributes != nil {
+		size += 16
+		if v.SearchAttributes.IndexedFields != nil {
+			size += 16
+			for k, v := range v.SearchAttributes.IndexedFields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	return size
 }
 
 // WorkflowExecutionFailedEventAttributes is an internal type (TBD...)
@@ -7556,7 +8521,21 @@ func (v *WorkflowExecutionFailedEventAttributes) GetReason() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *WorkflowExecutionFailedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16) // Base struct size + decisionTaskCompletedEventId
+
+	if v.Reason != nil {
+		size += uint64(16 + len(*v.Reason))
+	}
+
+	if v.Details != nil {
+		size += uint64(len(v.Details))
+	}
+
+	return size
 }
 
 // WorkflowExecutionFilter is an internal type (TBD...)
@@ -7709,7 +8688,25 @@ func (v *WorkflowExecutionSignaledEventAttributes) GetRequestID() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *WorkflowExecutionSignaledEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16) // Base struct size
+
+	if v.SignalName != "" {
+		size += uint64(16 + len(v.SignalName))
+	}
+
+	if v.Input != nil {
+		size += uint64(len(v.Input))
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	return size
 }
 
 // WorkflowExecutionStartedEventAttributes is an internal type (TBD...)
@@ -7891,7 +8888,123 @@ func (v *WorkflowExecutionStartedEventAttributes) GetRequestID() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *WorkflowExecutionStartedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(64) // Base struct size + various int fields
+
+	if v.WorkflowType != nil {
+		size += 16 // Struct overhead
+		if v.WorkflowType.Name != "" {
+			size += uint64(16 + len(v.WorkflowType.Name))
+		}
+	}
+
+	if v.ParentWorkflowDomain != nil {
+		size += uint64(16 + len(*v.ParentWorkflowDomain))
+	}
+
+	if v.ParentWorkflowExecution != nil {
+		size += 24 // Struct overhead
+		if v.ParentWorkflowExecution.WorkflowID != "" {
+			size += uint64(16 + len(v.ParentWorkflowExecution.WorkflowID))
+		}
+		if v.ParentWorkflowExecution.RunID != "" {
+			size += uint64(16 + len(v.ParentWorkflowExecution.RunID))
+		}
+	}
+
+	if v.TaskList != nil {
+		size += 16 // Struct overhead
+		if v.TaskList.Name != "" {
+			size += uint64(16 + len(v.TaskList.Name))
+		}
+	}
+
+	if v.Input != nil {
+		size += uint64(len(v.Input))
+	}
+
+	if v.ExecutionStartToCloseTimeoutSeconds != nil {
+		size += 8
+	}
+
+	if v.TaskStartToCloseTimeoutSeconds != nil {
+		size += 8
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	if v.RequestID != "" {
+		size += uint64(16 + len(v.RequestID))
+	}
+
+	if v.ContinuedExecutionRunID != "" {
+		size += uint64(16 + len(v.ContinuedExecutionRunID))
+	}
+
+	if v.Initiator != nil {
+		size += 8
+	}
+
+	if v.ContinuedFailureReason != nil {
+		size += uint64(16 + len(*v.ContinuedFailureReason))
+	}
+
+	if v.ContinuedFailureDetails != nil {
+		size += uint64(len(v.ContinuedFailureDetails))
+	}
+
+	if v.LastCompletionResult != nil {
+		size += uint64(len(v.LastCompletionResult))
+	}
+
+	if v.CronSchedule != "" {
+		size += uint64(16 + len(v.CronSchedule))
+	}
+
+	if v.FirstDecisionTaskBackoffSeconds != nil {
+		size += 8
+	}
+
+	if v.Memo != nil {
+		size += 16
+		if v.Memo.Fields != nil {
+			size += 16
+			for k, v := range v.Memo.Fields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	if v.SearchAttributes != nil {
+		size += 16
+		if v.SearchAttributes.IndexedFields != nil {
+			size += 16
+			for k, v := range v.SearchAttributes.IndexedFields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	if v.PrevAutoResetPoints != nil {
+		size += 24
+	}
+
+	if v.Header != nil {
+		size += 16
+		if v.Header.Fields != nil {
+			size += 16
+			for k, v := range v.Header.Fields {
+				size += uint64(16 + len(k) + len(v))
+			}
+		}
+	}
+
+	return size
 }
 
 // WorkflowExecutionTerminatedEventAttributes is an internal type (TBD...)
@@ -7919,7 +9032,25 @@ func (v *WorkflowExecutionTerminatedEventAttributes) GetIdentity() (o string) {
 
 // Size returns the approximate memory used in bytes
 func (v *WorkflowExecutionTerminatedEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16) // Base struct size
+
+	if v.Reason != "" {
+		size += uint64(16 + len(v.Reason))
+	}
+
+	if v.Details != nil {
+		size += uint64(len(v.Details))
+	}
+
+	if v.Identity != "" {
+		size += uint64(16 + len(v.Identity))
+	}
+
+	return size
 }
 
 // WorkflowExecutionTimedOutEventAttributes is an internal type (TBD...)
@@ -7937,7 +9068,17 @@ func (v *WorkflowExecutionTimedOutEventAttributes) GetTimeoutType() (o TimeoutTy
 
 // Size returns the approximate memory used in bytes
 func (v *WorkflowExecutionTimedOutEventAttributes) Size() uint64 {
-	return 0
+	if v == nil {
+		return 0
+	}
+
+	size := uint64(16) // Base struct size
+
+	if v.TimeoutType != nil {
+		size += 8
+	}
+
+	return size
 }
 
 // WorkflowIDReusePolicy is an internal type (TBD...)
