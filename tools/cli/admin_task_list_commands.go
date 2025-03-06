@@ -30,7 +30,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/uber/cadence/client/frontend"
-	"github.com/uber/cadence/common"
+	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/types"
 	"github.com/uber/cadence/tools/common/commoncli"
 )
@@ -282,5 +282,5 @@ func getPartitionTaskListName(root string, partition int) string {
 	if partition <= 0 {
 		return root
 	}
-	return fmt.Sprintf("%v%v/%v", common.ReservedTaskListPrefix, root, partition)
+	return fmt.Sprintf("%v%v/%v", constants.ReservedTaskListPrefix, root, partition)
 }
