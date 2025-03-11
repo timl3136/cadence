@@ -163,7 +163,7 @@ type (
 			now time.Time,
 		) error
 
-		Size() uint64
+		cache.Sizeable
 	}
 )
 
