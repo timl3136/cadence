@@ -157,9 +157,8 @@ func New(opts *Options) Cache {
 		rmFunc:        opts.RemovedFunc,
 		activelyEvict: opts.ActivelyEvict,
 		timeSource:    timeSource,
+		isSizeBased:   opts.IsSizeBased,
 	}
-
-	cache.isSizeBased = opts.GetCacheItemSizeFunc != nil && opts.MaxSize > 0
 
 	if cache.isSizeBased {
 		cache.sizeFunc = opts.GetCacheItemSizeFunc
@@ -308,8 +307,7 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 						oldest := c.byAccess.Back().Value.(*entryImpl)
 						if oldest.refCount > 0 {
 							// Cache is full with pinned elements
-							// revert the update and return
-							entry.value = existing
+							// we don't update
 							return existing, ErrCacheFull
 						}
 						c.deleteInternal(c.byAccess.Back())
