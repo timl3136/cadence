@@ -294,11 +294,9 @@ func (s sizeableValue) Size() uint64 {
 
 func TestLRU_SizeBased_SizeExceeded(t *testing.T) {
 	cache := New(&Options{
-		MaxCount: 5,
-		GetCacheItemSizeFunc: func(value interface{}) uint64 {
-			return value.(sizeableValue).Size()
-		},
-		MaxSize: 15,
+		MaxCount:    5,
+		IsSizeBased: true,
+		MaxSize:     15,
 	})
 
 	fooValue := sizeableValue{val: "Foo", size: 5}
@@ -344,11 +342,9 @@ func TestLRU_SizeBased_SizeExceeded(t *testing.T) {
 
 func TestLRU_SizeBased_CountExceeded(t *testing.T) {
 	cache := New(&Options{
-		MaxCount: 5,
-		GetCacheItemSizeFunc: func(interface{}) uint64 {
-			return 5
-		},
-		MaxSize: 0,
+		MaxCount:    5,
+		IsSizeBased: true,
+		MaxSize:     10000,
 	})
 
 	fooValue := sizeableValue{val: "Foo", size: 5}
@@ -377,10 +373,10 @@ func TestLRU_SizeBased_CountExceeded(t *testing.T) {
 
 	epsiValue := sizeableValue{val: "Epsi", size: 5}
 	cache.Put("E", epsiValue)
-	assert.Nil(t, cache.Get("B"))
+	assert.Equal(t, barValue, cache.Get("B"))
 	assert.Equal(t, epsiValue, cache.Get("E"))
 	assert.Equal(t, foo2Value, cache.Get("A"))
-	assert.Equal(t, 4, cache.Size())
+	assert.Equal(t, 5, cache.Size())
 }
 
 func TestPanicMaxCountAndSizeNotProvided(t *testing.T) {
