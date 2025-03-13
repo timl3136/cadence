@@ -1395,14 +1395,13 @@ func (c *contextImpl) Size() uint64 {
 
 	size += len(c.workflowExecution.GetWorkflowID()) + len(c.workflowExecution.GetRunID())
 	size += 3 * common.StringSizeOverheadBytes
-	size += int(c.shard.Size())
 
 	size += 3 * 8 // logger
 	size += 512   // MetricsClient estimation
 	size += 256   // ExecutionManager estimation
 	size += 8     // Mutex
-	size += int(c.mutableState.Size())
-	size += 8 // stats pointer
+	size += 1024  // Mutable-state estimation
+	size += 8     // stats pointer
 
 	size += 18 * 8 // 18 function pointers with 8 bytes each
 	return uint64(size)
