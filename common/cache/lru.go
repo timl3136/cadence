@@ -27,6 +27,8 @@ import (
 	"time"
 
 	"github.com/uber/cadence/common/clock"
+	"github.com/uber/cadence/common/log"
+	"github.com/uber/cadence/common/log/tag"
 )
 
 var (
@@ -55,6 +57,7 @@ type (
 		activelyEvict bool
 		// We use this instead of time.Now() in order to make testing easier
 		timeSource clock.TimeSource
+		logger     log.Logger
 	}
 
 	iteratorImpl struct {
@@ -139,7 +142,7 @@ func (entry *entryImpl) CreateTime() time.Time {
 }
 
 // New creates a new cache with the given options
-func New(opts *Options) Cache {
+func New(opts *Options, logger log.Logger) Cache {
 	if opts == nil || (opts.MaxCount <= 0 && (opts.MaxSize <= 0 || opts.GetCacheItemSizeFunc == nil)) {
 		panic("Either MaxCount (count based) or " +
 			"MaxSize and GetCacheItemSizeFunc (size based) options must be provided for the LRU cache")
@@ -149,6 +152,10 @@ func New(opts *Options) Cache {
 	if timeSource == nil {
 		timeSource = clock.NewRealTimeSource()
 	}
+	if logger == nil {
+		logger = log.NewNoop()
+	}
+
 	cache := &lru{
 		byAccess:      list.New(),
 		byKey:         make(map[interface{}]*list.Element, opts.InitialCapacity),
@@ -157,6 +164,7 @@ func New(opts *Options) Cache {
 		rmFunc:        opts.RemovedFunc,
 		activelyEvict: opts.ActivelyEvict,
 		timeSource:    timeSource,
+		logger:        logger,
 		isSizeBased:   opts.IsSizeBased,
 	}
 
@@ -171,6 +179,16 @@ func New(opts *Options) Cache {
 			return 0
 		}
 	}
+
+	cache.logger.Info("LRU cache initialized",
+		tag.Value(map[string]interface{}{
+			"isSizeBased":     cache.isSizeBased,
+			"initialCapacity": opts.InitialCapacity,
+			"maxCount":        opts.MaxCount,
+			"maxSize":         opts.MaxSize,
+		}),
+	)
+
 	return cache
 }
 
