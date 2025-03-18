@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/uber/cadence/common/clock"
+	"github.com/uber/cadence/common/dynamicconfig"
 )
 
 type keyType struct {
@@ -296,7 +297,7 @@ func TestLRU_SizeBased_SizeExceeded(t *testing.T) {
 	cache := New(&Options{
 		MaxCount:    5,
 		IsSizeBased: true,
-		MaxSize:     15,
+		MaxSize:     dynamicconfig.GetIntPropertyFn(15),
 	}, nil)
 
 	fooValue := sizeableValue{val: "Foo", size: 5}
@@ -344,7 +345,7 @@ func TestLRU_SizeBased_CountExceeded(t *testing.T) {
 	cache := New(&Options{
 		MaxCount:    5,
 		IsSizeBased: true,
-		MaxSize:     10000,
+		MaxSize:     dynamicconfig.GetIntPropertyFn(10000),
 	}, nil)
 
 	fooValue := sizeableValue{val: "Foo", size: 5}
@@ -403,7 +404,7 @@ func TestPanicMaxCountAndSizeFuncNotProvided(t *testing.T) {
 
 	New(&Options{
 		TTL:     time.Millisecond * 100,
-		MaxSize: 25,
+		MaxSize: dynamicconfig.GetIntPropertyFn(25),
 	}, nil)
 }
 
