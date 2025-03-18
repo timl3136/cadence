@@ -27,6 +27,7 @@ import (
 
 	"github.com/uber/cadence/common"
 	"github.com/uber/cadence/common/clock"
+	"github.com/uber/cadence/common/dynamicconfig"
 	"github.com/uber/cadence/common/metrics"
 )
 
@@ -77,10 +78,10 @@ type Options struct {
 	// It is required option if MaxSize is not provided
 	MaxCount int
 
-	// MaxSize is an optional and must be set along with GetCacheItemSizeFunc
+	// MaxSize is an optional flag, but it has to be used along with a value that implements Sizeable() interface
 	// to control the max size in bytes of the cache
 	// It is required option if MaxCount is not provided
-	MaxSize uint64
+	MaxSize dynamicconfig.IntPropertyFn
 
 	// ActivelyEvict will evict items that has expired TTL at every operation in the cache
 	// This can be expensive if a lot of items expire at the same time
