@@ -23,6 +23,7 @@ package cache
 import (
 	"container/list"
 	"errors"
+	"github.com/uber/cadence/common/dynamicconfig"
 	"sync"
 	"time"
 
@@ -39,6 +40,9 @@ var (
 // upper limit to prevent infinite growing
 const cacheCountLimit = 1 << 25
 
+// default size limit for size based cache if not defined (1 GB)
+const cacheDefaultSizeLimit = 1 << 30
+
 // lru is a concurrent fixed size cache that evicts elements in lru order
 type (
 	lru struct {
@@ -50,7 +54,7 @@ type (
 		pin           bool
 		rmFunc        RemovedFunc
 		sizeFunc      GetCacheItemSizeFunc
-		maxSize       uint64
+		maxSize       dynamicconfig.IntPropertyFn
 		currSize      uint64
 		sizeByKey     map[interface{}]uint64
 		isSizeBased   bool
@@ -143,7 +147,7 @@ func (entry *entryImpl) CreateTime() time.Time {
 
 // New creates a new cache with the given options
 func New(opts *Options, logger log.Logger) Cache {
-	if opts == nil || (opts.MaxCount <= 0 && (opts.MaxSize <= 0 || opts.GetCacheItemSizeFunc == nil)) {
+	if opts == nil || (opts.MaxCount <= 0 && (opts.MaxSize() <= 0 || opts.GetCacheItemSizeFunc == nil)) {
 		panic("Either MaxCount (count based) or " +
 			"MaxSize and GetCacheItemSizeFunc (size based) options must be provided for the LRU cache")
 	}
@@ -171,10 +175,15 @@ func New(opts *Options, logger log.Logger) Cache {
 	if cache.isSizeBased {
 		cache.sizeFunc = opts.GetCacheItemSizeFunc
 		cache.maxSize = opts.MaxSize
+		if cache.maxSize == nil {
+			// If maxSize is not defined for size-based cache, set default to cacheCountLimit
+			cache.maxSize = dynamicconfig.GetIntPropertyFn(cacheDefaultSizeLimit)
+		}
 		cache.sizeByKey = make(map[interface{}]uint64, opts.InitialCapacity)
 	} else {
 		// cache is count based if max size and sizeFunc are not provided
 		cache.maxCount = opts.MaxCount
+		cache.maxSize = dynamicconfig.GetIntPropertyFn(0)
 		cache.sizeFunc = func(interface{}) uint64 {
 			return 0
 		}
@@ -182,10 +191,9 @@ func New(opts *Options, logger log.Logger) Cache {
 
 	cache.logger.Info("LRU cache initialized",
 		tag.Value(map[string]interface{}{
-			"isSizeBased":     cache.isSizeBased,
-			"initialCapacity": opts.InitialCapacity,
-			"maxCount":        opts.MaxCount,
-			"maxSize":         opts.MaxSize,
+			"isSizeBased": cache.isSizeBased,
+			"maxCount":    cache.maxCount,
+			"maxSize":     cache.maxSize(),
 		}),
 	)
 
@@ -392,8 +400,8 @@ func (c *lru) isEntryExpired(entry *entryImpl, currentTime time.Time) bool {
 
 func (c *lru) isCacheFull() bool {
 	count := len(c.byKey)
-	// if the value size is greater than maxSize(should never happen) then the item wont be cached
-	return (!c.isSizeBased && count == c.maxCount) || c.currSize > c.maxSize || count > cacheCountLimit
+	// if the value size is greater than maxSize(should never happen) then the item won't be cached
+	return (!c.isSizeBased && count == c.maxCount) || c.currSize > uint64(c.maxSize()) || count > cacheCountLimit
 }
 
 func (c *lru) updateSizeOnAdd(key interface{}, valueSize uint64) {
