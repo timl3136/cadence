@@ -23,6 +23,7 @@ package events
 import (
 	"context"
 	"errors"
+	"github.com/uber/cadence/common/dynamicconfig"
 	"testing"
 	"time"
 
