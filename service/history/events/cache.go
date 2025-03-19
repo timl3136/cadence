@@ -147,6 +147,7 @@ func newCacheWithOption(
 	opts.InitialCapacity = initialCount
 	opts.TTL = ttl
 	opts.MaxCount = maxCount
+	opts.MaxSize = maxSize
 
 	if maxSize() > 0 {
 		opts.MaxSize = maxSize
@@ -154,6 +155,7 @@ func newCacheWithOption(
 			return common.GetSizeOfHistoryEvent(event.(*types.HistoryEvent))
 		}
 	}
+	logger.Info("LRU cache initialized (events)")
 	return &cacheImpl{
 		Cache:          cache.New(opts, logger.WithTags(tag.ComponentEventsCache)),
 		domainCache:    domainCache,

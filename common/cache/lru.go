@@ -156,9 +156,6 @@ func New(opts *Options, logger log.Logger) Cache {
 	if timeSource == nil {
 		timeSource = clock.NewRealTimeSource()
 	}
-	if logger == nil {
-		logger = log.NewNoop()
-	}
 
 	cache := &lru{
 		byAccess:      list.New(),
@@ -176,6 +173,9 @@ func New(opts *Options, logger log.Logger) Cache {
 		cache.sizeFunc = opts.GetCacheItemSizeFunc
 		cache.maxSize = opts.MaxSize
 		if cache.maxSize == nil {
+			if cache.logger != nil {
+				cache.logger.Info("LRU cache MaxSize1")
+			}
 			// If maxSize is not defined for size-based cache, set default to cacheCountLimit
 			cache.maxSize = dynamicconfig.GetIntPropertyFn(cacheDefaultSizeLimit)
 		}
@@ -186,6 +186,9 @@ func New(opts *Options, logger log.Logger) Cache {
 		cache.maxSize = opts.MaxSize
 		if cache.maxSize == nil {
 			// If maxSize is not defined for size-based cache, set default to cacheCountLimit
+			if cache.logger != nil {
+				cache.logger.Info("LRU cache MaxSize2")
+			}
 			cache.maxSize = dynamicconfig.GetIntPropertyFn(cacheDefaultSizeLimit)
 		}
 		cache.sizeFunc = func(interface{}) uint64 {
@@ -193,13 +196,15 @@ func New(opts *Options, logger log.Logger) Cache {
 		}
 	}
 
-	cache.logger.Info("LRU cache initialized",
-		tag.Value(map[string]interface{}{
-			"isSizeBased": cache.isSizeBased,
-			"maxCount":    cache.maxCount,
-			"maxSize":     cache.maxSize(),
-		}),
-	)
+	if cache.logger != nil {
+		cache.logger.Info("LRU cache initialized",
+			tag.Value(map[string]interface{}{
+				"isSizeBased": cache.isSizeBased,
+				"maxCount":    cache.maxCount,
+				"maxSize":     cache.maxSize(),
+			}),
+		)
+	}
 
 	return cache
 }

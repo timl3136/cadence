@@ -118,6 +118,7 @@ func NewCache(shard shard.Context) Cache {
 	opts.MaxCount = config.HistoryCacheMaxSize()
 	opts.MaxSize = config.HistoryCacheMaxSize
 
+	shard.GetLogger().Info("LRU cache initialized (execution)")
 	return &cacheImpl{
 		Cache:            cache.New(opts, shard.GetLogger().WithTags(tag.ComponentHistoryCache)),
 		shard:            shard,
