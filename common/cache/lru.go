@@ -183,7 +183,11 @@ func New(opts *Options, logger log.Logger) Cache {
 	} else {
 		// cache is count based if max size and sizeFunc are not provided
 		cache.maxCount = opts.MaxCount
-		cache.maxSize = dynamicconfig.GetIntPropertyFn(0)
+		cache.maxSize = opts.MaxSize
+		if cache.maxSize == nil {
+			// If maxSize is not defined for size-based cache, set default to cacheCountLimit
+			cache.maxSize = dynamicconfig.GetIntPropertyFn(cacheDefaultSizeLimit)
+		}
 		cache.sizeFunc = func(interface{}) uint64 {
 			return 0
 		}
