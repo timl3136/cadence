@@ -21,7 +21,6 @@
 package cache
 
 import (
-	"github.com/uber/cadence/common/dynamicconfig"
 	"sync"
 	"testing"
 	"time"

@@ -24,7 +24,6 @@ package events
 
 import (
 	"context"
-	"github.com/uber/cadence/common/dynamicconfig"
 	"time"
 
 	"github.com/uber/cadence/common"

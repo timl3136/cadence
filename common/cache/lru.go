@@ -23,7 +23,6 @@ package cache
 import (
 	"container/list"
 	"errors"
-	"github.com/uber/cadence/common/dynamicconfig"
 	"sync"
 	"time"
 

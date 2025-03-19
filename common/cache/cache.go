@@ -23,7 +23,6 @@
 package cache
 
 import (
-	"github.com/uber/cadence/common/dynamicconfig"
 	"time"
 
 	"github.com/uber/cadence/common"
