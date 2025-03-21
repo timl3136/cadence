@@ -35,7 +35,7 @@ import (
 	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/clock"
 	"github.com/uber/cadence/common/cluster"
-	constants2 "github.com/uber/cadence/common/constants"
+	commonconstants "github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/mocks"
 	"github.com/uber/cadence/common/ndc"
@@ -532,7 +532,7 @@ func (s *timerStandbyTaskExecutorSuite) TestProcessActivityTimeout_Multiple_CanU
 			},
 			NewWorkflowSnapshot: nil,
 			WorkflowRequestMode: persistence.CreateWorkflowRequestModeReplicated,
-			Encoding:            constants2.EncodingType(s.mockShard.GetConfig().EventEncodingType(s.domainID)),
+			Encoding:            commonconstants.EncodingType(s.mockShard.GetConfig().EventEncodingType(s.domainID)),
 			DomainName:          constants.TestDomainName,
 		}, input)
 		return true

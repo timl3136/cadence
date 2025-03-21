@@ -41,7 +41,7 @@ import (
 	"github.com/uber/cadence/common/clock"
 	"github.com/uber/cadence/common/cluster"
 	commonConfig "github.com/uber/cadence/common/config"
-	constants2 "github.com/uber/cadence/common/constants"
+	commonconstants "github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/definition"
 	"github.com/uber/cadence/common/dynamicconfig"
 	"github.com/uber/cadence/common/log"
@@ -303,9 +303,9 @@ func (s *mutableStateSuite) TestReorderEvents() {
 		NextEventID:                 int64(8),
 		LastProcessedEvent:          int64(3),
 		LastUpdatedTimestamp:        time.Now(),
-		DecisionVersion:             constants2.EmptyVersion,
-		DecisionScheduleID:          constants2.EmptyEventID,
-		DecisionStartedID:           constants2.EmptyEventID,
+		DecisionVersion:             commonconstants.EmptyVersion,
+		DecisionScheduleID:          commonconstants.EmptyEventID,
+		DecisionStartedID:           commonconstants.EmptyEventID,
 		DecisionTimeout:             100,
 	}
 
@@ -314,7 +314,7 @@ func (s *mutableStateSuite) TestReorderEvents() {
 			Version:                int64(1),
 			ScheduleID:             int64(5),
 			ScheduledTime:          time.Now(),
-			StartedID:              constants2.EmptyEventID,
+			StartedID:              commonconstants.EmptyEventID,
 			StartedTime:            time.Now(),
 			ActivityID:             activityID,
 			ScheduleToStartTimeout: 100,
@@ -326,17 +326,17 @@ func (s *mutableStateSuite) TestReorderEvents() {
 
 	bufferedEvents := []*types.HistoryEvent{
 		{
-			ID:        constants2.BufferedEventID,
+			ID:        commonconstants.BufferedEventID,
 			EventType: types.EventTypeActivityTaskCompleted.Ptr(),
 			Version:   1,
 			ActivityTaskCompletedEventAttributes: &types.ActivityTaskCompletedEventAttributes{
 				Result:           []byte(activityResult),
 				ScheduledEventID: 5,
-				StartedEventID:   constants2.BufferedEventID,
+				StartedEventID:   commonconstants.BufferedEventID,
 			},
 		},
 		{
-			ID:        constants2.BufferedEventID,
+			ID:        commonconstants.BufferedEventID,
 			EventType: types.EventTypeActivityTaskStarted.Ptr(),
 			Version:   1,
 			ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
@@ -858,7 +858,7 @@ func (s *mutableStateSuite) TestUpdateCurrentVersion_WorkflowOpen() {
 	mutableState := s.buildWorkflowMutableState()
 
 	s.msBuilder.Load(mutableState)
-	s.Equal(constants2.EmptyVersion, s.msBuilder.GetCurrentVersion())
+	s.Equal(commonconstants.EmptyVersion, s.msBuilder.GetCurrentVersion())
 
 	version := int64(2000)
 	s.msBuilder.UpdateCurrentVersion(version, false)
@@ -871,7 +871,7 @@ func (s *mutableStateSuite) TestUpdateCurrentVersion_WorkflowClosed() {
 	mutableState.ExecutionInfo.CloseStatus = persistence.WorkflowCloseStatusCompleted
 
 	s.msBuilder.Load(mutableState)
-	s.Equal(constants2.EmptyVersion, s.msBuilder.GetCurrentVersion())
+	s.Equal(commonconstants.EmptyVersion, s.msBuilder.GetCurrentVersion())
 
 	versionHistory, err := mutableState.VersionHistories.GetCurrentVersionHistory()
 	s.NoError(err)
@@ -924,8 +924,8 @@ func (s *mutableStateSuite) buildWorkflowMutableState() *persistence.WorkflowMut
 		LastProcessedEvent:          int64(99),
 		LastUpdatedTimestamp:        time.Now(),
 		DecisionVersion:             failoverVersion,
-		DecisionScheduleID:          constants2.EmptyEventID,
-		DecisionStartedID:           constants2.EmptyEventID,
+		DecisionScheduleID:          commonconstants.EmptyEventID,
+		DecisionStartedID:           commonconstants.EmptyEventID,
 		DecisionTimeout:             100,
 		PartitionConfig:             partitionConfig,
 	}
@@ -935,7 +935,7 @@ func (s *mutableStateSuite) buildWorkflowMutableState() *persistence.WorkflowMut
 			Version:                failoverVersion,
 			ScheduleID:             int64(5),
 			ScheduledTime:          time.Now(),
-			StartedID:              constants2.EmptyEventID,
+			StartedID:              commonconstants.EmptyEventID,
 			StartedTime:            time.Now(),
 			ActivityID:             "activityID_5",
 			ScheduleToStartTimeout: 100,
@@ -960,7 +960,7 @@ func (s *mutableStateSuite) buildWorkflowMutableState() *persistence.WorkflowMut
 			InitiatedID:           80,
 			InitiatedEventBatchID: 20,
 			InitiatedEvent:        &types.HistoryEvent{},
-			StartedID:             constants2.EmptyEventID,
+			StartedID:             commonconstants.EmptyEventID,
 			CreateRequestID:       uuid.New(),
 			DomainID:              constants.TestDomainID,
 			WorkflowTypeName:      "code.uber.internal/test/foobar",
@@ -970,7 +970,7 @@ func (s *mutableStateSuite) buildWorkflowMutableState() *persistence.WorkflowMut
 			InitiatedID:           80,
 			InitiatedEventBatchID: 20,
 			InitiatedEvent:        &types.HistoryEvent{},
-			StartedID:             constants2.EmptyEventID,
+			StartedID:             commonconstants.EmptyEventID,
 			CreateRequestID:       uuid.New(),
 			DomainNameDEPRECATED:  constants.TestDomainName,
 			WorkflowTypeName:      "code.uber.internal/test/foobar",
@@ -994,7 +994,7 @@ func (s *mutableStateSuite) buildWorkflowMutableState() *persistence.WorkflowMut
 
 	bufferedEvents := []*types.HistoryEvent{
 		{
-			ID:        constants2.BufferedEventID,
+			ID:        commonconstants.BufferedEventID,
 			EventType: types.EventTypeWorkflowExecutionSignaled.Ptr(),
 			Version:   failoverVersion,
 			WorkflowExecutionSignaledEventAttributes: &types.WorkflowExecutionSignaledEventAttributes{
@@ -1346,8 +1346,8 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeTimerFired.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					TimerFiredEventAttributes: &types.TimerFiredEventAttributes{
 						TimerID:        "1",
 						StartedEventID: 11,
@@ -1358,7 +1358,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeTimerFired.Ptr(),
 					ID:        12,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					TimerFiredEventAttributes: &types.TimerFiredEventAttributes{
 						TimerID:        "1",
 						StartedEventID: 11,
@@ -1375,7 +1375,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeDecisionTaskCompleted.Ptr(),
 					ID:        4,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					DecisionTaskCompletedEventAttributes: &types.DecisionTaskCompletedEventAttributes{
 						ScheduledEventID: 2,
 						StartedEventID:   3,
@@ -1384,15 +1384,15 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskScheduled.Ptr(),
 					ID:        5,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskScheduledEventAttributes: &types.ActivityTaskScheduledEventAttributes{
 						ActivityID: "0",
 					},
 				},
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 5,
 					},
@@ -1402,7 +1402,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeDecisionTaskCompleted.Ptr(),
 					ID:        4,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					DecisionTaskCompletedEventAttributes: &types.DecisionTaskCompletedEventAttributes{
 						ScheduledEventID: 2,
 						StartedEventID:   3,
@@ -1411,7 +1411,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskScheduled.Ptr(),
 					ID:        5,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskScheduledEventAttributes: &types.ActivityTaskScheduledEventAttributes{
 						ActivityID: "0",
 					},
@@ -1419,7 +1419,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 5,
 					},
@@ -1440,8 +1440,8 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 5,
 					},
@@ -1451,7 +1451,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 5,
 					},
@@ -1471,16 +1471,16 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 3456,
 					},
 				},
 				{
 					EventType: types.EventTypeActivityTaskCompleted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskCompletedEventAttributes: &types.ActivityTaskCompletedEventAttributes{
 						StartedEventID:   4567,
 						ScheduledEventID: 3456,
@@ -1491,7 +1491,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 3456,
 					},
@@ -1499,7 +1499,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskCompleted.Ptr(),
 					ID:        7,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskCompletedEventAttributes: &types.ActivityTaskCompletedEventAttributes{
 						StartedEventID:   6,
 						ScheduledEventID: 3456,
@@ -1515,16 +1515,16 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 3456,
 					},
 				},
 				{
 					EventType: types.EventTypeActivityTaskCanceled.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskCanceledEventAttributes: &types.ActivityTaskCanceledEventAttributes{
 						StartedEventID:   123,
 						ScheduledEventID: 3456,
@@ -1535,7 +1535,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 3456,
 					},
@@ -1543,7 +1543,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskCanceled.Ptr(),
 					ID:        7,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskCanceledEventAttributes: &types.ActivityTaskCanceledEventAttributes{
 						StartedEventID:   6,
 						ScheduledEventID: 3456,
@@ -1559,16 +1559,16 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 3456,
 					},
 				},
 				{
 					EventType: types.EventTypeActivityTaskFailed.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskFailedEventAttributes: &types.ActivityTaskFailedEventAttributes{
 						StartedEventID:   123,
 						ScheduledEventID: 3456,
@@ -1579,7 +1579,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 3456,
 					},
@@ -1587,7 +1587,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskFailed.Ptr(),
 					ID:        7,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskFailedEventAttributes: &types.ActivityTaskFailedEventAttributes{
 						StartedEventID:   6,
 						ScheduledEventID: 3456,
@@ -1603,16 +1603,16 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 3456,
 					},
 				},
 				{
 					EventType: types.EventTypeActivityTaskTimedOut.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskTimedOutEventAttributes: &types.ActivityTaskTimedOutEventAttributes{
 						StartedEventID:   123,
 						ScheduledEventID: 3456,
@@ -1623,7 +1623,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskStartedEventAttributes: &types.ActivityTaskStartedEventAttributes{
 						ScheduledEventID: 3456,
 					},
@@ -1631,7 +1631,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeActivityTaskTimedOut.Ptr(),
 					ID:        7,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ActivityTaskTimedOutEventAttributes: &types.ActivityTaskTimedOutEventAttributes{
 						StartedEventID:   6,
 						ScheduledEventID: 3456,
@@ -1647,16 +1647,16 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeChildWorkflowExecutionStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionStartedEventAttributes: &types.ChildWorkflowExecutionStartedEventAttributes{
 						InitiatedEventID: 123,
 					},
 				},
 				{
 					EventType: types.EventTypeChildWorkflowExecutionCompleted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionCompletedEventAttributes: &types.ChildWorkflowExecutionCompletedEventAttributes{
 						StartedEventID:   123,
 						InitiatedEventID: 2345,
@@ -1667,7 +1667,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeChildWorkflowExecutionStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionStartedEventAttributes: &types.ChildWorkflowExecutionStartedEventAttributes{
 						InitiatedEventID: 123,
 					},
@@ -1675,7 +1675,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeChildWorkflowExecutionCompleted.Ptr(),
 					ID:        7,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionCompletedEventAttributes: &types.ChildWorkflowExecutionCompletedEventAttributes{
 						StartedEventID:   123,
 						InitiatedEventID: 2345,
@@ -1696,16 +1696,16 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeChildWorkflowExecutionStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionStartedEventAttributes: &types.ChildWorkflowExecutionStartedEventAttributes{
 						InitiatedEventID: 123,
 					},
 				},
 				{
 					EventType: types.EventTypeChildWorkflowExecutionCanceled.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionCanceledEventAttributes: &types.ChildWorkflowExecutionCanceledEventAttributes{
 						StartedEventID:   321,
 						InitiatedEventID: 123,
@@ -1716,7 +1716,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeChildWorkflowExecutionStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionStartedEventAttributes: &types.ChildWorkflowExecutionStartedEventAttributes{
 						InitiatedEventID: 123,
 					},
@@ -1724,7 +1724,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeChildWorkflowExecutionCanceled.Ptr(),
 					ID:        7,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionCanceledEventAttributes: &types.ChildWorkflowExecutionCanceledEventAttributes{
 						StartedEventID:   6,
 						InitiatedEventID: 123,
@@ -1745,16 +1745,16 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeChildWorkflowExecutionStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionStartedEventAttributes: &types.ChildWorkflowExecutionStartedEventAttributes{
 						InitiatedEventID: 123,
 					},
 				},
 				{
 					EventType: types.EventTypeChildWorkflowExecutionFailed.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionFailedEventAttributes: &types.ChildWorkflowExecutionFailedEventAttributes{
 						StartedEventID:   123,
 						InitiatedEventID: 2345,
@@ -1765,7 +1765,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeChildWorkflowExecutionStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionStartedEventAttributes: &types.ChildWorkflowExecutionStartedEventAttributes{
 						InitiatedEventID: 123,
 					},
@@ -1773,7 +1773,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeChildWorkflowExecutionFailed.Ptr().Ptr(),
 					ID:        7,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionFailedEventAttributes: &types.ChildWorkflowExecutionFailedEventAttributes{
 						StartedEventID:   123,
 						InitiatedEventID: 2345,
@@ -1789,16 +1789,16 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeChildWorkflowExecutionStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionStartedEventAttributes: &types.ChildWorkflowExecutionStartedEventAttributes{
 						InitiatedEventID: 123,
 					},
 				},
 				{
 					EventType: types.EventTypeChildWorkflowExecutionTimedOut.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionTimedOutEventAttributes: &types.ChildWorkflowExecutionTimedOutEventAttributes{
 						StartedEventID:   123,
 						InitiatedEventID: 2345,
@@ -1809,7 +1809,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeChildWorkflowExecutionStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionStartedEventAttributes: &types.ChildWorkflowExecutionStartedEventAttributes{
 						InitiatedEventID: 123,
 					},
@@ -1817,7 +1817,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeChildWorkflowExecutionTimedOut.Ptr(),
 					ID:        7,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionTimedOutEventAttributes: &types.ChildWorkflowExecutionTimedOutEventAttributes{
 						StartedEventID:   123,
 						InitiatedEventID: 2345,
@@ -1833,16 +1833,16 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 			startingHistoryEntries: []*types.HistoryEvent{
 				{
 					EventType: types.EventTypeChildWorkflowExecutionStarted.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionStartedEventAttributes: &types.ChildWorkflowExecutionStartedEventAttributes{
 						InitiatedEventID: 123,
 					},
 				},
 				{
 					EventType: types.EventTypeChildWorkflowExecutionTerminated.Ptr(),
-					ID:        constants2.BufferedEventID,
-					TaskID:    constants2.EmptyEventTaskID,
+					ID:        commonconstants.BufferedEventID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionTerminatedEventAttributes: &types.ChildWorkflowExecutionTerminatedEventAttributes{
 						StartedEventID:   123,
 						InitiatedEventID: 2345,
@@ -1853,7 +1853,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeChildWorkflowExecutionStarted.Ptr(),
 					ID:        6,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionStartedEventAttributes: &types.ChildWorkflowExecutionStartedEventAttributes{
 						InitiatedEventID: 123,
 					},
@@ -1861,7 +1861,7 @@ func TestAssignEventIDToBufferedEvents(t *testing.T) {
 				{
 					EventType: types.EventTypeChildWorkflowExecutionTerminated.Ptr(),
 					ID:        7,
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 					ChildWorkflowExecutionTerminatedEventAttributes: &types.ChildWorkflowExecutionTerminatedEventAttributes{
 						StartedEventID:   123,
 						InitiatedEventID: 2345,
@@ -2029,7 +2029,7 @@ func TestMutableStateBuilder_closeTransactionHandleWorkflowReset(t *testing.T) {
 				assert.Equal(t, []persistence.Task{
 					&persistence.ResetWorkflowTask{
 						TaskData: persistence.TaskData{
-							Version: constants2.EmptyVersion,
+							Version: commonconstants.EmptyVersion,
 						},
 					},
 				}, m.insertTransferTasks)
@@ -2235,7 +2235,7 @@ func TestMutableStateBuilder_GetVersionHistoriesStart(t *testing.T) {
 		"nil version history": {
 			mutableStateBuilderStartingState: func(m *mutableStateBuilder) {
 			},
-			expectedVersion: constants2.EmptyVersion,
+			expectedVersion: commonconstants.EmptyVersion,
 		},
 	}
 
@@ -2504,7 +2504,7 @@ func TestStartTransactionHandleFailover(t *testing.T) {
 		// At the time of writing this test I believe this is a migration case, but I'm not 100% sure and
 		// need to do some runtime debugging.
 		"empty version": {
-			incomingTaskVersion: constants2.EmptyVersion,
+			incomingTaskVersion: commonconstants.EmptyVersion,
 			currentVersion:      2,
 			decisionManagerAffordance: func(m *MockmutableStateDecisionTaskManager) {
 				m.EXPECT().GetInFlightDecision().Return(&DecisionInfo{
@@ -3111,7 +3111,7 @@ func TestAssignTaskIDToTransientHistoryEvents(t *testing.T) {
 				{
 					ID:        1,
 					EventType: types.EventTypeWorkflowExecutionStarted.Ptr(),
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 				},
 			},
 			taskID: 123,
@@ -3131,12 +3131,12 @@ func TestAssignTaskIDToTransientHistoryEvents(t *testing.T) {
 				{
 					ID:        1,
 					EventType: types.EventTypeWorkflowExecutionStarted.Ptr(),
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 				},
 				{
 					ID:        2,
 					EventType: types.EventTypeDecisionTaskScheduled.Ptr(),
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 				},
 			},
 			taskID: 456,
@@ -3168,7 +3168,7 @@ func TestAssignTaskIDToTransientHistoryEvents(t *testing.T) {
 				{
 					ID:        1,
 					EventType: types.EventTypeWorkflowExecutionStarted.Ptr(),
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 				},
 			},
 			taskID: 456,
@@ -3179,7 +3179,7 @@ func TestAssignTaskIDToTransientHistoryEvents(t *testing.T) {
 				{
 					ID:        1,
 					EventType: types.EventTypeWorkflowExecutionStarted.Ptr(),
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 				},
 			},
 			expectedErr: assert.AnError,
@@ -3223,7 +3223,7 @@ func TestAssignTaskIDToHistoryEvents(t *testing.T) {
 				{
 					ID:        1,
 					EventType: types.EventTypeWorkflowExecutionStarted.Ptr(),
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 				},
 			},
 			taskID: 123,
@@ -3243,12 +3243,12 @@ func TestAssignTaskIDToHistoryEvents(t *testing.T) {
 				{
 					ID:        1,
 					EventType: types.EventTypeWorkflowExecutionStarted.Ptr(),
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 				},
 				{
 					ID:        2,
 					EventType: types.EventTypeDecisionTaskScheduled.Ptr(),
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 				},
 			},
 			taskID: 456,
@@ -3280,7 +3280,7 @@ func TestAssignTaskIDToHistoryEvents(t *testing.T) {
 				{
 					ID:        1,
 					EventType: types.EventTypeWorkflowExecutionStarted.Ptr(),
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 				},
 			},
 			taskID: 456,
@@ -3291,7 +3291,7 @@ func TestAssignTaskIDToHistoryEvents(t *testing.T) {
 				{
 					ID:        1,
 					EventType: types.EventTypeWorkflowExecutionStarted.Ptr(),
-					TaskID:    constants2.EmptyEventTaskID,
+					TaskID:    commonconstants.EmptyEventTaskID,
 				},
 			},
 			expectedErr: assert.AnError,
@@ -3354,8 +3354,8 @@ func TestAddUpsertWorkflowSearchAttributesEvent(t *testing.T) {
 						},
 					},
 				},
-				TaskID:    constants2.EmptyEventTaskID,
-				Version:   constants2.EmptyVersion,
+				TaskID:    commonconstants.EmptyEventTaskID,
+				Version:   commonconstants.EmptyVersion,
 				Timestamp: common.Ptr(now.UnixNano()),
 			},
 			expectedErr: nil,
@@ -3455,10 +3455,10 @@ func TestCloseTransactionAsMutation(t *testing.T) {
 					State:                persistence.WorkflowStateRunning,
 					CloseStatus:          persistence.WorkflowCloseStatusNone,
 					LastUpdatedTimestamp: now,
-					DecisionVersion:      constants2.EmptyVersion,
-					DecisionScheduleID:   constants2.EmptyEventID,
-					DecisionRequestID:    constants2.EmptyUUID,
-					DecisionStartedID:    constants2.EmptyEventID,
+					DecisionVersion:      commonconstants.EmptyVersion,
+					DecisionScheduleID:   commonconstants.EmptyEventID,
+					DecisionRequestID:    commonconstants.EmptyUUID,
+					DecisionStartedID:    commonconstants.EmptyEventID,
 				},
 				TasksByCategory: map[persistence.HistoryTaskCategory][]persistence.Task{
 					persistence.HistoryTaskCategoryTransfer:    nil,
@@ -3522,10 +3522,10 @@ func TestCloseTransactionAsMutation(t *testing.T) {
 					State:                persistence.WorkflowStateRunning,
 					CloseStatus:          persistence.WorkflowCloseStatusNone,
 					LastUpdatedTimestamp: now,
-					DecisionVersion:      constants2.EmptyVersion,
-					DecisionScheduleID:   constants2.EmptyEventID,
-					DecisionRequestID:    constants2.EmptyUUID,
-					DecisionStartedID:    constants2.EmptyEventID,
+					DecisionVersion:      commonconstants.EmptyVersion,
+					DecisionScheduleID:   commonconstants.EmptyEventID,
+					DecisionRequestID:    commonconstants.EmptyUUID,
+					DecisionStartedID:    commonconstants.EmptyEventID,
 					LastFirstEventID:     1,
 				},
 				TasksByCategory: map[persistence.HistoryTaskCategory][]persistence.Task{

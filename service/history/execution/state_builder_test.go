@@ -32,7 +32,7 @@ import (
 	"github.com/uber/cadence/common"
 	"github.com/uber/cadence/common/backoff"
 	"github.com/uber/cadence/common/cache"
-	constants2 "github.com/uber/cadence/common/constants"
+	commonconstants "github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/types"
@@ -619,8 +619,8 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeDecisionTaskScheduled() {
 	di := &DecisionInfo{
 		Version:         event.Version,
 		ScheduleID:      event.ID,
-		StartedID:       constants2.EmptyEventID,
-		RequestID:       constants2.EmptyUUID,
+		StartedID:       commonconstants.EmptyEventID,
+		RequestID:       commonconstants.EmptyUUID,
 		DecisionTimeout: timeoutSecond,
 		TaskList:        tasklist,
 		Attempt:         decisionAttempt,
@@ -950,7 +950,7 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskScheduled() {
 		ScheduledEventBatchID:    event.ID,
 		ScheduledEvent:           event,
 		ScheduledTime:            time.Unix(0, event.GetTimestamp()),
-		StartedID:                constants2.EmptyEventID,
+		StartedID:                commonconstants.EmptyEventID,
 		StartedTime:              time.Time{},
 		ActivityID:               activityID,
 		ScheduleToStartTimeout:   timeoutSecond,
@@ -958,7 +958,7 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeActivityTaskScheduled() {
 		StartToCloseTimeout:      timeoutSecond,
 		HeartbeatTimeout:         timeoutSecond,
 		CancelRequested:          false,
-		CancelRequestID:          constants2.EmptyEventID,
+		CancelRequestID:          commonconstants.EmptyEventID,
 		LastHeartBeatUpdatedTime: time.Time{},
 		TimerTaskStatus:          TimerTaskStatusNone,
 		TaskList:                 tasklist,
@@ -1224,7 +1224,7 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeStartChildWorkflowExecution
 		Version:               event.Version,
 		InitiatedID:           event.ID,
 		InitiatedEventBatchID: event.ID,
-		StartedID:             constants2.EmptyEventID,
+		StartedID:             commonconstants.EmptyEventID,
 		CreateRequestID:       createRequestID,
 		DomainID:              constants.TestDomainID,
 		DomainNameDEPRECATED:  constants.TestDomainName,

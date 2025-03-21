@@ -31,7 +31,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/uber/cadence/common/cache"
-	constants2 "github.com/uber/cadence/common/constants"
+	commonconstants "github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/types"
@@ -79,7 +79,7 @@ func Test__UpdateActivityProgress(t *testing.T) {
 	}
 	assert.Equal(t, int64(1), ai.Version)
 	mb.UpdateActivityProgress(ai, request)
-	assert.Equal(t, constants2.EmptyVersion, ai.Version)
+	assert.Equal(t, commonconstants.EmptyVersion, ai.Version)
 	assert.Equal(t, request.Details, ai.Details)
 	assert.Equal(t, ai, mb.updateActivityInfos[ai.ScheduleID])
 	assert.NotNil(t, mb.syncActivityTasks[ai.ScheduleID])

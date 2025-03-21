@@ -38,7 +38,7 @@ import (
 	"github.com/uber/cadence/common"
 	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/cluster"
-	constants2 "github.com/uber/cadence/common/constants"
+	commonconstants "github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/definition"
 	"github.com/uber/cadence/common/dynamicconfig"
 	"github.com/uber/cadence/common/log"
@@ -564,10 +564,10 @@ func (s *attrValidatorSuite) TestValidateTaskListName() {
 		{"", taskList("/__cadence_sys"), taskList("/__cadence_sys"), false},
 		{"", nil, &types.TaskList{}, true},
 		{"", taskList(""), taskList(""), true},
-		{"", taskList(constants2.ReservedTaskListPrefix), taskList(constants2.ReservedTaskListPrefix), true},
-		{"tl-1", taskList(constants2.ReservedTaskListPrefix), taskList(constants2.ReservedTaskListPrefix), true},
-		{"", taskList(constants2.ReservedTaskListPrefix + "tl-1"), taskList(constants2.ReservedTaskListPrefix + "tl-1"), true},
-		{"tl-1", taskList(constants2.ReservedTaskListPrefix + "tl-1"), taskList(constants2.ReservedTaskListPrefix + "tl-1"), true},
+		{"", taskList(commonconstants.ReservedTaskListPrefix), taskList(commonconstants.ReservedTaskListPrefix), true},
+		{"tl-1", taskList(commonconstants.ReservedTaskListPrefix), taskList(commonconstants.ReservedTaskListPrefix), true},
+		{"", taskList(commonconstants.ReservedTaskListPrefix + "tl-1"), taskList(commonconstants.ReservedTaskListPrefix + "tl-1"), true},
+		{"tl-1", taskList(commonconstants.ReservedTaskListPrefix + "tl-1"), taskList(commonconstants.ReservedTaskListPrefix + "tl-1"), true},
 	}
 
 	for _, tc := range testCases {

@@ -35,7 +35,7 @@ import (
 	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/cluster"
 	"github.com/uber/cadence/common/collection"
-	constants2 "github.com/uber/cadence/common/constants"
+	commonconstants "github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/definition"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/mocks"
@@ -153,7 +153,7 @@ func (s *stateRebuilderSuite) TestApplyEvents() {
 }
 
 func (s *stateRebuilderSuite) TestPagination() {
-	firstEventID := constants2.FirstEventID
+	firstEventID := commonconstants.FirstEventID
 	nextEventID := int64(101)
 	branchToken := []byte("some random branch token")
 	domainName := "some random domain name"
@@ -239,7 +239,7 @@ func (s *stateRebuilderSuite) TestRebuild() {
 	targetWorkflowID := "other random workflow ID"
 	targetRunID := uuid.New()
 
-	firstEventID := constants2.FirstEventID
+	firstEventID := commonconstants.FirstEventID
 	nextEventID := lastEventID + 1
 	events1 := []*types.HistoryEvent{{
 		ID:        1,

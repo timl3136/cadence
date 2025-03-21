@@ -35,7 +35,7 @@ import (
 	"go.uber.org/yarpc/yarpcerrors"
 
 	"github.com/uber/cadence/common"
-	constants2 "github.com/uber/cadence/common/constants"
+	commonconstants "github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/dynamicconfig"
 	"github.com/uber/cadence/common/log/testlogger"
 	"github.com/uber/cadence/common/membership"
@@ -1210,7 +1210,7 @@ func (s *handlerSuite) TestRemoveTask() {
 		"transfer task": {
 			request: &types.RemoveTaskRequest{
 				ShardID: 0,
-				Type:    common.Int32Ptr(int32(constants2.TaskTypeTransfer)),
+				Type:    common.Int32Ptr(int32(commonconstants.TaskTypeTransfer)),
 				TaskID:  int64(1),
 			},
 			expectedError: false,
@@ -1223,7 +1223,7 @@ func (s *handlerSuite) TestRemoveTask() {
 		"timer task": {
 			request: &types.RemoveTaskRequest{
 				ShardID:             0,
-				Type:                common.Int32Ptr(int32(constants2.TaskTypeTimer)),
+				Type:                common.Int32Ptr(int32(commonconstants.TaskTypeTimer)),
 				TaskID:              int64(1),
 				VisibilityTimestamp: common.Int64Ptr(int64(now.UnixNano())),
 			},
@@ -1235,7 +1235,7 @@ func (s *handlerSuite) TestRemoveTask() {
 		"replication task": {
 			request: &types.RemoveTaskRequest{
 				ShardID: 0,
-				Type:    common.Int32Ptr(int32(constants2.TaskTypeReplication)),
+				Type:    common.Int32Ptr(int32(commonconstants.TaskTypeReplication)),
 				TaskID:  int64(1),
 			},
 			expectedError: false,
@@ -1297,7 +1297,7 @@ func (s *handlerSuite) TestResetQueue() {
 		"transfer task": {
 			request: &types.ResetQueueRequest{
 				ShardID: 0,
-				Type:    common.Int32Ptr(int32(constants2.TaskTypeTransfer)),
+				Type:    common.Int32Ptr(int32(commonconstants.TaskTypeTransfer)),
 			},
 			expectedError: false,
 			mockFn: func() {
@@ -1308,7 +1308,7 @@ func (s *handlerSuite) TestResetQueue() {
 		"timer task": {
 			request: &types.ResetQueueRequest{
 				ShardID: 0,
-				Type:    common.Int32Ptr(int32(constants2.TaskTypeTimer)),
+				Type:    common.Int32Ptr(int32(commonconstants.TaskTypeTimer)),
 			},
 			expectedError: false,
 			mockFn: func() {
@@ -1360,7 +1360,7 @@ func (s *handlerSuite) TestDescribeQueue() {
 		"transfer task": {
 			request: &types.DescribeQueueRequest{
 				ShardID: 0,
-				Type:    common.Int32Ptr(int32(constants2.TaskTypeTransfer)),
+				Type:    common.Int32Ptr(int32(commonconstants.TaskTypeTransfer)),
 			},
 			expectedError: false,
 			mockFn: func() {
@@ -1371,7 +1371,7 @@ func (s *handlerSuite) TestDescribeQueue() {
 		"timer task": {
 			request: &types.DescribeQueueRequest{
 				ShardID: 0,
-				Type:    common.Int32Ptr(int32(constants2.TaskTypeTimer)),
+				Type:    common.Int32Ptr(int32(commonconstants.TaskTypeTimer)),
 			},
 			expectedError: false,
 			mockFn: func() {
