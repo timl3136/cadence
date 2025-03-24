@@ -2028,6 +2028,10 @@ func TestMutableStateBuilder_closeTransactionHandleWorkflowReset(t *testing.T) {
 			expectedEndState: func(t *testing.T, m *mutableStateBuilder) {
 				assert.Equal(t, []persistence.Task{
 					&persistence.ResetWorkflowTask{
+						WorkflowIdentifier: persistence.WorkflowIdentifier{
+							DomainID:   "some-domain-id",
+							WorkflowID: "wf-id",
+						},
 						TaskData: persistence.TaskData{
 							Version: commonconstants.EmptyVersion,
 						},
@@ -2859,7 +2863,7 @@ func createMSB() mutableStateBuilder {
 		appliedEvents:         map[string]struct{}{},
 		insertTransferTasks: []persistence.Task{
 			&persistence.DecisionTask{
-				DomainID: "decsion task",
+				TargetDomainID: "decsion task",
 			},
 		},
 		insertReplicationTasks: []persistence.Task{},
@@ -3533,6 +3537,11 @@ func TestCloseTransactionAsMutation(t *testing.T) {
 					persistence.HistoryTaskCategoryTimer:    nil,
 					persistence.HistoryTaskCategoryReplication: []persistence.Task{
 						&persistence.HistoryReplicationTask{
+							WorkflowIdentifier: persistence.WorkflowIdentifier{
+								DomainID:   "some-domain-id",
+								WorkflowID: "",
+								RunID:      "",
+							},
 							FirstEventID: 1,
 							NextEventID:  2,
 							TaskData: persistence.TaskData{

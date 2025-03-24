@@ -88,20 +88,24 @@ type Config struct {
 	StandbyTaskMissingEventsDiscardDelay dynamicconfig.DurationPropertyFn
 
 	// Task process settings
-	TaskProcessRPS                         dynamicconfig.IntPropertyFnWithDomainFilter
-	TaskSchedulerType                      dynamicconfig.IntPropertyFn
-	TaskSchedulerWorkerCount               dynamicconfig.IntPropertyFn
-	TaskSchedulerShardWorkerCount          dynamicconfig.IntPropertyFn
-	TaskSchedulerQueueSize                 dynamicconfig.IntPropertyFn
-	TaskSchedulerShardQueueSize            dynamicconfig.IntPropertyFn
-	TaskSchedulerDispatcherCount           dynamicconfig.IntPropertyFn
-	TaskSchedulerRoundRobinWeights         dynamicconfig.MapPropertyFn
-	TaskCriticalRetryCount                 dynamicconfig.IntPropertyFn
-	ActiveTaskRedispatchInterval           dynamicconfig.DurationPropertyFn
-	StandbyTaskRedispatchInterval          dynamicconfig.DurationPropertyFn
-	StandbyTaskReReplicationContextTimeout dynamicconfig.DurationPropertyFnWithDomainIDFilter
-	EnableDropStuckTaskByDomainID          dynamicconfig.BoolPropertyFnWithDomainIDFilter
-	ResurrectionCheckMinDelay              dynamicconfig.DurationPropertyFnWithDomainFilter
+	TaskProcessRPS                           dynamicconfig.IntPropertyFnWithDomainFilter
+	TaskSchedulerType                        dynamicconfig.IntPropertyFn
+	TaskSchedulerWorkerCount                 dynamicconfig.IntPropertyFn
+	TaskSchedulerQueueSize                   dynamicconfig.IntPropertyFn
+	TaskSchedulerDispatcherCount             dynamicconfig.IntPropertyFn
+	TaskSchedulerRoundRobinWeights           dynamicconfig.MapPropertyFn
+	TaskSchedulerDomainRoundRobinWeights     dynamicconfig.MapPropertyFnWithDomainFilter
+	TaskSchedulerGlobalDomainRPS             dynamicconfig.IntPropertyFnWithDomainFilter
+	TaskSchedulerEnableRateLimiter           dynamicconfig.BoolPropertyFn
+	TaskSchedulerEnableRateLimiterShadowMode dynamicconfig.BoolPropertyFnWithDomainFilter
+	TaskSchedulerEnableMigration             dynamicconfig.BoolPropertyFn
+	TaskSchedulerMigrationRatio              dynamicconfig.IntPropertyFn
+	TaskCriticalRetryCount                   dynamicconfig.IntPropertyFn
+	ActiveTaskRedispatchInterval             dynamicconfig.DurationPropertyFn
+	StandbyTaskRedispatchInterval            dynamicconfig.DurationPropertyFn
+	StandbyTaskReReplicationContextTimeout   dynamicconfig.DurationPropertyFnWithDomainIDFilter
+	EnableDropStuckTaskByDomainID            dynamicconfig.BoolPropertyFnWithDomainIDFilter
+	ResurrectionCheckMinDelay                dynamicconfig.DurationPropertyFnWithDomainFilter
 
 	// QueueProcessor settings
 	QueueProcessorEnableSplit                          dynamicconfig.BoolPropertyFn
@@ -219,6 +223,7 @@ type Config struct {
 	SearchAttributesNumberOfKeysLimit dynamicconfig.IntPropertyFnWithDomainFilter
 	SearchAttributesSizeOfValueLimit  dynamicconfig.IntPropertyFnWithDomainFilter
 	SearchAttributesTotalSizeLimit    dynamicconfig.IntPropertyFnWithDomainFilter
+	SearchAttributesHiddenValueKeys   dynamicconfig.MapPropertyFn
 
 	// Decision settings
 	// StickyTTL is to expire a sticky tasklist if no update more than this duration
@@ -365,20 +370,24 @@ func New(dc *dynamicconfig.Collection, numberOfShards int, maxMessageSize int, i
 		DeleteHistoryEventContextTimeout:     dc.GetIntProperty(dynamicconfig.DeleteHistoryEventContextTimeout),
 		MaxResponseSize:                      maxMessageSize,
 
-		TaskProcessRPS:                         dc.GetIntPropertyFilteredByDomain(dynamicconfig.TaskProcessRPS),
-		TaskSchedulerType:                      dc.GetIntProperty(dynamicconfig.TaskSchedulerType),
-		TaskSchedulerWorkerCount:               dc.GetIntProperty(dynamicconfig.TaskSchedulerWorkerCount),
-		TaskSchedulerShardWorkerCount:          dc.GetIntProperty(dynamicconfig.TaskSchedulerShardWorkerCount),
-		TaskSchedulerQueueSize:                 dc.GetIntProperty(dynamicconfig.TaskSchedulerQueueSize),
-		TaskSchedulerShardQueueSize:            dc.GetIntProperty(dynamicconfig.TaskSchedulerShardQueueSize),
-		TaskSchedulerDispatcherCount:           dc.GetIntProperty(dynamicconfig.TaskSchedulerDispatcherCount),
-		TaskSchedulerRoundRobinWeights:         dc.GetMapProperty(dynamicconfig.TaskSchedulerRoundRobinWeights),
-		TaskCriticalRetryCount:                 dc.GetIntProperty(dynamicconfig.TaskCriticalRetryCount),
-		ActiveTaskRedispatchInterval:           dc.GetDurationProperty(dynamicconfig.ActiveTaskRedispatchInterval),
-		StandbyTaskRedispatchInterval:          dc.GetDurationProperty(dynamicconfig.StandbyTaskRedispatchInterval),
-		StandbyTaskReReplicationContextTimeout: dc.GetDurationPropertyFilteredByDomainID(dynamicconfig.StandbyTaskReReplicationContextTimeout),
-		EnableDropStuckTaskByDomainID:          dc.GetBoolPropertyFilteredByDomainID(dynamicconfig.EnableDropStuckTaskByDomainID),
-		ResurrectionCheckMinDelay:              dc.GetDurationPropertyFilteredByDomain(dynamicconfig.ResurrectionCheckMinDelay),
+		TaskProcessRPS:                           dc.GetIntPropertyFilteredByDomain(dynamicconfig.TaskProcessRPS),
+		TaskSchedulerType:                        dc.GetIntProperty(dynamicconfig.TaskSchedulerType),
+		TaskSchedulerWorkerCount:                 dc.GetIntProperty(dynamicconfig.TaskSchedulerWorkerCount),
+		TaskSchedulerQueueSize:                   dc.GetIntProperty(dynamicconfig.TaskSchedulerQueueSize),
+		TaskSchedulerDispatcherCount:             dc.GetIntProperty(dynamicconfig.TaskSchedulerDispatcherCount),
+		TaskSchedulerRoundRobinWeights:           dc.GetMapProperty(dynamicconfig.TaskSchedulerRoundRobinWeights),
+		TaskSchedulerDomainRoundRobinWeights:     dc.GetMapPropertyFilteredByDomain(dynamicconfig.TaskSchedulerDomainRoundRobinWeights),
+		TaskSchedulerGlobalDomainRPS:             dc.GetIntPropertyFilteredByDomain(dynamicconfig.TaskSchedulerGlobalDomainRPS),
+		TaskSchedulerEnableRateLimiter:           dc.GetBoolProperty(dynamicconfig.TaskSchedulerEnableRateLimiter),
+		TaskSchedulerEnableRateLimiterShadowMode: dc.GetBoolPropertyFilteredByDomain(dynamicconfig.TaskSchedulerEnableRateLimiterShadowMode),
+		TaskSchedulerEnableMigration:             dc.GetBoolProperty(dynamicconfig.TaskSchedulerEnableMigration),
+		TaskSchedulerMigrationRatio:              dc.GetIntProperty(dynamicconfig.TaskSchedulerMigrationRatio),
+		TaskCriticalRetryCount:                   dc.GetIntProperty(dynamicconfig.TaskCriticalRetryCount),
+		ActiveTaskRedispatchInterval:             dc.GetDurationProperty(dynamicconfig.ActiveTaskRedispatchInterval),
+		StandbyTaskRedispatchInterval:            dc.GetDurationProperty(dynamicconfig.StandbyTaskRedispatchInterval),
+		StandbyTaskReReplicationContextTimeout:   dc.GetDurationPropertyFilteredByDomainID(dynamicconfig.StandbyTaskReReplicationContextTimeout),
+		EnableDropStuckTaskByDomainID:            dc.GetBoolPropertyFilteredByDomainID(dynamicconfig.EnableDropStuckTaskByDomainID),
+		ResurrectionCheckMinDelay:                dc.GetDurationPropertyFilteredByDomain(dynamicconfig.ResurrectionCheckMinDelay),
 
 		QueueProcessorEnableSplit:                          dc.GetBoolProperty(dynamicconfig.QueueProcessorEnableSplit),
 		QueueProcessorSplitMaxLevel:                        dc.GetIntProperty(dynamicconfig.QueueProcessorSplitMaxLevel),
@@ -479,6 +488,7 @@ func New(dc *dynamicconfig.Collection, numberOfShards int, maxMessageSize int, i
 		SearchAttributesNumberOfKeysLimit:        dc.GetIntPropertyFilteredByDomain(dynamicconfig.SearchAttributesNumberOfKeysLimit),
 		SearchAttributesSizeOfValueLimit:         dc.GetIntPropertyFilteredByDomain(dynamicconfig.SearchAttributesSizeOfValueLimit),
 		SearchAttributesTotalSizeLimit:           dc.GetIntPropertyFilteredByDomain(dynamicconfig.SearchAttributesTotalSizeLimit),
+		SearchAttributesHiddenValueKeys:          dc.GetMapProperty(dynamicconfig.SearchAttributesHiddenValueKeys),
 		StickyTTL:                                dc.GetDurationPropertyFilteredByDomain(dynamicconfig.StickyTTL),
 		DecisionHeartbeatTimeout:                 dc.GetDurationPropertyFilteredByDomain(dynamicconfig.DecisionHeartbeatTimeout),
 		DecisionRetryCriticalAttempts:            dc.GetIntProperty(dynamicconfig.DecisionRetryCriticalAttempts),

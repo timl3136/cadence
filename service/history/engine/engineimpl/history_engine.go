@@ -46,6 +46,7 @@ import (
 	"github.com/uber/cadence/common/reconciliation/invariant"
 	"github.com/uber/cadence/common/service"
 	"github.com/uber/cadence/common/types"
+	"github.com/uber/cadence/common/types/mapper/proto"
 	hcommon "github.com/uber/cadence/service/history/common"
 	"github.com/uber/cadence/service/history/config"
 	"github.com/uber/cadence/service/history/decision"
@@ -224,6 +225,8 @@ func NewEngineWithShardContext(
 			replicationReader,
 			replicationTaskStore,
 			shard.GetTimeSource(),
+			config,
+			proto.ReplicationMessagesSize,
 		),
 		replicationTaskStore: replicationTaskStore,
 		replicationMetricsEmitter: replication.NewMetricsEmitter(
@@ -374,10 +377,6 @@ func (e *historyEngineImpl) Stop() {
 
 	for _, replicationTaskProcessor := range e.replicationTaskProcessors {
 		replicationTaskProcessor.Stop()
-	}
-
-	if e.queueTaskProcessor != nil {
-		e.queueTaskProcessor.StopShardProcessor(e.shard)
 	}
 
 	e.failoverMarkerNotifier.Stop()

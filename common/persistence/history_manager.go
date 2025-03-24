@@ -29,6 +29,7 @@ import (
 
 	workflow "github.com/uber/cadence/.gen/go/shared"
 	"github.com/uber/cadence/common"
+	"github.com/uber/cadence/common/clock"
 	"github.com/uber/cadence/common/codec"
 	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/dynamicconfig"
@@ -66,6 +67,7 @@ type (
 		deserializeTokenFn     func([]byte, int64) (*historyV2PagingToken, error)
 		readRawHistoryBranchFn func(context.Context, *ReadHistoryBranchRequest) ([]*DataBlob, *historyV2PagingToken, int, log.Logger, error)
 		readHistoryBranchFn    func(context.Context, bool, *ReadHistoryBranchRequest) ([]*types.HistoryEvent, []*types.History, []byte, int, int64, error)
+		timeSrc                clock.TimeSource
 	}
 )
 
@@ -97,6 +99,7 @@ func NewHistoryV2ManagerImpl(
 		transactionSizeLimit: transactionSizeLimit,
 		serializeTokenFn:     serializeToken,
 		deserializeTokenFn:   deserializeToken,
+		timeSrc:              clock.NewRealTimeSource(),
 	}
 	hm.readRawHistoryBranchFn = hm.readRawHistoryBranch
 	hm.readHistoryBranchFn = hm.readHistoryBranch
@@ -130,11 +133,12 @@ func (m *historyV2ManagerImpl) ForkHistoryBranch(
 		return nil, err
 	}
 	req := &InternalForkHistoryBranchRequest{
-		ForkBranchInfo: *thrift.ToHistoryBranch(&forkBranch),
-		ForkNodeID:     request.ForkNodeID,
-		NewBranchID:    uuid.New(),
-		Info:           request.Info,
-		ShardID:        shardID,
+		ForkBranchInfo:   *thrift.ToHistoryBranch(&forkBranch),
+		ForkNodeID:       request.ForkNodeID,
+		NewBranchID:      uuid.New(),
+		Info:             request.Info,
+		ShardID:          shardID,
+		CurrentTimeStamp: m.timeSrc.Now(),
 	}
 
 	resp, err := m.persistence.ForkHistoryBranch(ctx, req)
@@ -266,13 +270,14 @@ func (m *historyV2ManagerImpl) AppendHistoryNodes(
 		}
 	}
 	req := &InternalAppendHistoryNodesRequest{
-		IsNewBranch:   request.IsNewBranch,
-		Info:          request.Info,
-		BranchInfo:    *thrift.ToHistoryBranch(&branch),
-		NodeID:        nodeID,
-		Events:        blob,
-		TransactionID: request.TransactionID,
-		ShardID:       shardID,
+		IsNewBranch:      request.IsNewBranch,
+		Info:             request.Info,
+		BranchInfo:       *thrift.ToHistoryBranch(&branch),
+		NodeID:           nodeID,
+		Events:           blob,
+		TransactionID:    request.TransactionID,
+		ShardID:          shardID,
+		CurrentTimeStamp: m.timeSrc.Now(),
 	}
 
 	err = m.persistence.AppendHistoryNodes(ctx, req)

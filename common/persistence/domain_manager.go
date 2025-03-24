@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/uber/cadence/common"
+	"github.com/uber/cadence/common/clock"
 	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/types"
@@ -37,6 +38,7 @@ type (
 		serializer  PayloadSerializer
 		persistence DomainStore
 		logger      log.Logger
+		timeSrc     clock.TimeSource
 	}
 )
 
@@ -46,6 +48,7 @@ func NewDomainManagerImpl(persistence DomainStore, logger log.Logger, serializer
 		serializer:  serializer,
 		persistence: persistence,
 		logger:      logger,
+		timeSrc:     clock.NewRealTimeSource(),
 	}
 }
 
@@ -69,6 +72,7 @@ func (m *domainManagerImpl) CreateDomain(
 		ConfigVersion:     request.ConfigVersion,
 		FailoverVersion:   request.FailoverVersion,
 		LastUpdatedTime:   time.Unix(0, request.LastUpdatedTime),
+		CurrentTimeStamp:  m.timeSrc.Now(),
 	})
 }
 

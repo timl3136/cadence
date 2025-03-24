@@ -111,27 +111,34 @@ func TestCreateDomain(t *testing.T) {
 				mockSerializer.EXPECT().
 					SerializeAsyncWorkflowsConfig(&types.AsyncWorkflowConfiguration{Enabled: true, PredefinedQueueName: "q", QueueType: "kafka"}, constants.EncodingTypeThriftRW).
 					Return(&DataBlob{Encoding: constants.EncodingTypeThriftRW, Data: []byte("async-workflow-config")}, nil).Times(1)
+
+				expectedReq := &InternalCreateDomainRequest{
+					Info: testFixtureDomainInfo(),
+					Config: &InternalDomainConfig{
+						Retention:                common.DaysToDuration(1),
+						EmitMetric:               true,
+						HistoryArchivalStatus:    types.ArchivalStatusEnabled,
+						HistoryArchivalURI:       "s3://abc",
+						VisibilityArchivalStatus: types.ArchivalStatusEnabled,
+						VisibilityArchivalURI:    "s3://xyz",
+						BadBinaries:              &DataBlob{Encoding: constants.EncodingTypeThriftRW, Data: []byte("bad-binaries")},
+						IsolationGroups:          &DataBlob{Encoding: constants.EncodingTypeThriftRW, Data: []byte("isolation-groups")},
+						AsyncWorkflowsConfig:     &DataBlob{Encoding: constants.EncodingTypeThriftRW, Data: []byte("async-workflow-config")},
+					},
+					ReplicationConfig: testFixtureDomainReplicationConfig(),
+					IsGlobalDomain:    true,
+					ConfigVersion:     1,
+					FailoverVersion:   10,
+					LastUpdatedTime:   time.Unix(0, 100),
+					CurrentTimeStamp:  time.Now(),
+				}
+
 				mockStore.EXPECT().
-					CreateDomain(gomock.Any(), &InternalCreateDomainRequest{
-						Info: testFixtureDomainInfo(),
-						Config: &InternalDomainConfig{
-							Retention:                common.DaysToDuration(1),
-							EmitMetric:               true,
-							HistoryArchivalStatus:    types.ArchivalStatusEnabled,
-							HistoryArchivalURI:       "s3://abc",
-							VisibilityArchivalStatus: types.ArchivalStatusEnabled,
-							VisibilityArchivalURI:    "s3://xyz",
-							BadBinaries:              &DataBlob{Encoding: constants.EncodingTypeThriftRW, Data: []byte("bad-binaries")},
-							IsolationGroups:          &DataBlob{Encoding: constants.EncodingTypeThriftRW, Data: []byte("isolation-groups")},
-							AsyncWorkflowsConfig:     &DataBlob{Encoding: constants.EncodingTypeThriftRW, Data: []byte("async-workflow-config")},
-						},
-						ReplicationConfig: testFixtureDomainReplicationConfig(),
-						IsGlobalDomain:    true,
-						ConfigVersion:     1,
-						FailoverVersion:   10,
-						LastUpdatedTime:   time.Unix(0, 100),
-					}).
-					Return(&CreateDomainResponse{}, nil).Times(1)
+					CreateDomain(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(_ context.Context, actualRequest *InternalCreateDomainRequest) (*CreateDomainResponse, error) {
+						assert.WithinDuration(t, expectedReq.CurrentTimeStamp, actualRequest.CurrentTimeStamp, time.Second)
+						return nil, nil
+					})
 			},
 			request: &CreateDomainRequest{
 				Info:              testFixtureDomainInfo(),

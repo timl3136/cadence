@@ -45,6 +45,7 @@ import (
 	"github.com/uber/cadence/common/log/testlogger"
 	"github.com/uber/cadence/common/metrics"
 	"github.com/uber/cadence/common/persistence"
+	p "github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/persistence/client"
 	"github.com/uber/cadence/common/persistence/nosql"
 	"github.com/uber/cadence/common/persistence/persistence-tests/testcluster"
@@ -153,6 +154,8 @@ func NewTestBaseWithNoSQL(t *testing.T, options *TestBaseOptions) *TestBase {
 		EnableCassandraAllConsistencyLevelDelete: dynamicconfig.GetBoolPropertyFn(true),
 		PersistenceSampleLoggingRate:             dynamicconfig.GetIntPropertyFn(100),
 		EnableShardIDMetrics:                     dynamicconfig.GetBoolPropertyFn(true),
+		EnableHistoryTaskDualWriteMode:           dynamicconfig.GetBoolPropertyFn(true),
+		ReadNoSQLHistoryTaskFromDataBlob:         dynamicconfig.GetBoolPropertyFn(false),
 	}
 	params := TestBaseParams{
 		DefaultTestCluster:    testCluster,
@@ -181,6 +184,7 @@ func NewTestBaseWithSQL(t *testing.T, options *TestBaseOptions) *TestBase {
 		EnableCassandraAllConsistencyLevelDelete: dynamicconfig.GetBoolPropertyFn(true),
 		PersistenceSampleLoggingRate:             dynamicconfig.GetIntPropertyFn(100),
 		EnableShardIDMetrics:                     dynamicconfig.GetBoolPropertyFn(true),
+		EnableHistoryTaskDualWriteMode:           dynamicconfig.GetBoolPropertyFn(true),
 	}
 	params := TestBaseParams{
 		DefaultTestCluster:    testCluster,
@@ -381,13 +385,18 @@ func (s *TestBase) CreateWorkflowExecutionWithBranchToken(
 			TasksByCategory: map[persistence.HistoryTaskCategory][]persistence.Task{
 				persistence.HistoryTaskCategoryTransfer: []persistence.Task{
 					&persistence.DecisionTask{
+						WorkflowIdentifier: p.WorkflowIdentifier{
+							DomainID:   domainID,
+							WorkflowID: workflowExecution.WorkflowID,
+							RunID:      workflowExecution.RunID,
+						},
 						TaskData: persistence.TaskData{
 							TaskID:              s.GetNextSequenceNumber(),
 							VisibilityTimestamp: time.Now(),
 						},
-						DomainID:   domainID,
-						TaskList:   taskList,
-						ScheduleID: decisionScheduleID,
+						TargetDomainID: domainID,
+						TaskList:       taskList,
+						ScheduleID:     decisionScheduleID,
 					},
 				},
 				persistence.HistoryTaskCategoryTimer: timerTasks,
@@ -468,12 +477,17 @@ func (s *TestBase) CreateChildWorkflowExecution(ctx context.Context, domainID st
 			TasksByCategory: map[persistence.HistoryTaskCategory][]persistence.Task{
 				persistence.HistoryTaskCategoryTransfer: []persistence.Task{
 					&persistence.DecisionTask{
+						WorkflowIdentifier: p.WorkflowIdentifier{
+							DomainID:   domainID,
+							WorkflowID: workflowExecution.WorkflowID,
+							RunID:      workflowExecution.RunID,
+						},
 						TaskData: persistence.TaskData{
 							TaskID: s.GetNextSequenceNumber(),
 						},
-						DomainID:   domainID,
-						TaskList:   taskList,
-						ScheduleID: decisionScheduleID,
+						TargetDomainID: domainID,
+						TaskList:       taskList,
+						ScheduleID:     decisionScheduleID,
 					},
 				},
 				persistence.HistoryTaskCategoryTimer: timerTasks,
@@ -543,12 +557,17 @@ func (s *TestBase) ContinueAsNewExecution(
 
 	now := time.Now()
 	newdecisionTask := &persistence.DecisionTask{
+		WorkflowIdentifier: p.WorkflowIdentifier{
+			DomainID:   updatedInfo.DomainID,
+			WorkflowID: updatedInfo.WorkflowID,
+			RunID:      updatedInfo.RunID,
+		},
 		TaskData: persistence.TaskData{
 			TaskID: s.GetNextSequenceNumber(),
 		},
-		DomainID:   updatedInfo.DomainID,
-		TaskList:   updatedInfo.TaskList,
-		ScheduleID: int64(decisionScheduleID),
+		TargetDomainID: updatedInfo.DomainID,
+		TaskList:       updatedInfo.TaskList,
+		ScheduleID:     int64(decisionScheduleID),
 	}
 	versionHistory := persistence.NewVersionHistory([]byte{}, []*persistence.VersionHistoryItem{
 		{
@@ -662,7 +681,14 @@ func (s *TestBase) UpdateWorkflowExecutionAndFinish(
 	versionHistories *persistence.VersionHistories,
 ) error {
 	transferTasks := []persistence.Task{}
-	transferTasks = append(transferTasks, &persistence.CloseExecutionTask{TaskData: persistence.TaskData{TaskID: s.GetNextSequenceNumber()}})
+	transferTasks = append(transferTasks, &persistence.CloseExecutionTask{
+		WorkflowIdentifier: persistence.WorkflowIdentifier{
+			DomainID:   updatedInfo.DomainID,
+			WorkflowID: updatedInfo.WorkflowID,
+			RunID:      updatedInfo.RunID,
+		},
+		TaskData: persistence.TaskData{TaskID: s.GetNextSequenceNumber()},
+	})
 	_, err := s.ExecutionManager.UpdateWorkflowExecution(ctx, &persistence.UpdateWorkflowExecutionRequest{
 		RangeID: s.ShardInfo.RangeID,
 		UpdateWorkflowMutation: persistence.WorkflowMutation{
@@ -1082,7 +1108,6 @@ func (s *TestBase) UpdateWorkflowExecutionWithReplication(
 			*persistence.CloseExecutionTask,
 			*persistence.RecordWorkflowClosedTask,
 			*persistence.RecordChildExecutionCompletedTask,
-			*persistence.ApplyParentClosePolicyTask,
 			*persistence.CancelExecutionTask,
 			*persistence.StartChildExecutionTask,
 			*persistence.SignalExecutionTask,
@@ -1098,22 +1123,32 @@ func (s *TestBase) UpdateWorkflowExecutionWithReplication(
 	}
 	for _, decisionScheduleID := range decisionScheduleIDs {
 		transferTasks = append(transferTasks, &persistence.DecisionTask{
+			WorkflowIdentifier: persistence.WorkflowIdentifier{
+				DomainID:   updatedInfo.DomainID,
+				WorkflowID: updatedInfo.WorkflowID,
+				RunID:      updatedInfo.RunID,
+			},
 			TaskData: persistence.TaskData{
 				TaskID: s.GetNextSequenceNumber(),
 			},
-			DomainID:   updatedInfo.DomainID,
-			TaskList:   updatedInfo.TaskList,
-			ScheduleID: int64(decisionScheduleID)})
+			TargetDomainID: updatedInfo.DomainID,
+			TaskList:       updatedInfo.TaskList,
+			ScheduleID:     int64(decisionScheduleID)})
 	}
 
 	for _, activityScheduleID := range activityScheduleIDs {
 		transferTasks = append(transferTasks, &persistence.ActivityTask{
+			WorkflowIdentifier: persistence.WorkflowIdentifier{
+				DomainID:   updatedInfo.DomainID,
+				WorkflowID: updatedInfo.WorkflowID,
+				RunID:      updatedInfo.RunID,
+			},
 			TaskData: persistence.TaskData{
 				TaskID: s.GetNextSequenceNumber(),
 			},
-			DomainID:   updatedInfo.DomainID,
-			TaskList:   updatedInfo.TaskList,
-			ScheduleID: int64(activityScheduleID)})
+			TargetDomainID: updatedInfo.DomainID,
+			TaskList:       updatedInfo.TaskList,
+			ScheduleID:     int64(activityScheduleID)})
 	}
 	_, err := s.ExecutionManager.UpdateWorkflowExecution(ctx, &persistence.UpdateWorkflowExecutionRequest{
 		RangeID: rangeID,
@@ -1398,16 +1433,21 @@ func (s *TestBase) DeleteCurrentWorkflowExecution(ctx context.Context, info *per
 }
 
 // GetTransferTasks is a utility method to get tasks from transfer task queue
-func (s *TestBase) GetTransferTasks(ctx context.Context, batchSize int, getAll bool) ([]*persistence.TransferTaskInfo, error) {
-	result := []*persistence.TransferTaskInfo{}
+func (s *TestBase) GetTransferTasks(ctx context.Context, batchSize int, getAll bool) ([]persistence.Task, error) {
+	result := []persistence.Task{}
 	var token []byte
 
 Loop:
 	for {
-		response, err := s.ExecutionManager.GetTransferTasks(ctx, &persistence.GetTransferTasksRequest{
-			ReadLevel:     0,
-			MaxReadLevel:  math.MaxInt64,
-			BatchSize:     batchSize,
+		response, err := s.ExecutionManager.GetHistoryTasks(ctx, &persistence.GetHistoryTasksRequest{
+			TaskCategory: persistence.HistoryTaskCategoryTransfer,
+			InclusiveMinTaskKey: persistence.HistoryTaskKey{
+				TaskID: 0,
+			},
+			ExclusiveMaxTaskKey: persistence.HistoryTaskKey{
+				TaskID: math.MaxInt64,
+			},
+			PageSize:      batchSize,
 			NextPageToken: token,
 		})
 		if err != nil {
@@ -1457,11 +1497,14 @@ Loop:
 }
 
 // RangeCompleteReplicationTask is a utility method to complete a range of replication tasks
-func (s *TestBase) RangeCompleteReplicationTask(ctx context.Context, inclusiveEndTaskID int64) error {
+func (s *TestBase) RangeCompleteReplicationTask(ctx context.Context, exclusiveEndTaskID int64) error {
 	for {
-		resp, err := s.ExecutionManager.RangeCompleteReplicationTask(ctx, &persistence.RangeCompleteReplicationTaskRequest{
-			InclusiveEndTaskID: inclusiveEndTaskID,
-			PageSize:           1,
+		resp, err := s.ExecutionManager.RangeCompleteHistoryTask(ctx, &persistence.RangeCompleteHistoryTaskRequest{
+			TaskCategory: persistence.HistoryTaskCategoryReplication,
+			ExclusiveMaxTaskKey: persistence.HistoryTaskKey{
+				TaskID: exclusiveEndTaskID,
+			},
+			PageSize: 1,
 		})
 		if err != nil {
 			return err
@@ -1541,8 +1584,8 @@ func (s *TestBase) RangeDeleteReplicationTaskFromDLQ(
 
 	_, err := s.ExecutionManager.RangeDeleteReplicationTaskFromDLQ(ctx, &persistence.RangeDeleteReplicationTaskFromDLQRequest{
 		SourceClusterName:    sourceCluster,
-		ExclusiveBeginTaskID: beginTaskID,
-		InclusiveEndTaskID:   endTaskID,
+		InclusiveBeginTaskID: beginTaskID,
+		ExclusiveEndTaskID:   endTaskID,
 	})
 	return err
 }
@@ -1568,12 +1611,17 @@ func (s *TestBase) CompleteTransferTask(ctx context.Context, taskID int64) error
 }
 
 // RangeCompleteTransferTask is a utility method to complete a range of transfer tasks
-func (s *TestBase) RangeCompleteTransferTask(ctx context.Context, exclusiveBeginTaskID int64, inclusiveEndTaskID int64) error {
+func (s *TestBase) RangeCompleteTransferTask(ctx context.Context, inclusiveBeginTaskID int64, exclusiveEndTaskID int64) error {
 	for {
-		resp, err := s.ExecutionManager.RangeCompleteTransferTask(ctx, &persistence.RangeCompleteTransferTaskRequest{
-			ExclusiveBeginTaskID: exclusiveBeginTaskID,
-			InclusiveEndTaskID:   inclusiveEndTaskID,
-			PageSize:             1,
+		resp, err := s.ExecutionManager.RangeCompleteHistoryTask(ctx, &persistence.RangeCompleteHistoryTaskRequest{
+			TaskCategory: persistence.HistoryTaskCategoryTransfer,
+			InclusiveMinTaskKey: persistence.HistoryTaskKey{
+				TaskID: inclusiveBeginTaskID,
+			},
+			ExclusiveMaxTaskKey: persistence.HistoryTaskKey{
+				TaskID: exclusiveEndTaskID,
+			},
+			PageSize: 1,
 		})
 		if err != nil {
 			return err
@@ -1604,16 +1652,21 @@ func (s *TestBase) CompleteReplicationTask(ctx context.Context, taskID int64) er
 }
 
 // GetTimerIndexTasks is a utility method to get tasks from transfer task queue
-func (s *TestBase) GetTimerIndexTasks(ctx context.Context, batchSize int, getAll bool) ([]*persistence.TimerTaskInfo, error) {
-	result := []*persistence.TimerTaskInfo{}
+func (s *TestBase) GetTimerIndexTasks(ctx context.Context, batchSize int, getAll bool) ([]persistence.Task, error) {
+	result := []persistence.Task{}
 	var token []byte
 
 Loop:
 	for {
-		response, err := s.ExecutionManager.GetTimerIndexTasks(ctx, &persistence.GetTimerIndexTasksRequest{
-			MinTimestamp:  time.Time{},
-			MaxTimestamp:  time.Unix(0, math.MaxInt64),
-			BatchSize:     batchSize,
+		response, err := s.ExecutionManager.GetHistoryTasks(ctx, &persistence.GetHistoryTasksRequest{
+			TaskCategory: persistence.HistoryTaskCategoryTimer,
+			InclusiveMinTaskKey: persistence.HistoryTaskKey{
+				ScheduledTime: time.Time{},
+			},
+			ExclusiveMaxTaskKey: persistence.HistoryTaskKey{
+				ScheduledTime: time.Unix(0, math.MaxInt64),
+			},
+			PageSize:      batchSize,
 			NextPageToken: token,
 		})
 		if err != nil {
@@ -1621,7 +1674,7 @@ Loop:
 		}
 
 		token = response.NextPageToken
-		result = append(result, response.Timers...)
+		result = append(result, response.Tasks...)
 		if len(token) == 0 || !getAll {
 			break Loop
 		}
@@ -1641,11 +1694,17 @@ func (s *TestBase) CompleteTimerTask(ctx context.Context, ts time.Time, taskID i
 // RangeCompleteTimerTask is a utility method to complete a range of timer tasks
 func (s *TestBase) RangeCompleteTimerTask(ctx context.Context, inclusiveBeginTimestamp time.Time, exclusiveEndTimestamp time.Time) error {
 	for {
-		resp, err := s.ExecutionManager.RangeCompleteTimerTask(ctx, &persistence.RangeCompleteTimerTaskRequest{
-			InclusiveBeginTimestamp: inclusiveBeginTimestamp,
-			ExclusiveEndTimestamp:   exclusiveEndTimestamp,
-			PageSize:                1,
+		resp, err := s.ExecutionManager.RangeCompleteHistoryTask(ctx, &persistence.RangeCompleteHistoryTaskRequest{
+			TaskCategory: persistence.HistoryTaskCategoryTimer,
+			InclusiveMinTaskKey: persistence.HistoryTaskKey{
+				ScheduledTime: inclusiveBeginTimestamp,
+			},
+			ExclusiveMaxTaskKey: persistence.HistoryTaskKey{
+				ScheduledTime: exclusiveEndTimestamp,
+			},
+			PageSize: 1,
 		})
+
 		if err != nil {
 			return err
 		}
@@ -1820,8 +1879,8 @@ func (s *TestBase) ClearTransferQueue() {
 
 	counter := 0
 	for _, t := range tasks {
-		s.Logger.Info("Deleting transfer task with ID", tag.TaskID(t.TaskID))
-		s.NoError(s.CompleteTransferTask(context.Background(), t.TaskID))
+		s.Logger.Info("Deleting transfer task with ID", tag.TaskID(t.GetTaskID()))
+		s.NoError(s.CompleteTransferTask(context.Background(), t.GetTaskID()))
 		counter++
 	}
 

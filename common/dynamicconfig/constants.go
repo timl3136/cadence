@@ -920,11 +920,7 @@ const (
 	// Default value: 200
 	// Allowed filters: N/A
 	TaskSchedulerWorkerCount
-	// TaskSchedulerShardWorkerCount is the number of worker per shard in task scheduler
-	// KeyName: history.taskSchedulerShardWorkerCount
-	// Value type: Int
-	// Default value: 0
-	// Allowed filters: N/A
+	// TaskSchedulerShardWorkerCount is deprecated
 	TaskSchedulerShardWorkerCount
 	// TaskSchedulerQueueSize is the size of task channel for host level task scheduler
 	// KeyName: history.taskSchedulerQueueSize
@@ -932,11 +928,7 @@ const (
 	// Default value: 10000
 	// Allowed filters: N/A
 	TaskSchedulerQueueSize
-	// TaskSchedulerShardQueueSize is the size of task channel for shard level task scheduler
-	// KeyName: history.taskSchedulerShardQueueSize
-	// Value type: Int
-	// Default value: 200
-	// Allowed filters: N/A
+	// TaskSchedulerShardQueueSize is deprecated
 	TaskSchedulerShardQueueSize
 	// TaskSchedulerDispatcherCount is the number of task dispatcher in task scheduler (only applies to host level task scheduler)
 	// KeyName: history.taskSchedulerDispatcherCount
@@ -944,6 +936,7 @@ const (
 	// Default value: 1
 	// Allowed filters: N/A
 	TaskSchedulerDispatcherCount
+	TaskSchedulerGlobalDomainRPS
 	// TaskCriticalRetryCount is the critical retry count for background tasks
 	// when task attempt exceeds this threshold:
 	// - task attempt metrics and additional error logs will be emitted
@@ -1193,6 +1186,7 @@ const (
 	// Default value: 0
 	// Allowed filters: DomainName
 	MutableStateChecksumVerifyProbability
+	TaskSchedulerMigrationRatio
 	// MaxActivityCountDispatchByDomain max # of activity tasks to dispatch to matching before creating transfer tasks. This is an performance optimization to skip activity scheduling efforts.
 	// KeyName: history.activityDispatchForSyncMatchCountByDomain
 	// Value type: Int
@@ -1450,7 +1444,7 @@ const (
 	// WorkflowDeletionJitterRange defines the duration in minutes for workflow close tasks jittering
 	// KeyName: system.workflowDeletionJitterRange
 	// Value type: Int
-	// Default value: 1 (no jittering)
+	// Default value: 60 (no jittering)
 	WorkflowDeletionJitterRange
 
 	// SampleLoggingRate defines the rate we want sampled logs to be logged at
@@ -1703,6 +1697,9 @@ const (
 	// Default value: false
 	// Allowed filters: N/A
 	TransferProcessorEnableValidator
+	TaskSchedulerEnableRateLimiter
+	TaskSchedulerEnableRateLimiterShadowMode
+	TaskSchedulerEnableMigration
 	// EnableAdminProtection is whether to enable admin checking
 	// KeyName: history.enableAdminProtection
 	// Value type: Bool
@@ -2043,6 +2040,9 @@ const (
 	// Allowed filters: DomainName,TasklistName,TasklistType
 	MatchingEnableClientAutoConfig
 
+	EnableNoSQLHistoryTaskDualWriteMode
+	ReadNoSQLHistoryTaskFromDataBlob
+
 	// LastBoolKey must be the last one in this const group
 	LastBoolKey
 )
@@ -2265,7 +2265,7 @@ const (
 	// DefaultEventEncoding is the encoding type for history events
 	// KeyName: history.defaultEventEncoding
 	// Value type: String
-	// Default value: string(common.EncodingTypeThriftRW)
+	// Default value: string(constants.EncodingTypeThriftRW)
 	// Allowed filters: DomainName
 	DefaultEventEncoding
 	// AdminOperationToken is the token to pass admin checking
@@ -2810,6 +2810,7 @@ const (
 	// Default value: please see common.ConvertIntMapToDynamicConfigMapProperty(DefaultTaskPriorityWeight) in code base
 	// Allowed filters: N/A
 	TaskSchedulerRoundRobinWeights
+	TaskSchedulerDomainRoundRobinWeights
 	// QueueProcessorPendingTaskSplitThreshold is the threshold for the number of pending tasks per domain
 	// KeyName: history.queueProcessorPendingTaskSplitThreshold
 	// Value type: Map
@@ -2822,6 +2823,20 @@ const (
 	// Default value: see common.ConvertIntMapToDynamicConfigMapProperty(DefaultStuckTaskSplitThreshold) in code base
 	// Allowed filters: N/A
 	QueueProcessorStuckTaskSplitThreshold
+
+	// PinotOptimizedQueryColumns is the list of search attributes that can be used in pinot optimized query
+	// KeyName: frontend.pinotOptimizedQueryColumns
+	// Value type: Map
+	// Default value: empty map
+	// Allowed filters: N/A
+	PinotOptimizedQueryColumns
+
+	// SearchAttributesHiddenValueKeys is the list of search attributes that values should be hidden
+	// KeyName: frontend.searchAttributesHiddenValueKeys
+	// Value type: Map
+	// Default value: empty map
+	// Allowed filters: N/A
+	SearchAttributesHiddenValueKeys
 
 	// LastMapKey must be the last one in this const group
 	LastMapKey
@@ -3375,7 +3390,7 @@ var IntKeys = map[IntKey]DynamicInt{
 	},
 	TaskSchedulerShardWorkerCount: {
 		KeyName:      "history.taskSchedulerShardWorkerCount",
-		Description:  "TaskSchedulerShardWorkerCount is the number of worker per shard in task scheduler",
+		Description:  "Deprecated",
 		DefaultValue: 0,
 	},
 	TaskSchedulerQueueSize: {
@@ -3385,13 +3400,18 @@ var IntKeys = map[IntKey]DynamicInt{
 	},
 	TaskSchedulerShardQueueSize: {
 		KeyName:      "history.taskSchedulerShardQueueSize",
-		Description:  "TaskSchedulerShardQueueSize is the size of task channel for shard level task scheduler",
+		Description:  "Deprecated",
 		DefaultValue: 200,
 	},
 	TaskSchedulerDispatcherCount: {
 		KeyName:      "history.taskSchedulerDispatcherCount",
 		Description:  "TaskSchedulerDispatcherCount is the number of task dispatcher in task scheduler (only applies to host level task scheduler)",
 		DefaultValue: 1,
+	},
+	TaskSchedulerGlobalDomainRPS: {
+		KeyName:      "history.taskSchedulerGlobalDomainRPS",
+		Description:  "TaskSchedulerGlobalDomainRPS is the task scheduling domain rate limit per second for the whole Cadence cluster",
+		DefaultValue: 1000,
 	},
 	TaskCriticalRetryCount: {
 		KeyName:      "history.taskCriticalRetryCount",
@@ -3604,6 +3624,11 @@ var IntKeys = map[IntKey]DynamicInt{
 		KeyName:      "history.mutableStateChecksumVerifyProbability",
 		Filters:      []Filter{DomainName},
 		Description:  "MutableStateChecksumVerifyProbability is the probability [0-100] that checksum will be verified for mutable state",
+		DefaultValue: 0,
+	},
+	TaskSchedulerMigrationRatio: {
+		KeyName:      "history.taskSchedulerMigrationRatio",
+		Description:  "TaskSchedulerMigrationRatio is the ratio of task that is migrated to new scheduler",
 		DefaultValue: 0,
 	},
 	MaxActivityCountDispatchByDomain: {
@@ -4064,6 +4089,21 @@ var BoolKeys = map[BoolKey]DynamicBool{
 		Description:  "TransferProcessorEnableValidator is whether validator should be enabled for transferQueueProcessor",
 		DefaultValue: false,
 	},
+	TaskSchedulerEnableRateLimiter: {
+		KeyName:      "history.taskSchedulerEnableRateLimiter",
+		Description:  "TaskSchedulerEnableRateLimiter indicates whether the task scheduler rate limiter is enabled",
+		DefaultValue: false,
+	},
+	TaskSchedulerEnableRateLimiterShadowMode: {
+		KeyName:      "history.taskSchedulerEnableRateLimiterShadowMode",
+		Description:  "TaskSchedulerEnableRateLimiterShadowMode indicates whether the task scheduler rate limiter is in shadow mode",
+		DefaultValue: true,
+	},
+	TaskSchedulerEnableMigration: {
+		KeyName:      "history.taskSchedulerEnableMigration",
+		Description:  "TaskSchedulerEnableMigration indicates whether the task scheduler migration is enabled",
+		DefaultValue: false,
+	},
 	EnableAdminProtection: {
 		KeyName:      "history.enableAdminProtection",
 		Description:  "EnableAdminProtection is whether to enable admin checking",
@@ -4362,6 +4402,16 @@ var BoolKeys = map[BoolKey]DynamicBool{
 		Description:  "MatchingEnableClientAutoConfig is to enable auto config on worker side",
 		DefaultValue: false,
 	},
+	EnableNoSQLHistoryTaskDualWriteMode: {
+		KeyName:      "history.enableNoSQLHistoryTaskDualWrite",
+		Description:  "EnableHistoryTaskDualWrite is to enable dual write of history events",
+		DefaultValue: false,
+	},
+	ReadNoSQLHistoryTaskFromDataBlob: {
+		KeyName:      "history.readNoSQLHistoryTaskFromDataBlob",
+		Description:  "ReadNoSQLHistoryTaskFromDataBlob is to read history tasks from data blob",
+		DefaultValue: false,
+	},
 }
 
 var FloatKeys = map[FloatKey]DynamicFloat{
@@ -4587,7 +4637,7 @@ var StringKeys = map[StringKey]DynamicString{
 	TasklistLoadBalancerStrategy: {
 		KeyName:      "system.tasklistLoadBalancerStrategy",
 		Description:  "TasklistLoadBalancerStrategy is the key for tasklist load balancer strategy",
-		DefaultValue: "random", // other options: "round-robin"
+		DefaultValue: "weighted", // available options: "random, round-robin, weighted"
 		Filters:      []Filter{DomainName, TaskListName, TaskType},
 	},
 	ReadVisibilityStoreName: {
@@ -5060,6 +5110,12 @@ var MapKeys = map[MapKey]DynamicMap{
 		Description:  "TaskSchedulerRoundRobinWeights is the priority weight for weighted round robin task scheduler",
 		DefaultValue: common.ConvertIntMapToDynamicConfigMapProperty(DefaultTaskSchedulerRoundRobinWeights),
 	},
+	TaskSchedulerDomainRoundRobinWeights: {
+		KeyName:      "history.taskSchedulerDomainRoundRobinWeight",
+		Description:  "TaskSchedulerDomainRoundRobinWeights is the priority round robin weights for domains",
+		Filters:      []Filter{DomainName},
+		DefaultValue: common.ConvertIntMapToDynamicConfigMapProperty(DefaultTaskSchedulerRoundRobinWeights),
+	},
 	QueueProcessorPendingTaskSplitThreshold: {
 		KeyName:      "history.queueProcessorPendingTaskSplitThreshold",
 		Description:  "QueueProcessorPendingTaskSplitThreshold is the threshold for the number of pending tasks per domain",
@@ -5069,6 +5125,16 @@ var MapKeys = map[MapKey]DynamicMap{
 		KeyName:      "history.queueProcessorStuckTaskSplitThreshold",
 		Description:  "QueueProcessorStuckTaskSplitThreshold is the threshold for the number of attempts of a task",
 		DefaultValue: common.ConvertIntMapToDynamicConfigMapProperty(map[int]int{0: 100, 1: 10000}),
+	},
+	PinotOptimizedQueryColumns: {
+		KeyName:      "frontend.pinotOptimizedQueryColumns",
+		Description:  "PinotOptimizedQueryColumns is the list of search attributes that can be used in pinot optimized query",
+		DefaultValue: map[string]interface{}{},
+	},
+	SearchAttributesHiddenValueKeys: {
+		KeyName:      "frontend.searchAttributesHiddenValueKeys",
+		Description:  "SearchAttributesHiddenValueKeys is the list of search attributes that values should be hidden",
+		DefaultValue: map[string]interface{}{},
 	},
 }
 

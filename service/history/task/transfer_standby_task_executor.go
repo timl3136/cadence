@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/uber/cadence/common"
 	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
@@ -181,7 +180,7 @@ func (t *transferStandbyTaskExecutor) processDecisionTask(
 
 		executionInfo := mutableState.GetExecutionInfo()
 		workflowTimeout := executionInfo.WorkflowTimeout
-		decisionTimeout := common.MinInt32(workflowTimeout, constants.MaxTaskTimeout)
+		decisionTimeout := min(workflowTimeout, constants.MaxTaskTimeout)
 		if executionInfo.TaskList != transferTask.TaskList {
 			// Experimental: try to push sticky task as regular task with sticky timeout as TTL.
 			// workflow might be sticky before namespace become standby
@@ -599,7 +598,7 @@ func (t *transferStandbyTaskExecutor) pushActivity(
 	}
 
 	pushActivityInfo := postActionInfo.(*pushActivityToMatchingInfo)
-	timeout := common.MinInt32(pushActivityInfo.activityScheduleToStartTimeout, constants.MaxTaskTimeout)
+	timeout := min(pushActivityInfo.activityScheduleToStartTimeout, constants.MaxTaskTimeout)
 	return t.transferTaskExecutorBase.pushActivity(
 		ctx,
 		task.(*persistence.TransferTaskInfo),
@@ -620,7 +619,7 @@ func (t *transferStandbyTaskExecutor) pushDecision(
 	}
 
 	pushDecisionInfo := postActionInfo.(*pushDecisionToMatchingInfo)
-	timeout := common.MinInt32(pushDecisionInfo.decisionScheduleToStartTimeout, constants.MaxTaskTimeout)
+	timeout := min(pushDecisionInfo.decisionScheduleToStartTimeout, constants.MaxTaskTimeout)
 	return t.transferTaskExecutorBase.pushDecision(
 		ctx,
 		task.(*persistence.TransferTaskInfo),

@@ -94,11 +94,12 @@ func TestNewConfig(t *testing.T) {
 		"TaskProcessRPS":                                       {dynamicconfig.TaskProcessRPS, 30},
 		"TaskSchedulerType":                                    {dynamicconfig.TaskSchedulerType, 31},
 		"TaskSchedulerWorkerCount":                             {dynamicconfig.TaskSchedulerWorkerCount, 32},
-		"TaskSchedulerShardWorkerCount":                        {dynamicconfig.TaskSchedulerShardWorkerCount, 33},
 		"TaskSchedulerQueueSize":                               {dynamicconfig.TaskSchedulerQueueSize, 34},
 		"TaskSchedulerDispatcherCount":                         {dynamicconfig.TaskSchedulerDispatcherCount, 35},
 		"TaskSchedulerRoundRobinWeights":                       {dynamicconfig.TaskSchedulerRoundRobinWeights, map[string]interface{}{"key": 1}},
-		"TaskSchedulerShardQueueSize":                          {dynamicconfig.TaskSchedulerShardQueueSize, 36},
+		"TaskSchedulerDomainRoundRobinWeights":                 {dynamicconfig.TaskSchedulerDomainRoundRobinWeights, map[string]interface{}{"key": 2}},
+		"TaskSchedulerEnableMigration":                         {dynamicconfig.TaskSchedulerEnableMigration, true},
+		"TaskSchedulerMigrationRatio":                          {dynamicconfig.TaskSchedulerMigrationRatio, 36},
 		"TaskCriticalRetryCount":                               {dynamicconfig.TaskCriticalRetryCount, 37},
 		"ActiveTaskRedispatchInterval":                         {dynamicconfig.ActiveTaskRedispatchInterval, time.Second},
 		"StandbyTaskRedispatchInterval":                        {dynamicconfig.StandbyTaskRedispatchInterval, time.Second},
@@ -253,7 +254,11 @@ func TestNewConfig(t *testing.T) {
 		"GlobalRatelimiterUpdateInterval":                      {dynamicconfig.GlobalRatelimiterUpdateInterval, time.Second},
 		"GlobalRatelimiterDecayAfter":                          {dynamicconfig.HistoryGlobalRatelimiterDecayAfter, time.Second},
 		"GlobalRatelimiterGCAfter":                             {dynamicconfig.HistoryGlobalRatelimiterGCAfter, time.Second},
+		"TaskSchedulerGlobalDomainRPS":                         {dynamicconfig.TaskSchedulerGlobalDomainRPS, 97},
+		"TaskSchedulerEnableRateLimiterShadowMode":             {dynamicconfig.TaskSchedulerEnableRateLimiterShadowMode, false},
+		"TaskSchedulerEnableRateLimiter":                       {dynamicconfig.TaskSchedulerEnableRateLimiter, true},
 		"HostName":                                             {nil, hostname},
+		"SearchAttributesHiddenValueKeys":                      {dynamicconfig.SearchAttributesHiddenValueKeys, map[string]interface{}{"CustomStringField": true}},
 	}
 	client := dynamicconfig.NewInMemoryClient()
 	for fieldName, expected := range fields {
@@ -339,6 +344,8 @@ func getValue(f *reflect.Value) interface{} {
 			return fn(0)
 		case dynamicconfig.BoolPropertyFnWithDomainIDAndWorkflowIDFilter:
 			return fn("domain", "workflowID")
+		case dynamicconfig.MapPropertyFnWithDomainFilter:
+			return fn("domain")
 		case func() []string:
 			return fn()
 		default:

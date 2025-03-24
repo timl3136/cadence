@@ -80,21 +80,21 @@ func TestExecutionManager_ProxyStoreMethods(t *testing.T) {
 			},
 		},
 		{
-			method: "GetTransferTasks",
-			prepareMocks: func(mockedStore *MockExecutionStore) {
-				mockedStore.EXPECT().GetTransferTasks(gomock.Any(), gomock.Any()).Return(nil, nil)
-			},
-		},
-		{
 			method: "CompleteTransferTask",
 			prepareMocks: func(mockedStore *MockExecutionStore) {
 				mockedStore.EXPECT().CompleteTransferTask(gomock.Any(), gomock.Any()).Return(nil)
 			},
 		},
 		{
-			method: "RangeCompleteTransferTask",
+			method: "GetHistoryTasks",
 			prepareMocks: func(mockedStore *MockExecutionStore) {
-				mockedStore.EXPECT().RangeCompleteTransferTask(gomock.Any(), gomock.Any()).Return(nil, nil)
+				mockedStore.EXPECT().GetHistoryTasks(gomock.Any(), gomock.Any()).Return(nil, nil)
+			},
+		},
+		{
+			method: "RangeCompleteHistoryTask",
+			prepareMocks: func(mockedStore *MockExecutionStore) {
+				mockedStore.EXPECT().RangeCompleteHistoryTask(gomock.Any(), gomock.Any()).Return(nil, nil)
 			},
 		},
 		{
@@ -110,39 +110,15 @@ func TestExecutionManager_ProxyStoreMethods(t *testing.T) {
 			},
 		},
 		{
-			method: "CreateFailoverMarkerTasks",
-			prepareMocks: func(mockedStore *MockExecutionStore) {
-				mockedStore.EXPECT().CreateFailoverMarkerTasks(gomock.Any(), gomock.Any()).Return(nil)
-			},
-		},
-		{
-			method: "GetTimerIndexTasks",
-			prepareMocks: func(mockedStore *MockExecutionStore) {
-				mockedStore.EXPECT().GetTimerIndexTasks(gomock.Any(), gomock.Any()).Return(nil, nil)
-			},
-		},
-		{
 			method: "CompleteTimerTask",
 			prepareMocks: func(mockedStore *MockExecutionStore) {
 				mockedStore.EXPECT().CompleteTimerTask(gomock.Any(), gomock.Any()).Return(nil)
 			},
 		},
 		{
-			method: "RangeCompleteTimerTask",
-			prepareMocks: func(mockedStore *MockExecutionStore) {
-				mockedStore.EXPECT().RangeCompleteTimerTask(gomock.Any(), gomock.Any()).Return(nil, nil)
-			},
-		},
-		{
 			method: "CompleteReplicationTask",
 			prepareMocks: func(mockedStore *MockExecutionStore) {
 				mockedStore.EXPECT().CompleteReplicationTask(gomock.Any(), gomock.Any()).Return(nil)
-			},
-		},
-		{
-			method: "RangeCompleteReplicationTask",
-			prepareMocks: func(mockedStore *MockExecutionStore) {
-				mockedStore.EXPECT().RangeCompleteReplicationTask(gomock.Any(), gomock.Any()).Return(nil, nil)
 			},
 		},
 		{
@@ -643,7 +619,7 @@ func TestPutReplicationTaskToDLQ(t *testing.T) {
 	mockedStore := NewMockExecutionStore(ctrl)
 	manager := NewExecutionManagerImpl(mockedStore, testlogger.New(t), nil)
 
-	now := time.Now().UTC().Round(time.Second)
+	now := time.Now().UTC()
 
 	task := &PutReplicationTaskToDLQRequest{
 		SourceClusterName: "test-cluster",
@@ -656,14 +632,12 @@ func TestPutReplicationTaskToDLQ(t *testing.T) {
 	}
 
 	mockedStore.EXPECT().PutReplicationTaskToDLQ(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, req *InternalPutReplicationTaskToDLQRequest) error {
-		assert.Equal(t, &InternalPutReplicationTaskToDLQRequest{
-			SourceClusterName: "test-cluster",
-			TaskInfo: &InternalReplicationTaskInfo{
-				DomainID:     testDomainID,
-				WorkflowID:   testWorkflowID,
-				CreationTime: now,
-			},
-		}, req)
+		assert.Equal(t, "test-cluster", req.SourceClusterName)
+		assert.Equal(t, testDomainID, req.TaskInfo.DomainID)
+		assert.Equal(t, testWorkflowID, req.TaskInfo.WorkflowID)
+		assert.Equal(t, now, req.TaskInfo.CreationTime)
+
+		assert.WithinDuration(t, now, req.TaskInfo.CurrentTimeStamp, time.Second)
 		return nil
 	})
 
@@ -996,14 +970,27 @@ func TestCreateWorkflowExecution(t *testing.T) {
 			name: "success",
 			prepareMocks: func(mockedStore *MockExecutionStore, mockedSerializer *MockPayloadSerializer) {
 				// Prepare CreateWorkflow call
-				mockedStore.EXPECT().CreateWorkflowExecution(gomock.Any(), &InternalCreateWorkflowExecutionRequest{
+				expectedRequest := &InternalCreateWorkflowExecutionRequest{
 					RangeID:                  1,
 					Mode:                     CreateWorkflowModeWorkflowIDReuse,
 					PreviousRunID:            testRunID,
 					PreviousLastWriteVersion: 1,
 					NewWorkflowSnapshot:      *sampleInternalWorkflowSnapshot(),
 					WorkflowRequestMode:      CreateWorkflowRequestModeReplicated,
-				}).Return(nil, nil)
+					CurrentTimeStamp:         time.Now(),
+				}
+				mockedStore.EXPECT().CreateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(_ context.Context, actualRequest *InternalCreateWorkflowExecutionRequest) (*CreateWorkflowExecutionResponse, error) {
+						assert.Equal(t, expectedRequest.RangeID, actualRequest.RangeID)
+						assert.Equal(t, expectedRequest.Mode, actualRequest.Mode)
+						assert.Equal(t, expectedRequest.PreviousRunID, actualRequest.PreviousRunID)
+						assert.Equal(t, expectedRequest.PreviousLastWriteVersion, actualRequest.PreviousLastWriteVersion)
+						assert.Equal(t, expectedRequest.WorkflowRequestMode, actualRequest.WorkflowRequestMode)
+						assert.Equal(t, expectedRequest.NewWorkflowSnapshot, actualRequest.NewWorkflowSnapshot)
+
+						assert.WithinDuration(t, expectedRequest.CurrentTimeStamp, actualRequest.CurrentTimeStamp, time.Second)
+						return nil, nil
+					})
 
 				// Prepare DeserializeWorkflow call
 				mockedSerializer.EXPECT().SerializeEvent(completionEvent(), constants.EncodingTypeThriftRW).Return(sampleEventData(), nil).Times(1)
@@ -1102,11 +1089,21 @@ func TestConflictResolveWorkflowExecution(t *testing.T) {
 				Encoding:              constants.EncodingTypeThriftRW,
 			},
 			prepareMocks: func(mockedStore *MockExecutionStore, mockedSerializer *MockPayloadSerializer) {
-				mockedStore.EXPECT().ConflictResolveWorkflowExecution(gomock.Any(), &InternalConflictResolveWorkflowExecutionRequest{
+				expectedRequest := &InternalConflictResolveWorkflowExecutionRequest{
 					RangeID:               1,
 					Mode:                  ConflictResolveWorkflowModeBypassCurrent,
 					ResetWorkflowSnapshot: *sampleInternalWorkflowSnapshot(),
-				}).Return(nil)
+					CurrentTimeStamp:      time.Now(),
+				}
+				mockedStore.EXPECT().ConflictResolveWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(_ context.Context, actualRequest *InternalConflictResolveWorkflowExecutionRequest) error {
+						assert.Equal(t, expectedRequest.RangeID, actualRequest.RangeID)
+						assert.Equal(t, expectedRequest.Mode, actualRequest.Mode)
+						assert.Equal(t, expectedRequest.ResetWorkflowSnapshot, actualRequest.ResetWorkflowSnapshot)
+
+						assert.WithinDuration(t, expectedRequest.CurrentTimeStamp, actualRequest.CurrentTimeStamp, time.Second)
+						return nil
+					})
 
 				mockedSerializer.EXPECT().SerializeEvent(completionEvent(), constants.EncodingTypeThriftRW).Return(sampleEventData(), nil).Times(1)
 				mockedSerializer.EXPECT().SerializeResetPoints(gomock.Any(), gomock.Any()).Return(sampleResetPointsData(), nil).Times(1)
@@ -1159,13 +1156,20 @@ func TestConflictResolveWorkflowExecution(t *testing.T) {
 				CurrentWorkflowMutation: sampleWorkflowMutation(),
 			},
 			prepareMocks: func(mockedStore *MockExecutionStore, mockedSerializer *MockPayloadSerializer) {
-				mockedStore.EXPECT().ConflictResolveWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, request *InternalConflictResolveWorkflowExecutionRequest) error {
-					assert.Equal(t, &InternalConflictResolveWorkflowExecutionRequest{
-						RangeID:                 1,
-						Mode:                    ConflictResolveWorkflowModeBypassCurrent,
-						ResetWorkflowSnapshot:   *sampleInternalWorkflowSnapshot(),
-						CurrentWorkflowMutation: sampleInternalWorkflowMutation(),
-					}, request)
+				expectedRequest := &InternalConflictResolveWorkflowExecutionRequest{
+					RangeID:                 1,
+					Mode:                    ConflictResolveWorkflowModeBypassCurrent,
+					ResetWorkflowSnapshot:   *sampleInternalWorkflowSnapshot(),
+					CurrentWorkflowMutation: sampleInternalWorkflowMutation(),
+					CurrentTimeStamp:        time.Now(),
+				}
+
+				mockedStore.EXPECT().ConflictResolveWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, actualRequest *InternalConflictResolveWorkflowExecutionRequest) error {
+					assert.Equal(t, expectedRequest.RangeID, actualRequest.RangeID)
+					assert.Equal(t, expectedRequest.Mode, actualRequest.Mode)
+					assert.Equal(t, expectedRequest.ResetWorkflowSnapshot, actualRequest.ResetWorkflowSnapshot)
+
+					assert.WithinDuration(t, expectedRequest.CurrentTimeStamp, actualRequest.CurrentTimeStamp, time.Second)
 					return nil
 				})
 
@@ -1231,6 +1235,37 @@ func TestConflictResolveWorkflowExecution(t *testing.T) {
 			tc.checkRes(t, res, err)
 		})
 	}
+}
+
+func TestCreateFailoverMarkerTasks(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockedStore := NewMockExecutionStore(ctrl)
+	manager := NewExecutionManagerImpl(mockedStore, testlogger.New(t), nil)
+
+	req := &CreateFailoverMarkersRequest{
+		Markers: []*FailoverMarkerTask{{
+			TaskData: TaskData{
+				Version:             0,
+				TaskID:              0,
+				VisibilityTimestamp: time.Time{},
+			},
+			DomainID: "1",
+		}},
+		RangeID:          1,
+		CurrentTimeStamp: time.Now(),
+	}
+
+	mockedStore.EXPECT().CreateFailoverMarkerTasks(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, req *CreateFailoverMarkersRequest) error {
+			assert.Equal(t, req.RangeID, req.RangeID)
+			assert.Equal(t, req.Markers, req.Markers)
+
+			assert.WithinDuration(t, req.CurrentTimeStamp, req.CurrentTimeStamp, time.Second)
+			return nil
+		})
+
+	err := manager.CreateFailoverMarkerTasks(context.Background(), req)
+	assert.NoError(t, err)
 }
 
 func sampleInternalActivityInfo(name string) *InternalActivityInfo {
