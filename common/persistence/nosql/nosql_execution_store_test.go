@@ -24,7 +24,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	commonconstants "github.com/uber/cadence/common/constants"
 	"testing"
 	"time"
 
@@ -34,6 +33,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/uber/cadence/common"
+	commonconstants "github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/dynamicconfig"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/persistence"

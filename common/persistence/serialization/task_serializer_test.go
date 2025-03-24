@@ -23,13 +23,13 @@
 package serialization
 
 import (
-	"github.com/uber/cadence/common/constants"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/persistence"
 )
 

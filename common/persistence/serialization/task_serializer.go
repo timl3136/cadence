@@ -26,9 +26,9 @@ package serialization
 
 import (
 	"fmt"
-	"github.com/uber/cadence/common/constants"
 
 	"github.com/uber/cadence/common"
+	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/types"
 )
