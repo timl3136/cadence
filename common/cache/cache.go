@@ -153,5 +153,5 @@ type DomainMetricsScopeCache interface {
 // Sizeable is a interface that implements Size() function
 type Sizeable interface {
 	// Size returns an approximate size of the object in bytes
-	Size() uint64
+	ByteSize() uint64
 }
