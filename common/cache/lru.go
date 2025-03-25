@@ -23,6 +23,7 @@ package cache
 import (
 	"container/list"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -310,7 +311,7 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 	if c.isSizeBased {
 		sizeableValue, ok := value.(Sizeable)
 		if !ok {
-			return nil, errors.New("value does not implement Sizeable interface")
+			return nil, fmt.Errorf("value %T does not implement sizable. Key: %+v", value, key)
 		}
 		valueSize = sizeableValue.Size()
 	}
