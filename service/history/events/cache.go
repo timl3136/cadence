@@ -28,6 +28,7 @@ import (
 
 	"github.com/uber/cadence/common"
 	"github.com/uber/cadence/common/cache"
+	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
 	"github.com/uber/cadence/common/metrics"
@@ -280,7 +281,7 @@ func (e *cacheImpl) getHistoryEventFromStore(
 func (e *eventKey) Size() uint64 {
 	// Calculate the size of strings in bytes, we assume that all those fields are using ASCII which is 1 byte per char
 	size := len(e.domainID) + len(e.workflowID) + len(e.runID)
-	stringOverhead := 3 * common.StringSizeOverheadBytes
+	stringOverhead := 3 * constants.StringSizeOverheadBytes
 	// int64 is 8 bytes
 	return uint64(size + stringOverhead + 8)
 }
