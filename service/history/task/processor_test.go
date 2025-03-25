@@ -29,15 +29,14 @@ import (
 	"github.com/uber-go/tally"
 	"go.uber.org/mock/gomock"
 
+	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/clock"
 	"github.com/uber/cadence/common/dynamicconfig"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/testlogger"
 	"github.com/uber/cadence/common/metrics"
-	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/task"
 	"github.com/uber/cadence/service/history/config"
-	"github.com/uber/cadence/service/history/shard"
 )
 
 type (
@@ -46,7 +45,7 @@ type (
 		*require.Assertions
 
 		controller           *gomock.Controller
-		mockShard            *shard.TestContext
+		mockDomainCache      *cache.MockDomainCache
 		mockPriorityAssigner *MockPriorityAssigner
 
 		timeSource    clock.TimeSource
@@ -66,15 +65,7 @@ func (s *queueTaskProcessorSuite) SetupTest() {
 	s.Assertions = require.New(s.T())
 
 	s.controller = gomock.NewController(s.T())
-	s.mockShard = shard.NewTestContext(
-		s.T(),
-		s.controller,
-		&persistence.ShardInfo{
-			ShardID: 10,
-			RangeID: 1,
-		},
-		config.NewForTest(),
-	)
+	s.mockDomainCache = cache.NewMockDomainCache(s.controller)
 	s.mockPriorityAssigner = NewMockPriorityAssigner(s.controller)
 
 	s.timeSource = clock.NewRealTimeSource()
@@ -84,103 +75,51 @@ func (s *queueTaskProcessorSuite) SetupTest() {
 	s.processor = s.newTestQueueTaskProcessor()
 }
 
-func (s *queueTaskProcessorSuite) TearDownTest() {
-	s.controller.Finish()
-	s.mockShard.Finish(s.T())
-}
-
-func (s *queueTaskProcessorSuite) TestIsRunning() {
-	s.False(s.processor.isRunning())
-
-	s.processor.Start()
-	s.True(s.processor.isRunning())
-
-	s.processor.Stop()
-	s.False(s.processor.isRunning())
-}
-
-func (s *queueTaskProcessorSuite) TestGetOrCreateShardTaskScheduler_ProcessorNotRunning() {
-	scheduler, err := s.processor.getOrCreateShardTaskScheduler(s.mockShard)
-	s.Equal(errTaskProcessorNotRunning, err)
-	s.Nil(scheduler)
-}
-
-func (s *queueTaskProcessorSuite) TestGetOrCreateShardTaskScheduler_ShardProcessorAlreadyExists() {
-	mockScheduler := task.NewMockScheduler(s.controller)
-	mockScheduler.EXPECT().Stop().Times(1)
-	s.processor.shardSchedulers[s.mockShard] = mockScheduler
-
-	s.processor.Start()
-	defer s.processor.Stop()
-	scheduler, err := s.processor.getOrCreateShardTaskScheduler(s.mockShard)
-	s.NoError(err)
-	s.Equal(mockScheduler, scheduler)
-}
-
-func (s *queueTaskProcessorSuite) TestGetOrCreateShardTaskScheduler_ShardProcessorNotExist() {
-	s.Empty(s.processor.shardSchedulers)
-
-	s.processor.Start()
-	defer s.processor.Stop()
-	scheduler, err := s.processor.getOrCreateShardTaskScheduler(s.mockShard)
-	s.NoError(err)
-
-	s.Len(s.processor.shardSchedulers, 1)
-	scheduler.Stop()
-}
-
-func (s *queueTaskProcessorSuite) TestStopShardProcessor() {
-	s.Empty(s.processor.shardSchedulers)
-	s.processor.StopShardProcessor(s.mockShard)
-
-	mockScheduler := task.NewMockScheduler(s.controller)
-	mockScheduler.EXPECT().Stop().Times(1)
-	s.processor.shardSchedulers[s.mockShard] = mockScheduler
-
-	s.processor.StopShardProcessor(s.mockShard)
-	s.Empty(s.processor.shardSchedulers)
-}
+func (s *queueTaskProcessorSuite) TearDownTest() {}
 
 func (s *queueTaskProcessorSuite) TestStartStop() {
 	mockScheduler := task.NewMockScheduler(s.controller)
 	mockScheduler.EXPECT().Start().Times(1)
 	mockScheduler.EXPECT().Stop().Times(1)
-	s.processor.hostScheduler = mockScheduler
-
-	for i := 0; i != 10; i++ {
-		mockShard := shard.NewTestContext(
-			s.T(),
-			s.controller,
-			&persistence.ShardInfo{
-				ShardID: 10,
-				RangeID: 1,
-			},
-			config.NewForTest(),
-		)
-		mockShardScheduler := task.NewMockScheduler(s.controller)
-		mockShardScheduler.EXPECT().Stop().Times(1)
-		s.processor.shardSchedulers[mockShard] = mockShardScheduler
-	}
+	s.processor.scheduler = mockScheduler
 
 	s.processor.Start()
 	s.processor.Stop()
+}
 
-	s.Empty(s.processor.shardSchedulers)
+func (s *queueTaskProcessorSuite) TestStartStopWithNewScheduler() {
+	mockScheduler := task.NewMockScheduler(s.controller)
+	mockScheduler.EXPECT().Start().Times(2)
+	mockScheduler.EXPECT().Stop().Times(2)
+	s.processor.scheduler = mockScheduler
+	s.processor.newScheduler = mockScheduler
+
+	s.processor.Start()
+	s.processor.Stop()
 }
 
 func (s *queueTaskProcessorSuite) TestSubmit() {
 	mockTask := NewMockTask(s.controller)
-	mockTask.EXPECT().GetShard().Return(s.mockShard).Times(1)
 	s.mockPriorityAssigner.EXPECT().Assign(NewMockTaskMatcher(mockTask)).Return(nil).Times(1)
 
 	mockScheduler := task.NewMockScheduler(s.controller)
-	mockScheduler.EXPECT().TrySubmit(NewMockTaskMatcher(mockTask)).Return(false, nil).Times(1)
+	mockScheduler.EXPECT().Submit(NewMockTaskMatcher(mockTask)).Return(nil).Times(1)
 
-	mockShardScheduler := task.NewMockScheduler(s.controller)
-	mockShardScheduler.EXPECT().Submit(NewMockTaskMatcher(mockTask)).Return(nil).Times(1)
+	s.processor.scheduler = mockScheduler
 
-	s.processor.hostScheduler = mockScheduler
-	s.processor.shardSchedulers[s.mockShard] = mockShardScheduler
+	err := s.processor.Submit(mockTask)
+	s.NoError(err)
+}
+
+func (s *queueTaskProcessorSuite) TestSubmitNewScheduler() {
+	mockTask := NewMockTask(s.controller)
+	s.mockPriorityAssigner.EXPECT().Assign(NewMockTaskMatcher(mockTask)).Return(nil).Times(1)
+
+	mockScheduler := task.NewMockScheduler(s.controller)
+	mockScheduler.EXPECT().Submit(NewMockTaskMatcher(mockTask)).Return(nil).Times(1)
+
+	s.processor.newScheduler = mockScheduler
+	s.processor.newSchedulerProbabilityFn = func(...dynamicconfig.FilterOption) int { return 100 }
 
 	err := s.processor.Submit(mockTask)
 	s.NoError(err)
@@ -205,13 +144,28 @@ func (s *queueTaskProcessorSuite) TestTrySubmit_Fail() {
 	mockScheduler := task.NewMockScheduler(s.controller)
 	mockScheduler.EXPECT().TrySubmit(NewMockTaskMatcher(mockTask)).Return(false, errTrySubmit).Times(1)
 
-	s.processor.hostScheduler = mockScheduler
+	s.processor.scheduler = mockScheduler
 
 	submitted, err := s.processor.TrySubmit(mockTask)
 	s.Equal(errTrySubmit, err)
 	s.False(submitted)
 }
 
+func (s *queueTaskProcessorSuite) TestTrySubmit_Fail_NewScheduler() {
+	mockTask := NewMockTask(s.controller)
+	s.mockPriorityAssigner.EXPECT().Assign(NewMockTaskMatcher(mockTask)).Return(nil).Times(1)
+
+	errTrySubmit := errors.New("some randome error")
+	mockScheduler := task.NewMockScheduler(s.controller)
+	mockScheduler.EXPECT().TrySubmit(NewMockTaskMatcher(mockTask)).Return(false, errTrySubmit).Times(1)
+
+	s.processor.newScheduler = mockScheduler
+	s.processor.newSchedulerProbabilityFn = func(...dynamicconfig.FilterOption) int { return 100 }
+
+	submitted, err := s.processor.TrySubmit(mockTask)
+	s.Equal(errTrySubmit, err)
+	s.False(submitted)
+}
 func (s *queueTaskProcessorSuite) TestNewSchedulerOptions_UnknownSchedulerType() {
 	options, err := task.NewSchedulerOptions[int](0, 100, dynamicconfig.GetIntPropertyFn(10), 1, func(task.PriorityTask) int { return 1 }, func(int) int { return 1 })
 	s.Error(err)
@@ -220,14 +174,78 @@ func (s *queueTaskProcessorSuite) TestNewSchedulerOptions_UnknownSchedulerType()
 
 func (s *queueTaskProcessorSuite) newTestQueueTaskProcessor() *processorImpl {
 	config := config.NewForTest()
-	config.TaskSchedulerShardWorkerCount = dynamicconfig.GetIntPropertyFn(1)
 	processor, err := NewProcessor(
 		s.mockPriorityAssigner,
 		config,
 		s.logger,
 		s.metricsClient,
 		s.timeSource,
+		s.mockDomainCache,
 	)
 	s.NoError(err)
 	return processor.(*processorImpl)
+}
+
+func TestGetDomainPriorityWeight(t *testing.T) {
+	testCases := []struct {
+		name      string
+		mockSetup func(*cache.MockDomainCache, dynamicconfig.Client)
+		expected  int
+	}{
+		{
+			name: "success",
+			mockSetup: func(mockDomainCache *cache.MockDomainCache, client dynamicconfig.Client) {
+				mockDomainCache.EXPECT().GetDomainName("test-domain-id").Return("test-domain-name", nil).Times(1)
+				client.UpdateValue(dynamicconfig.TaskSchedulerDomainRoundRobinWeights, map[string]interface{}{"1": 10})
+			},
+			expected: 10,
+		},
+		{
+			name: "domain cache error, use default",
+			mockSetup: func(mockDomainCache *cache.MockDomainCache, client dynamicconfig.Client) {
+				mockDomainCache.EXPECT().GetDomainName("test-domain-id").Return("", errors.New("test-error")).Times(1)
+				client.UpdateValue(dynamicconfig.TaskSchedulerDomainRoundRobinWeights, map[string]interface{}{"1": 10})
+			},
+			expected: 500,
+		},
+		{
+			name: "invalid map value, use default",
+			mockSetup: func(mockDomainCache *cache.MockDomainCache, client dynamicconfig.Client) {
+				mockDomainCache.EXPECT().GetDomainName("test-domain-id").Return("test-domain-name", nil).Times(1)
+				client.UpdateValue(dynamicconfig.TaskSchedulerDomainRoundRobinWeights, map[string]interface{}{"1": "invalid"})
+			},
+			expected: 500,
+		},
+		{
+			name: "unspecified priority",
+			mockSetup: func(mockDomainCache *cache.MockDomainCache, client dynamicconfig.Client) {
+				mockDomainCache.EXPECT().GetDomainName("test-domain-id").Return("test-domain-name", nil).Times(1)
+				client.UpdateValue(dynamicconfig.TaskSchedulerDomainRoundRobinWeights, map[string]interface{}{"2": 10})
+			},
+			expected: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+
+			mockDomainCache := cache.NewMockDomainCache(mockCtrl)
+			client := dynamicconfig.NewInMemoryClient()
+			config := config.New(
+				dynamicconfig.NewCollection(
+					client,
+					testlogger.New(t),
+				),
+				1024,
+				1024,
+				false,
+				"hostname",
+			)
+			tc.mockSetup(mockDomainCache, client)
+
+			weight := getDomainPriorityWeight(testlogger.New(t), config, mockDomainCache, DomainPriorityKey{DomainID: "test-domain-id", Priority: 1})
+			require.Equal(t, tc.expected, weight)
+		})
+	}
 }

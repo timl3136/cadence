@@ -26,7 +26,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"golang.org/x/exp/rand"
+
 	"github.com/uber/cadence/common"
+	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/clock"
 	"github.com/uber/cadence/common/dynamicconfig"
 	"github.com/uber/cadence/common/log"
@@ -34,22 +37,26 @@ import (
 	"github.com/uber/cadence/common/metrics"
 	"github.com/uber/cadence/common/task"
 	"github.com/uber/cadence/service/history/config"
-	"github.com/uber/cadence/service/history/shard"
 )
+
+type DomainPriorityKey struct {
+	DomainID string
+	Priority int
+}
 
 type processorImpl struct {
 	sync.RWMutex
 
 	priorityAssigner PriorityAssigner
-	hostScheduler    task.Scheduler
-	shardSchedulers  map[shard.Context]task.Scheduler
+	taskProcessor    task.Processor
+	scheduler        task.Scheduler
+	newScheduler     task.Scheduler
 
-	status        int32
-	options       *task.SchedulerOptions[int]
-	shardOptions  *task.SchedulerOptions[int]
-	logger        log.Logger
-	metricsClient metrics.Client
-	timeSource    clock.TimeSource
+	status                    int32
+	logger                    log.Logger
+	metricsClient             metrics.Client
+	timeSource                clock.TimeSource
+	newSchedulerProbabilityFn dynamicconfig.IntPropertyFn
 }
 
 var (
@@ -63,7 +70,17 @@ func NewProcessor(
 	logger log.Logger,
 	metricsClient metrics.Client,
 	timeSource clock.TimeSource,
+	domainCache cache.DomainCache,
 ) (Processor, error) {
+	taskProcessor := task.NewParallelTaskProcessor(
+		logger,
+		metricsClient,
+		&task.ParallelTaskProcessorOptions{
+			QueueSize:   1,
+			WorkerCount: config.TaskSchedulerWorkerCount,
+			RetryPolicy: common.CreateTaskProcessingRetryPolicy(),
+		},
+	)
 	taskToChannelKeyFn := func(t task.PriorityTask) int {
 		return t.Priority()
 	}
@@ -90,38 +107,56 @@ func NewProcessor(
 	if err != nil {
 		return nil, err
 	}
-	hostScheduler, err := createTaskScheduler(options, logger, metricsClient, timeSource)
+	scheduler, err := createTaskScheduler(options, logger, metricsClient, timeSource, taskProcessor)
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("Host level task scheduler is created", tag.Dynamic("scheduler_options", options.String()))
-
-	var shardOptions *task.SchedulerOptions[int]
-	if config.TaskSchedulerShardWorkerCount() > 0 {
-		shardOptions, err = task.NewSchedulerOptions[int](
-			config.TaskSchedulerType(),
-			config.TaskSchedulerShardQueueSize(),
-			config.TaskSchedulerShardWorkerCount,
-			1,
-			taskToChannelKeyFn,
-			channelKeyToWeightFn,
+	var newScheduler task.Scheduler
+	var newSchedulerProbabilityFn dynamicconfig.IntPropertyFn
+	if config.TaskSchedulerEnableMigration() {
+		taskToChannelKeyFn := func(t task.PriorityTask) DomainPriorityKey {
+			var domainID string
+			tt, ok := t.(Task)
+			if ok {
+				domainID = tt.GetDomainID()
+			} else {
+				logger.Error("incorrect task type for task scheduler, this should not happen, there must be a bug in our code")
+			}
+			return DomainPriorityKey{
+				DomainID: domainID,
+				Priority: t.Priority(),
+			}
+		}
+		channelKeyToWeightFn := func(k DomainPriorityKey) int {
+			return getDomainPriorityWeight(logger, config, domainCache, k)
+		}
+		newScheduler, err = task.NewWeightedRoundRobinTaskScheduler(
+			logger,
+			metricsClient,
+			timeSource,
+			taskProcessor,
+			&task.WeightedRoundRobinTaskSchedulerOptions[DomainPriorityKey]{
+				QueueSize:            config.TaskSchedulerQueueSize(),
+				DispatcherCount:      config.TaskSchedulerDispatcherCount(),
+				TaskToChannelKeyFn:   taskToChannelKeyFn,
+				ChannelKeyToWeightFn: channelKeyToWeightFn,
+			},
 		)
 		if err != nil {
 			return nil, err
 		}
-		logger.Debug("Shard level task scheduler is enabled", tag.Dynamic("scheduler_options", shardOptions.String()))
+		newSchedulerProbabilityFn = config.TaskSchedulerMigrationRatio
 	}
-
 	return &processorImpl{
-		priorityAssigner: priorityAssigner,
-		hostScheduler:    hostScheduler,
-		shardSchedulers:  make(map[shard.Context]task.Scheduler),
-		status:           common.DaemonStatusInitialized,
-		options:          options,
-		shardOptions:     shardOptions,
-		logger:           logger,
-		metricsClient:    metricsClient,
-		timeSource:       timeSource,
+		priorityAssigner:          priorityAssigner,
+		taskProcessor:             taskProcessor,
+		scheduler:                 scheduler,
+		newScheduler:              newScheduler,
+		status:                    common.DaemonStatusInitialized,
+		logger:                    logger,
+		metricsClient:             metricsClient,
+		timeSource:                timeSource,
+		newSchedulerProbabilityFn: newSchedulerProbabilityFn,
 	}, nil
 }
 
@@ -130,7 +165,11 @@ func (p *processorImpl) Start() {
 		return
 	}
 
-	p.hostScheduler.Start()
+	p.taskProcessor.Start()
+	p.scheduler.Start()
+	if p.newScheduler != nil {
+		p.newScheduler.Start()
+	}
 
 	p.logger.Info("Queue task processor started.")
 }
@@ -140,131 +179,40 @@ func (p *processorImpl) Stop() {
 		return
 	}
 
-	p.hostScheduler.Stop()
-
-	p.Lock()
-	defer p.Unlock()
-
-	for shard, scheduler := range p.shardSchedulers {
-		delete(p.shardSchedulers, shard)
-		scheduler.Stop()
+	if p.newScheduler != nil {
+		p.newScheduler.Stop()
 	}
+	p.scheduler.Stop()
+	p.taskProcessor.Stop()
 
 	p.logger.Info("Queue task processor stopped.")
-}
-
-func (p *processorImpl) StopShardProcessor(shard shard.Context) {
-	p.Lock()
-	scheduler, ok := p.shardSchedulers[shard]
-	if !ok {
-		p.Unlock()
-		return
-	}
-
-	delete(p.shardSchedulers, shard)
-	p.Unlock()
-
-	// don't hold the lock while stopping the scheduler
-	scheduler.Stop()
 }
 
 func (p *processorImpl) Submit(task Task) error {
 	if err := p.priorityAssigner.Assign(task); err != nil {
 		return err
 	}
-
-	submitted, err := p.hostScheduler.TrySubmit(task)
-	if err != nil {
-		return err
+	if p.shouldUseNewScheduler() {
+		return p.newScheduler.Submit(task)
 	}
-
-	if submitted {
-		return nil
-	}
-
-	shardScheduler, err := p.getOrCreateShardTaskScheduler(task.GetShard())
-	if err != nil {
-		return err
-	}
-
-	if shardScheduler != nil {
-		return shardScheduler.Submit(task)
-	}
-
-	// if shard level scheduler is disabled
-	return p.hostScheduler.Submit(task)
+	return p.scheduler.Submit(task)
 }
 
 func (p *processorImpl) TrySubmit(task Task) (bool, error) {
 	if err := p.priorityAssigner.Assign(task); err != nil {
 		return false, err
 	}
-
-	submitted, err := p.hostScheduler.TrySubmit(task)
-	if err != nil {
-		return false, err
+	if p.shouldUseNewScheduler() {
+		return p.newScheduler.TrySubmit(task)
 	}
-
-	if submitted {
-		return true, nil
-	}
-
-	shardScheduler, err := p.getOrCreateShardTaskScheduler(task.GetShard())
-	if err != nil {
-		return false, err
-	}
-
-	if shardScheduler != nil {
-		return shardScheduler.TrySubmit(task)
-	}
-
-	// if shard level scheduler is disabled
-	return false, nil
+	return p.scheduler.TrySubmit(task)
 }
 
-func (p *processorImpl) getOrCreateShardTaskScheduler(shard shard.Context) (task.Scheduler, error) {
-	if p.shardOptions == nil {
-		return nil, nil
+func (p *processorImpl) shouldUseNewScheduler() bool {
+	if p.newScheduler == nil {
+		return false
 	}
-
-	p.RLock()
-	if scheduler, ok := p.shardSchedulers[shard]; ok {
-		p.RUnlock()
-		return scheduler, nil
-	}
-	p.RUnlock()
-
-	p.Lock()
-	if scheduler, ok := p.shardSchedulers[shard]; ok {
-		p.Unlock()
-		return scheduler, nil
-	}
-
-	if !p.isRunning() {
-		p.Unlock()
-		return nil, errTaskProcessorNotRunning
-	}
-
-	scheduler, err := createTaskScheduler(p.shardOptions, p.logger.WithTags(tag.ShardID(shard.GetShardID())), p.metricsClient, p.timeSource)
-	if err != nil {
-		p.Unlock()
-		return nil, err
-	}
-
-	p.shardSchedulers[shard] = scheduler
-	p.Unlock()
-
-	// don't hold the lock while starting the scheduler
-	scheduler.Start()
-	p.logger.Debug("Shard level task scheduler is started",
-		tag.ShardID(shard.GetShardID()),
-		tag.Dynamic("scheduler_options", p.shardOptions.String()),
-	)
-	return scheduler, nil
-}
-
-func (p *processorImpl) isRunning() bool {
-	return atomic.LoadInt32(&p.status) == common.DaemonStatusStarted
+	return rand.Intn(100) < p.newSchedulerProbabilityFn()
 }
 
 func createTaskScheduler(
@@ -272,6 +220,7 @@ func createTaskScheduler(
 	logger log.Logger,
 	metricsClient metrics.Client,
 	timeSource clock.TimeSource,
+	taskProcessor task.Processor,
 ) (task.Scheduler, error) {
 	var scheduler task.Scheduler
 	var err error
@@ -287,6 +236,7 @@ func createTaskScheduler(
 			logger,
 			metricsClient,
 			timeSource,
+			taskProcessor,
 			options.WRRSchedulerOptions,
 		)
 	default:
@@ -295,4 +245,30 @@ func createTaskScheduler(
 	}
 
 	return scheduler, err
+}
+
+func getDomainPriorityWeight(
+	logger log.Logger,
+	config *config.Config,
+	domainCache cache.DomainCache,
+	k DomainPriorityKey,
+) int {
+	var weights map[int]int
+	domainName, err := domainCache.GetDomainName(k.DomainID)
+	if err != nil {
+		logger.Error("failed to get domain name from cache, use default round robin weights", tag.Error(err))
+		weights = dynamicconfig.DefaultTaskSchedulerRoundRobinWeights
+	} else {
+		weights, err = common.ConvertDynamicConfigMapPropertyToIntMap(config.TaskSchedulerDomainRoundRobinWeights(domainName))
+		if err != nil {
+			logger.Error("failed to convert dynamic config map to int map, use default round robin weights", tag.Error(err))
+			weights = dynamicconfig.DefaultTaskSchedulerRoundRobinWeights
+		}
+	}
+	weight, ok := weights[k.Priority]
+	if !ok {
+		logger.Error("weights not found for task priority, default to 1", tag.Dynamic("priority", k.Priority), tag.Dynamic("weights", weights))
+		weight = 1
+	}
+	return weight
 }

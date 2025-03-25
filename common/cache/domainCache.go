@@ -36,6 +36,7 @@ import (
 	"github.com/uber/cadence/common/backoff"
 	"github.com/uber/cadence/common/clock"
 	"github.com/uber/cadence/common/cluster"
+	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/errors"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
@@ -236,7 +237,7 @@ func NewLocalDomainCacheEntryForTest(
 			ActiveClusterName: targetCluster,
 			Clusters:          []*persistence.ClusterReplicationConfig{{ClusterName: targetCluster}},
 		},
-		failoverVersion: common.EmptyVersion,
+		failoverVersion: constants.EmptyVersion,
 	}
 }
 
@@ -682,13 +683,11 @@ func (c *DefaultDomainCache) triggerDomainChangeCallbackLocked(nextDomains []*Do
 	sw := c.scope.StartTimer(metrics.DomainCacheCallbacksLatency)
 	defer sw.Stop()
 
-	c.logger.Info("Domain change callbacks are going to triggered", tag.Number(int64(len(nextDomains))))
-	for i, callback := range c.callbacks {
-		c.logger.Info("Domain cache change callback started", tag.Number(int64(i)))
+	c.logger.Debug("Domain change callbacks are going to triggered", tag.Number(int64(len(nextDomains))))
+	for _, callback := range c.callbacks {
 		callback(nextDomains)
-		c.logger.Info("Domain cache change callback completed", tag.Number(int64(i)))
 	}
-	c.logger.Info("Domain change callbacks are completed", tag.Number(int64(len(nextDomains))))
+	c.logger.Debug("Domain change callbacks are completed", tag.Number(int64(len(nextDomains))))
 }
 
 func (c *DefaultDomainCache) buildEntryFromRecord(
