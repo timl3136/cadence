@@ -147,6 +147,7 @@ func newCacheWithOption(
 	opts.InitialCapacity = initialCount
 	opts.TTL = ttl
 	opts.MaxCount = maxCount
+	opts.IsSizeBased = true
 
 	if maxSize() > 0 {
 		opts.MaxSize = maxSize
