@@ -21,6 +21,7 @@
 package cache
 
 import (
+	"container/list"
 	"sync"
 	"testing"
 	"time"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/uber/cadence/common/clock"
 	"github.com/uber/cadence/common/dynamicconfig"
+	"github.com/uber/cadence/common/log"
 )
 
 type keyType struct {
@@ -453,4 +455,173 @@ func TestEvictItemsPastTimeToLive_ActivelyEvict(t *testing.T) {
 	// Advance time to 150s, so C and D should be expired as well
 	mockTimeSource.Advance(time.Second * 50)
 	assert.Equal(t, 0, cache.Size())
+}
+
+func TestUpdateSizeOnReplace(t *testing.T) {
+	// Create a size-based LRU cache
+	cache := &lru{
+		isSizeBased: true,
+		sizeByKey:   make(map[interface{}]uint64),
+		currSize:    0,
+	}
+
+	// Test Case 1: Replace with a key that doesn't exist yet
+	key1 := "key1"
+	initialSize := cache.currSize
+	size1 := uint64(100)
+
+	prevSize := cache.updateSizeOnReplace(key1, size1)
+	assert.Equal(t, uint64(0), prevSize, "Previous size should be 0 for a new key")
+	assert.Equal(t, size1, cache.sizeByKey[key1], "Size for key1 should be updated in sizeByKey")
+	assert.Equal(t, initialSize+size1, cache.currSize, "Current size should increase by size1")
+
+	// Test Case 2: Replace with a key that already exists
+	size2 := uint64(200)
+	prevSize = cache.updateSizeOnReplace(key1, size2)
+	assert.Equal(t, size1, prevSize, "Previous size should be size1")
+	assert.Equal(t, size2, cache.sizeByKey[key1], "Size for key1 should be updated to size2")
+	assert.Equal(t, initialSize+size2, cache.currSize, "Current size should be updated correctly")
+
+	// Test Case 3: Test with multiple keys
+	key2 := "key2"
+	size3 := uint64(300)
+	prevSize = cache.updateSizeOnReplace(key2, size3)
+	assert.Equal(t, uint64(0), prevSize, "Previous size should be 0 for a new key")
+	assert.Equal(t, size3, cache.sizeByKey[key2], "Size for key2 should be updated in sizeByKey")
+	assert.Equal(t, initialSize+size2+size3, cache.currSize, "Current size should increase by size3")
+}
+
+// TestPutInternalWithFullCache tests the scenario where we need to revert size changes due to a full cache
+func TestPutInternalWithFullCache(t *testing.T) {
+	mockTimeSource := clock.NewMockedTimeSourceAt(time.UnixMilli(0))
+
+	// Create a size-based LRU cache with a small max size
+	cache := &lru{
+		byAccess:    list.New(),
+		byKey:       make(map[interface{}]*list.Element),
+		isSizeBased: true,
+		sizeByKey:   make(map[interface{}]uint64),
+		currSize:    0,
+		maxSize:     dynamicconfig.GetIntPropertyFn(500),
+		pin:         true, // Enable pinning for this test
+		timeSource:  mockTimeSource,
+		logger:      log.NewNoop(),
+	}
+
+	// Add an initial item that takes up most of the cache and pin it
+	key1 := "key1"
+	value1 := sizeableValue{val: "value1", size: 400}
+	_, err := cache.putInternal(key1, value1, true)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(400), cache.currSize)
+
+	// Get the item to increment the refCount (pin it)
+	cache.Get(key1)
+
+	// Try to update with a larger value, which would make the cache full
+	value1Updated := sizeableValue{val: "value1Updated", size: 600}
+
+	// This should return ErrCacheFull and revert the size change
+	existingValue, err := cache.putInternal(key1, value1Updated, true)
+
+	// Verify that the error is ErrCacheFull
+	assert.Equal(t, ErrCacheFull, err)
+
+	// Verify that the value was not updated
+	assert.Equal(t, value1, existingValue)
+
+	// Verify that the size was reverted back to original
+	assert.Equal(t, uint64(400), cache.currSize)
+	assert.Equal(t, uint64(400), cache.sizeByKey[key1])
+
+	// Verify the item in the cache wasn't changed
+	cachedValue := cache.Get(key1)
+	assert.Equal(t, value1, cachedValue)
+}
+
+func TestPutInternalUpdateExistingKey(t *testing.T) {
+	// Setup a mock time source
+	mockTimeSource := clock.NewMockedTimeSourceAt(time.UnixMilli(0))
+
+	// Create a size-based LRU cache
+	cache := &lru{
+		byAccess:    list.New(),
+		byKey:       make(map[interface{}]*list.Element),
+		isSizeBased: true,
+		sizeByKey:   make(map[interface{}]uint64),
+		currSize:    0,
+		maxSize:     dynamicconfig.GetIntPropertyFn(1000),
+		timeSource:  mockTimeSource,
+		logger:      log.NewNoop(),
+	}
+
+	// Test updating an existing key with allowUpdate=true
+
+	// First, add an initial item
+	key1 := "key1"
+	initialValue := sizeableValue{val: "initialValue", size: 100}
+
+	// Add the initial item
+	_, err := cache.putInternal(key1, initialValue, true)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(100), cache.currSize)
+
+	// Now update the item with a different value but same size
+	updatedValue := sizeableValue{val: "updatedValue", size: 100}
+	returnedValue, err := cache.putInternal(key1, updatedValue, true)
+
+	// Verify the returned value is the initial value
+	assert.NoError(t, err)
+	assert.Equal(t, initialValue, returnedValue)
+
+	// Verify the cache contains the updated value
+	cachedValue := cache.Get(key1)
+	assert.Equal(t, updatedValue, cachedValue)
+	assert.Equal(t, uint64(100), cache.currSize)
+
+	// Now update with a larger value to test size change
+	largerValue := sizeableValue{val: "largerValue", size: 200}
+	returnedValue, err = cache.putInternal(key1, largerValue, true)
+
+	// Verify the returned value is the updated value
+	assert.NoError(t, err)
+	assert.Equal(t, updatedValue, returnedValue)
+
+	// Verify the cache contains the larger value and size is updated
+	cachedValue = cache.Get(key1)
+	assert.Equal(t, largerValue, cachedValue)
+	assert.Equal(t, uint64(200), cache.currSize)
+
+	// Test with TTL functionality
+	cache.ttl = time.Hour
+
+	// Record the current time
+	now := mockTimeSource.Now()
+
+	// Update again to refresh the creation time
+	newerValue := sizeableValue{val: "newerValue", size: 150}
+	_, err = cache.putInternal(key1, newerValue, true)
+	assert.NoError(t, err)
+
+	// Get the element from byKey to check its creation time
+	element := cache.byKey[key1]
+	entry := element.Value.(*entryImpl)
+
+	// Verify the creation time was updated
+	assert.True(t, entry.createTime.After(now) || entry.createTime.Equal(now),
+		"Creation time should be updated to current time")
+
+	// Test with allowUpdate=false
+	// The value should not be updated
+	finalValue := sizeableValue{val: "finalValue", size: 300}
+	returnedValue, err = cache.putInternal(key1, finalValue, false)
+
+	// Verify the returned value is the newer value and no error
+	assert.NoError(t, err)
+	assert.Equal(t, newerValue, returnedValue)
+
+	// Verify the cache still contains the newer value, not the final value
+	cachedValue = cache.Get(key1)
+	assert.Equal(t, newerValue, cachedValue)
+	assert.Equal(t, uint64(150), cache.currSize)
 }

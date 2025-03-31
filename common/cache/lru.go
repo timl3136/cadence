@@ -327,20 +327,20 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 			// Entry has expired
 			c.deleteInternal(element)
 		} else {
-			existing := entry.value
+			existingValue := entry.value
 			if allowUpdate {
 				if c.isSizeBased {
+					existingValueSize := c.updateSizeOnReplace(key, valueSize)
 					for c.isCacheFull() {
 						oldest := c.byAccess.Back().Value.(*entryImpl)
 						if oldest.refCount > 0 {
 							// Cache is full with pinned elements
-							// we don't update
-							return existing, ErrCacheFull
+							// we don't update and revert the size change
+							c.updateSizeOnReplace(key, existingValueSize)
+							return existingValue, ErrCacheFull
 						}
 						c.deleteInternal(c.byAccess.Back())
 					}
-					c.updateSizeOnDelete(key)
-					c.updateSizeOnAdd(key, valueSize)
 				}
 				entry.value = value
 				if c.ttl != 0 {
@@ -352,7 +352,7 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 			if c.pin {
 				entry.refCount++
 			}
-			return existing, nil
+			return existingValue, nil
 		}
 	}
 
@@ -418,4 +418,17 @@ func (c *lru) updateSizeOnDelete(key interface{}) {
 		c.currSize -= uint64(c.sizeByKey[key])
 		delete(c.sizeByKey, key)
 	}
+}
+
+func (c *lru) updateSizeOnReplace(key interface{}, valueSize uint64) uint64 {
+	if c.isSizeBased {
+		previousSize, ok := c.sizeByKey[key]
+		if ok {
+			c.currSize -= previousSize
+		}
+		c.sizeByKey[key] = valueSize
+		c.currSize += valueSize
+		return previousSize
+	}
+	return 0
 }
