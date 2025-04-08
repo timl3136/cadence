@@ -24,7 +24,6 @@ package api
 
 import (
 	"fmt"
-	"github.com/uber/cadence/common/metrics"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,6 +34,7 @@ import (
 	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/messaging"
+	"github.com/uber/cadence/common/metrics"
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/types"
 )
