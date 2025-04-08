@@ -32,6 +32,7 @@ import (
 	"github.com/uber/cadence/common/asyncworkflow/queue"
 	"github.com/uber/cadence/common/asyncworkflow/queue/provider"
 	"github.com/uber/cadence/common/cache"
+	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/messaging"
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/types"
@@ -216,7 +217,7 @@ func TestGetProducerByDomain(t *testing.T) {
 			producerManager := NewProducerManager(
 				mockDomainCache,
 				mockProvider,
-				nil,
+				log.NewNoop(),
 				nil,
 			)
 			producerManager.(*producerManagerImpl).producerCache = mockProducerCache
