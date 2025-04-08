@@ -24,6 +24,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/uber/cadence/common/metrics"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -218,7 +219,7 @@ func TestGetProducerByDomain(t *testing.T) {
 				mockDomainCache,
 				mockProvider,
 				log.NewNoop(),
-				nil,
+				metrics.NewNoopMetricsClient(),
 			)
 			producerManager.(*producerManagerImpl).producerCache = mockProducerCache
 
