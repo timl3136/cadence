@@ -26,6 +26,7 @@ import (
 
 	"github.com/uber/cadence/common"
 	"github.com/uber/cadence/common/dynamicconfig"
+	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
 	"github.com/uber/cadence/common/resource"
 	"github.com/uber/cadence/common/service"
 	"github.com/uber/cadence/service/matching/config"
@@ -53,7 +54,7 @@ func NewService(
 		dynamicconfig.NewCollection(
 			params.DynamicConfig,
 			params.Logger,
-			dynamicconfig.ClusterNameFilter(params.ClusterMetadata.GetCurrentClusterName()),
+			dynamicproperties.ClusterNameFilter(params.ClusterMetadata.GetCurrentClusterName()),
 		),
 		params.HostName,
 		params.GetIsolationGroups,
@@ -101,7 +102,7 @@ func (s *Service) Start() {
 		s.GetMetricsClient(),
 		s.GetDomainCache(),
 		s.GetMembershipResolver(),
-		s.GetPartitioner(),
+		s.GetIsolationGroupState(),
 		s.GetTimeSource(),
 	)
 

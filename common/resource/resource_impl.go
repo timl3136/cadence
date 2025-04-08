@@ -48,15 +48,14 @@ import (
 	"github.com/uber/cadence/common/dynamicconfig"
 	"github.com/uber/cadence/common/dynamicconfig/configstore"
 	csc "github.com/uber/cadence/common/dynamicconfig/configstore/config"
+	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
 	"github.com/uber/cadence/common/isolationgroup"
 	"github.com/uber/cadence/common/isolationgroup/defaultisolationgroupstate"
 	"github.com/uber/cadence/common/log"
-	"github.com/uber/cadence/common/log/loggerimpl"
 	"github.com/uber/cadence/common/log/tag"
 	"github.com/uber/cadence/common/membership"
 	"github.com/uber/cadence/common/messaging"
 	"github.com/uber/cadence/common/metrics"
-	"github.com/uber/cadence/common/partition"
 	"github.com/uber/cadence/common/persistence"
 	persistenceClient "github.com/uber/cadence/common/persistence/client"
 	qrpc "github.com/uber/cadence/common/quotas/global/rpc"
@@ -106,6 +105,7 @@ type Impl struct {
 	// membership infos
 
 	membershipResolver membership.Resolver
+	hashRings          map[string]membership.Ring
 
 	// internal services clients
 
@@ -141,7 +141,6 @@ type Impl struct {
 
 	isolationGroups           isolationgroup.State
 	isolationGroupConfigStore configstore.Client
-	partitioner               partition.Partitioner
 
 	asyncWorkflowQueueProvider queue.Provider
 
@@ -160,7 +159,7 @@ func New(
 	hostname := params.HostName
 
 	logger := params.Logger
-	throttledLogger := loggerimpl.NewThrottledLogger(logger, serviceConfig.ThrottledLoggerMaxRPS)
+	throttledLogger := log.NewThrottledLogger(logger, serviceConfig.ThrottledLoggerMaxRPS)
 
 	numShards := params.PersistenceConfig.NumHistoryShards
 	dispatcher := params.RPCFactory.GetDispatcher()
@@ -171,7 +170,7 @@ func New(
 	dynamicCollection := dynamicconfig.NewCollection(
 		params.DynamicConfig,
 		logger,
-		dynamicconfig.ClusterNameFilter(params.ClusterMetadata.GetCurrentClusterName()),
+		dynamicproperties.ClusterNameFilter(params.ClusterMetadata.GetCurrentClusterName()),
 	)
 	clientBean, err := client.NewClientBean(
 		client.NewRPCClientFactory(
@@ -317,7 +316,6 @@ func New(
 	if err != nil {
 		return nil, err
 	}
-	partitioner := ensurePartitionerOrDefault(params, isolationGroupState)
 
 	ratelimiterAggs := qrpc.New(
 		historyRawClient, // no retries, will retry internally if needed
@@ -390,7 +388,6 @@ func New(
 		rpcFactory:                params.RPCFactory,
 		isolationGroups:           isolationGroupState,
 		isolationGroupConfigStore: isolationGroupStore, // can be nil where persistence is not available
-		partitioner:               partitioner,
 
 		asyncWorkflowQueueProvider: params.AsyncWorkflowQueueProvider,
 
@@ -667,11 +664,6 @@ func (h *Impl) GetIsolationGroupState() isolationgroup.State {
 	return h.isolationGroups
 }
 
-// GetPartitioner returns the partitioner
-func (h *Impl) GetPartitioner() partition.Partitioner {
-	return h.partitioner
-}
-
 // GetIsolationGroupStore returns the isolation group configuration store or nil
 func (h *Impl) GetIsolationGroupStore() configstore.Client {
 	return h.isolationGroupConfigStore
@@ -694,10 +686,10 @@ func createConfigStoreOrDefault(
 		return params.IsolationGroupStore
 	}
 	cscConfig := &csc.ClientConfig{
-		PollInterval:        dc.GetDurationProperty(dynamicconfig.IsolationGroupStateRefreshInterval)(),
-		UpdateRetryAttempts: dc.GetIntProperty(dynamicconfig.IsolationGroupStateUpdateRetryAttempts)(),
-		FetchTimeout:        dc.GetDurationProperty(dynamicconfig.IsolationGroupStateFetchTimeout)(),
-		UpdateTimeout:       dc.GetDurationProperty(dynamicconfig.IsolationGroupStateUpdateTimeout)(),
+		PollInterval:        dc.GetDurationProperty(dynamicproperties.IsolationGroupStateRefreshInterval)(),
+		UpdateRetryAttempts: dc.GetIntProperty(dynamicproperties.IsolationGroupStateUpdateRetryAttempts)(),
+		FetchTimeout:        dc.GetDurationProperty(dynamicproperties.IsolationGroupStateFetchTimeout)(),
+		UpdateTimeout:       dc.GetDurationProperty(dynamicproperties.IsolationGroupStateUpdateTimeout)(),
 	}
 	cfgStoreClient, err := configstore.NewConfigStoreClient(cscConfig, &params.PersistenceConfig, params.Logger, persistence.GlobalIsolationGroupConfig)
 	if err != nil {
@@ -731,14 +723,6 @@ func ensureIsolationGroupStateHandlerOrDefault(
 		params.MetricsClient,
 		params.GetIsolationGroups,
 	)
-}
-
-// Use the provided partitioner or the default one
-func ensurePartitionerOrDefault(params *Params, state isolationgroup.State) partition.Partitioner {
-	if params.Partitioner != nil {
-		return params.Partitioner
-	}
-	return partition.NewDefaultPartitioner(params.Logger, state)
 }
 
 func ensureGetAllIsolationGroupsFnIsSet(params *Params) {

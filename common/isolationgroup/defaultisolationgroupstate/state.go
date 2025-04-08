@@ -30,6 +30,7 @@ import (
 	"github.com/uber/cadence/common"
 	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/dynamicconfig"
+	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
 	"github.com/uber/cadence/common/isolationgroup"
 	"github.com/uber/cadence/common/isolationgroup/isolationgroupapi"
 	"github.com/uber/cadence/common/log"
@@ -59,7 +60,7 @@ func NewDefaultIsolationGroupStateWatcherWithConfigStoreClient(
 	stopChan := make(chan struct{})
 
 	config := defaultConfig{
-		IsolationGroupEnabled: dc.GetBoolPropertyFilteredByDomain(dynamicconfig.EnableTasklistIsolation),
+		IsolationGroupEnabled: dc.GetBoolPropertyFilteredByDomain(dynamicproperties.EnableTasklistIsolation),
 		AllIsolationGroups:    getIsolationGroups,
 	}
 
@@ -72,14 +73,6 @@ func NewDefaultIsolationGroupStateWatcherWithConfigStoreClient(
 		config:                     config,
 		metricsClient:              metricsClient,
 	}, nil
-}
-
-func (z *defaultIsolationGroupStateHandler) IsolationGroupsByDomainID(ctx context.Context, domainID string) (types.IsolationGroupConfiguration, error) {
-	state, err := z.getByDomainID(ctx, domainID)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get isolation group state: %w", err)
-	}
-	return toIsolationGroupConfiguration(z.config.AllIsolationGroups(), state.Global, state.Domain), nil
 }
 
 func (z *defaultIsolationGroupStateHandler) IsDrained(ctx context.Context, domain string, isolationGroup string) (bool, error) {
@@ -115,14 +108,6 @@ func (z *defaultIsolationGroupStateHandler) Stop() {
 	close(z.done)
 }
 
-func (z *defaultIsolationGroupStateHandler) getByDomainID(ctx context.Context, domainID string) (*isolationGroups, error) {
-	domain, err := z.domainCache.GetDomainByID(domainID)
-	if err != nil {
-		return nil, fmt.Errorf("could not resolve domain in isolationGroup handler: %w", err)
-	}
-	return z.get(ctx, domain.GetInfo().Name)
-}
-
 // Get the statue of a isolationGroup, with respect to both domain and global drains. Domain-specific drains override global config
 // will return nil, nil when it is not enabled
 func (z *defaultIsolationGroupStateHandler) get(ctx context.Context, domain string) (*isolationGroups, error) {
@@ -145,7 +130,7 @@ func (z *defaultIsolationGroupStateHandler) get(ctx context.Context, domain stri
 	}
 
 	if z.globalIsolationGroupDrains != nil {
-		globalCfg, err := z.globalIsolationGroupDrains.GetListValue(dynamicconfig.DefaultIsolationGroupConfigStoreManagerGlobalMapping, nil)
+		globalCfg, err := z.globalIsolationGroupDrains.GetListValue(dynamicproperties.DefaultIsolationGroupConfigStoreManagerGlobalMapping, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not resolve global drains in %w", err)
 		}
@@ -158,29 +143,6 @@ func (z *defaultIsolationGroupStateHandler) get(ctx context.Context, domain stri
 	}
 
 	return ig, nil
-}
-
-// A simple explicit deny-based isolation group implementation
-func toIsolationGroupConfiguration(
-	allIsolationGroups []string,
-	global types.IsolationGroupConfiguration,
-	domain types.IsolationGroupConfiguration,
-) types.IsolationGroupConfiguration {
-	out := types.IsolationGroupConfiguration{}
-	for _, isolationGroup := range allIsolationGroups {
-		if isDrained(isolationGroup, global, domain) {
-			out[isolationGroup] = types.IsolationGroupPartition{
-				Name:  isolationGroup,
-				State: types.IsolationGroupStateDrained,
-			}
-			continue
-		}
-		out[isolationGroup] = types.IsolationGroupPartition{
-			Name:  isolationGroup,
-			State: types.IsolationGroupStateHealthy,
-		}
-	}
-	return out
 }
 
 func isDrained(isolationGroup string, global types.IsolationGroupConfiguration, domain types.IsolationGroupConfiguration) bool {

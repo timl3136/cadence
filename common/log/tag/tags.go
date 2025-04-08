@@ -1138,3 +1138,11 @@ func WorkflowContextLockLatency(duration time.Duration) Tag {
 func DynamicConfigLinearIteratorSpec(spec interface{}) Tag {
 	return newObjectTag("dynamic-config-linear-iterator-spec", spec)
 }
+
+func HashRingResult(addr string) Tag {
+	return newStringTag("hashring-result", addr)
+}
+
+func ShardDistributorResult(addr string) Tag {
+	return newStringTag("shard-distributor-result", addr)
+}

@@ -2426,6 +2426,8 @@ const (
 	StaleMutableStateCounter
 	DataInconsistentCounter
 	TimerResurrectionCounter
+	TimerProcessingDeletionTimerNoopDueToMutableStateNotLoading
+	TimerProcessingDeletionTimerNoopDueToWFRunning
 	ActivityResurrectionCounter
 	AutoResetPointsLimitExceededCounter
 	AutoResetPointCorruptionCounter
@@ -2651,6 +2653,7 @@ const (
 	RemoteToLocalMatchPerTaskListCounter
 	RemoteToRemoteMatchPerTaskListCounter
 	IsolationTaskMatchPerTaskListCounter
+	IsolationSuccessPerTaskListCounter
 	PollerPerTaskListCounter
 	PollerInvalidIsolationGroupCounter
 	TaskListPartitionUpdateFailedCounter
@@ -3146,6 +3149,8 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		StaleMutableStateCounter:                                     {metricName: "stale_mutable_state", metricType: Counter},
 		DataInconsistentCounter:                                      {metricName: "data_inconsistent", metricType: Counter},
 		TimerResurrectionCounter:                                     {metricName: "timer_resurrection", metricType: Counter},
+		TimerProcessingDeletionTimerNoopDueToMutableStateNotLoading:  {metricName: "timer_processing_skipping_deletion_due_to_missing_mutable_state", metricType: Counter},
+		TimerProcessingDeletionTimerNoopDueToWFRunning:               {metricName: "timer_processing_skipping_deletion_due_to_running", metricType: Counter},
 		ActivityResurrectionCounter:                                  {metricName: "activity_resurrection", metricType: Counter},
 		AutoResetPointsLimitExceededCounter:                          {metricName: "auto_reset_points_exceed_limit", metricType: Counter},
 		AutoResetPointCorruptionCounter:                              {metricName: "auto_reset_point_corruption", metricType: Counter},
@@ -3270,7 +3275,7 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		ReplicationTasksFailed:                                       {metricName: "replication_tasks_failed", metricType: Counter},
 		ReplicationTasksLag:                                          {metricName: "replication_tasks_lag", metricType: Timer},
 		ReplicationTasksLagRaw:                                       {metricName: "replication_tasks_lag_raw", metricType: Timer},
-		ReplicationTasksDelay:                                        {metricName: "replication_tasks_delay", metricType: Timer},
+		ReplicationTasksDelay:                                        {metricName: "replication_tasks_delay", metricType: Histogram, buckets: ReplicationTaskDelayBucket},
 		ReplicationTasksFetched:                                      {metricName: "replication_tasks_fetched", metricType: Timer},
 		ReplicationTasksReturned:                                     {metricName: "replication_tasks_returned", metricType: Timer},
 		ReplicationTasksReturnedDiff:                                 {metricName: "replication_tasks_returned_diff", metricType: Timer},
@@ -3368,6 +3373,7 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		RemoteToLocalMatchPerTaskListCounter:                    {metricName: "remote_to_local_matches_per_tl", metricRollupName: "remote_to_local_matches"},
 		RemoteToRemoteMatchPerTaskListCounter:                   {metricName: "remote_to_remote_matches_per_tl", metricRollupName: "remote_to_remote_matches"},
 		IsolationTaskMatchPerTaskListCounter:                    {metricName: "isolation_task_matches_per_tl", metricType: Counter},
+		IsolationSuccessPerTaskListCounter:                      {metricName: "isolation_success_per_tl", metricRollupName: "isolation_success"},
 		PollerPerTaskListCounter:                                {metricName: "poller_count_per_tl", metricRollupName: "poller_count"},
 		PollerInvalidIsolationGroupCounter:                      {metricName: "poller_invalid_isolation_group_per_tl", metricType: Counter},
 		TaskListPartitionUpdateFailedCounter:                    {metricName: "tasklist_partition_update_failed_per_tl", metricType: Counter},
@@ -3496,64 +3502,89 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 	},
 }
 
-// PersistenceLatencyBuckets contains duration buckets for measuring persistence latency
-var PersistenceLatencyBuckets = tally.DurationBuckets([]time.Duration{
-	1 * time.Millisecond,
-	2 * time.Millisecond,
-	3 * time.Millisecond,
-	4 * time.Millisecond,
-	5 * time.Millisecond,
-	6 * time.Millisecond,
-	7 * time.Millisecond,
-	8 * time.Millisecond,
-	9 * time.Millisecond,
-	10 * time.Millisecond,
-	12 * time.Millisecond,
-	15 * time.Millisecond,
-	17 * time.Millisecond,
-	20 * time.Millisecond,
-	25 * time.Millisecond,
-	30 * time.Millisecond,
-	35 * time.Millisecond,
-	40 * time.Millisecond,
-	50 * time.Millisecond,
-	60 * time.Millisecond,
-	70 * time.Millisecond,
-	80 * time.Millisecond,
-	90 * time.Millisecond,
-	100 * time.Millisecond,
-	120 * time.Millisecond,
-	150 * time.Millisecond,
-	170 * time.Millisecond,
-	200 * time.Millisecond,
-	250 * time.Millisecond,
-	300 * time.Millisecond,
-	400 * time.Millisecond,
-	500 * time.Millisecond,
-	600 * time.Millisecond,
-	700 * time.Millisecond,
-	800 * time.Millisecond,
-	900 * time.Millisecond,
-	1 * time.Second,
-	2 * time.Second,
-	3 * time.Second,
-	4 * time.Second,
-	5 * time.Second,
-	6 * time.Second,
-	7 * time.Second,
-	8 * time.Second,
-	9 * time.Second,
-	10 * time.Second,
-	12 * time.Second,
-	15 * time.Second,
-	20 * time.Second,
-	25 * time.Second,
-	30 * time.Second,
-	35 * time.Second,
-	40 * time.Second,
-	50 * time.Second,
-	60 * time.Second,
-})
+var (
+	// PersistenceLatencyBuckets contains duration buckets for measuring persistence latency
+	PersistenceLatencyBuckets = tally.DurationBuckets([]time.Duration{
+		1 * time.Millisecond,
+		2 * time.Millisecond,
+		3 * time.Millisecond,
+		4 * time.Millisecond,
+		5 * time.Millisecond,
+		6 * time.Millisecond,
+		7 * time.Millisecond,
+		8 * time.Millisecond,
+		9 * time.Millisecond,
+		10 * time.Millisecond,
+		12 * time.Millisecond,
+		15 * time.Millisecond,
+		17 * time.Millisecond,
+		20 * time.Millisecond,
+		25 * time.Millisecond,
+		30 * time.Millisecond,
+		35 * time.Millisecond,
+		40 * time.Millisecond,
+		50 * time.Millisecond,
+		60 * time.Millisecond,
+		70 * time.Millisecond,
+		80 * time.Millisecond,
+		90 * time.Millisecond,
+		100 * time.Millisecond,
+		120 * time.Millisecond,
+		150 * time.Millisecond,
+		170 * time.Millisecond,
+		200 * time.Millisecond,
+		250 * time.Millisecond,
+		300 * time.Millisecond,
+		400 * time.Millisecond,
+		500 * time.Millisecond,
+		600 * time.Millisecond,
+		700 * time.Millisecond,
+		800 * time.Millisecond,
+		900 * time.Millisecond,
+		1 * time.Second,
+		2 * time.Second,
+		3 * time.Second,
+		4 * time.Second,
+		5 * time.Second,
+		6 * time.Second,
+		7 * time.Second,
+		8 * time.Second,
+		9 * time.Second,
+		10 * time.Second,
+		12 * time.Second,
+		15 * time.Second,
+		20 * time.Second,
+		25 * time.Second,
+		30 * time.Second,
+		35 * time.Second,
+		40 * time.Second,
+		50 * time.Second,
+		60 * time.Second,
+	})
+
+	// ReplicationTaskDelayBucket contains buckets for replication task delay
+	ReplicationTaskDelayBucket = tally.DurationBuckets([]time.Duration{
+		0 * time.Second, // zero value is needed for the first bucket
+		1 * time.Second,
+		10 * time.Second,
+		1 * time.Minute,
+		5 * time.Minute,
+		10 * time.Minute,
+		30 * time.Minute,
+		1 * time.Hour,
+		2 * time.Hour,
+		6 * time.Hour,
+		12 * time.Hour,
+		24 * time.Hour,
+		36 * time.Hour,
+		48 * time.Hour,
+		72 * time.Hour,
+		96 * time.Hour,
+		120 * time.Hour,
+		144 * time.Hour,
+		168 * time.Hour, // one week
+	})
+)
 
 // GlobalRatelimiterUsageHistogram contains buckets for tracking how many ratelimiters are
 // in which various states (startup, healthy, failing, as well as aggregator-side quantities, deleted, etc).

@@ -45,6 +45,8 @@ import (
 	"github.com/uber/cadence/common/clock"
 	"github.com/uber/cadence/common/cluster"
 	"github.com/uber/cadence/common/dynamicconfig"
+	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
+	"github.com/uber/cadence/common/isolationgroup"
 	"github.com/uber/cadence/common/isolationgroup/defaultisolationgroupstate"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
@@ -52,7 +54,6 @@ import (
 	"github.com/uber/cadence/common/membership"
 	"github.com/uber/cadence/common/metrics"
 	"github.com/uber/cadence/common/mocks"
-	"github.com/uber/cadence/common/partition"
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/service"
 	"github.com/uber/cadence/common/types"
@@ -71,7 +72,7 @@ type (
 
 		matchingEngine       *matchingEngineImpl
 		taskManager          *tasklist.TestTaskManager
-		partitioner          partition.Partitioner
+		isolationState       isolationgroup.State
 		mockExecutionManager *mocks.ExecutionManager
 		mockTimeSource       clock.MockedTimeSource
 		logger               log.Logger
@@ -134,15 +135,14 @@ func (s *matchingEngineSuite) SetupTest() {
 	s.mockMembershipResolver.EXPECT().Subscribe(service.Matching, "matching-engine", gomock.Any()).AnyTimes()
 	s.mockIsolationStore = dynamicconfig.NewMockClient(s.controller)
 	dcClient := dynamicconfig.NewInMemoryClient()
-	dcClient.UpdateValue(dynamicconfig.EnableTasklistIsolation, true)
+	s.NoError(dcClient.UpdateValue(dynamicproperties.EnableTasklistIsolation, true))
 	dc := dynamicconfig.NewCollection(dcClient, s.logger)
-	isolationGroupState, _ := defaultisolationgroupstate.NewDefaultIsolationGroupStateWatcherWithConfigStoreClient(s.logger,
+	s.isolationState, _ = defaultisolationgroupstate.NewDefaultIsolationGroupStateWatcherWithConfigStoreClient(s.logger,
 		dc,
 		s.mockDomainCache,
 		s.mockIsolationStore,
 		metrics.NewNoopMetricsClient(),
 		getIsolationGroupsHelper)
-	s.partitioner = partition.NewDefaultPartitioner(s.logger, isolationGroupState)
 	s.handlerContext = newHandlerContext(
 		context.Background(),
 		matchingTestDomainName,
@@ -175,7 +175,7 @@ func (s *matchingEngineSuite) newMatchingEngine(
 		metrics.NewClient(tally.NoopScope, metrics.Matching),
 		s.mockDomainCache,
 		s.mockMembershipResolver,
-		s.partitioner,
+		s.isolationState,
 		s.mockTimeSource,
 	).(*matchingEngineImpl)
 }
@@ -218,7 +218,7 @@ func (s *matchingEngineSuite) TestOnlyUnloadMatchingInstance() {
 		s.matchingEngine.metricsClient,
 		s.matchingEngine.taskManager,
 		s.matchingEngine.clusterMetadata,
-		s.matchingEngine.partitioner,
+		s.matchingEngine.isolationState,
 		s.matchingEngine.matchingClient,
 		s.matchingEngine.removeTaskListManager,
 		taskListID, // same taskListID as above
@@ -264,8 +264,8 @@ func (s *matchingEngineSuite) PollForDecisionTasksResultTest() {
 	stickyTaskList.Kind = &stickyTlKind
 
 	s.matchingEngine.config.RangeSize = 2 // to test that range is not updated without tasks
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(1)
-	s.matchingEngine.config.LongPollExpirationInterval = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
+	s.matchingEngine.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(1)
+	s.matchingEngine.config.LongPollExpirationInterval = dynamicproperties.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
 
 	runID := "run1"
 	workflowID := "workflow1"
@@ -345,9 +345,9 @@ func (s *matchingEngineSuite) PollForDecisionTasksResultTest() {
 
 func (s *matchingEngineSuite) PollForTasksEmptyResultTest(callContext context.Context, taskType int) {
 	s.matchingEngine.config.RangeSize = 2 // to test that range is not updated without tasks
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(1)
+	s.matchingEngine.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(1)
 	if _, ok := callContext.Deadline(); !ok {
-		s.matchingEngine.config.LongPollExpirationInterval = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
+		s.matchingEngine.config.LongPollExpirationInterval = dynamicproperties.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
 	}
 
 	domainID := "domainId"
@@ -417,7 +417,7 @@ func (s *matchingEngineSuite) TestQueryWorkflow() {
 	stickyTaskList.Kind = &stickyTlKind
 
 	s.matchingEngine.config.RangeSize = 2 // to test that range is not updated without tasks
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(1)
+	s.matchingEngine.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(1)
 
 	runID := "run1"
 	workflowID := "workflow1"
@@ -513,7 +513,7 @@ func (s *matchingEngineSuite) TestAddDecisionTasksForwarded() {
 
 func (s *matchingEngineSuite) AddTasksTest(taskType int, isForwarded bool) {
 	s.matchingEngine.config.RangeSize = 300 // override to low number for the test
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(150)
+	s.matchingEngine.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(150)
 
 	domainID := "domainId"
 	tl := "makeToast"
@@ -575,8 +575,8 @@ func (s *matchingEngineSuite) TestAddAndPollActivityTasksIsolation() {
 }
 
 func (s *matchingEngineSuite) AddAndPollTasks(taskType int, enableIsolation bool) {
-	s.matchingEngine.config.LongPollExpirationInterval = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
-	s.matchingEngine.config.EnableTasklistIsolation = dynamicconfig.GetBoolPropertyFnFilteredByDomainID(enableIsolation)
+	s.matchingEngine.config.LongPollExpirationInterval = dynamicproperties.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
+	s.matchingEngine.config.EnableTasklistIsolation = dynamicproperties.GetBoolPropertyFnFilteredByDomainID(enableIsolation)
 
 	isolationGroups := s.matchingEngine.config.AllIsolationGroups()
 
@@ -588,7 +588,7 @@ func (s *matchingEngineSuite) AddAndPollTasks(taskType int, enableIsolation bool
 	testParam := newTestParam(s.T(), taskType)
 	s.taskManager.SetRangeID(testParam.TaskListID, initialRangeID)
 	s.matchingEngine.config.RangeSize = rangeSize // override to low number for the test
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(rangeSize / 2)
+	s.matchingEngine.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(rangeSize / 2)
 
 	s.setupGetDrainStatus()
 
@@ -601,7 +601,7 @@ func (s *matchingEngineSuite) AddAndPollTasks(taskType int, enableIsolation bool
 			ScheduleID:                    scheduleID,
 			TaskList:                      testParam.TaskList,
 			ScheduleToStartTimeoutSeconds: 1,
-			PartitionConfig:               map[string]string{partition.IsolationGroupKey: isolationGroups[int(i)%len(isolationGroups)]},
+			PartitionConfig:               map[string]string{isolationgroup.GroupKey: isolationGroups[int(i)%len(isolationGroups)]},
 		}
 		_, err := addTask(s.matchingEngine, s.handlerContext, addRequest)
 		s.NoError(err)
@@ -652,7 +652,7 @@ func (s *matchingEngineSuite) TestSyncMatchDecisionTasksIsolation() {
 }
 
 func (s *matchingEngineSuite) SyncMatchTasks(taskType int, enableIsolation bool) {
-	s.matchingEngine.config.EnableTasklistIsolation = dynamicconfig.GetBoolPropertyFnFilteredByDomainID(enableIsolation)
+	s.matchingEngine.config.EnableTasklistIsolation = dynamicproperties.GetBoolPropertyFnFilteredByDomainID(enableIsolation)
 	const taskCount = 10
 	const initialRangeID = 102
 	// TODO: Understand why publish is low when rangeSize is 3
@@ -664,11 +664,11 @@ func (s *matchingEngineSuite) SyncMatchTasks(taskType int, enableIsolation bool)
 	isolationGroups := s.matchingEngine.config.AllIsolationGroups
 
 	// Set a short long poll expiration so we don't have to wait too long for 0 throttling cases
-	s.matchingEngine.config.LongPollExpirationInterval = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(200 * time.Millisecond)
+	s.matchingEngine.config.LongPollExpirationInterval = dynamicproperties.GetDurationPropertyFnFilteredByTaskListInfo(200 * time.Millisecond)
 	s.matchingEngine.config.RangeSize = rangeSize // override to low number for the test
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(rangeSize / 2)
+	s.matchingEngine.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(rangeSize / 2)
 	s.matchingEngine.config.TaskDispatchRPSTTL = time.Nanosecond
-	s.matchingEngine.config.MinTaskThrottlingBurstSize = dynamicconfig.GetIntPropertyFilteredByTaskListInfo(_minBurst)
+	s.matchingEngine.config.MinTaskThrottlingBurstSize = dynamicproperties.GetIntPropertyFilteredByTaskListInfo(_minBurst)
 	// So we can get snapshots
 	scope := tally.NewTestScope("test", nil)
 	s.matchingEngine.metricsClient = metrics.NewClient(scope, metrics.Matching)
@@ -710,7 +710,7 @@ func (s *matchingEngineSuite) SyncMatchTasks(taskType int, enableIsolation bool)
 			ScheduleID:                    scheduleID,
 			TaskList:                      testParam.TaskList,
 			ScheduleToStartTimeoutSeconds: 1,
-			PartitionConfig:               map[string]string{partition.IsolationGroupKey: group},
+			PartitionConfig:               map[string]string{isolationgroup.GroupKey: group},
 		}
 		_, err := addTask(s.matchingEngine, s.handlerContext, addRequest)
 		wg.Wait()
@@ -743,7 +743,7 @@ func (s *matchingEngineSuite) SyncMatchTasks(taskType int, enableIsolation bool)
 			ScheduleID:                    scheduleID,
 			TaskList:                      testParam.TaskList,
 			ScheduleToStartTimeoutSeconds: 1,
-			PartitionConfig:               map[string]string{partition.IsolationGroupKey: group},
+			PartitionConfig:               map[string]string{isolationgroup.GroupKey: group},
 		}
 		_, err := addTask(s.matchingEngine, s.handlerContext, addRequest)
 		wg.Wait()
@@ -814,7 +814,7 @@ func (s *matchingEngineSuite) TestConcurrentAddAndPollDecisionsIsolation() {
 }
 
 func (s *matchingEngineSuite) ConcurrentAddAndPollTasks(taskType int, workerCount int, taskCount int64, throttled, enableIsolation bool) {
-	s.matchingEngine.config.EnableTasklistIsolation = dynamicconfig.GetBoolPropertyFnFilteredByDomainID(enableIsolation)
+	s.matchingEngine.config.EnableTasklistIsolation = dynamicproperties.GetBoolPropertyFnFilteredByDomainID(enableIsolation)
 	isolationGroups := s.matchingEngine.config.AllIsolationGroups
 	dispatchLimitFn := func(wc int, tc int64) float64 {
 		return _defaultTaskDispatchRPS
@@ -837,9 +837,9 @@ func (s *matchingEngineSuite) ConcurrentAddAndPollTasks(taskType int, workerCoun
 	testParam := newTestParam(s.T(), taskType)
 	tlKind := types.TaskListKindNormal
 	s.matchingEngine.config.RangeSize = rangeSize // override to low number for the test
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(rangeSize / 2)
+	s.matchingEngine.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(rangeSize / 2)
 	s.matchingEngine.config.TaskDispatchRPSTTL = time.Nanosecond
-	s.matchingEngine.config.MinTaskThrottlingBurstSize = dynamicconfig.GetIntPropertyFilteredByTaskListInfo(_minBurst)
+	s.matchingEngine.config.MinTaskThrottlingBurstSize = dynamicproperties.GetIntPropertyFilteredByTaskListInfo(_minBurst)
 	s.taskManager.SetRangeID(testParam.TaskListID, initialRangeID)
 
 	s.setupGetDrainStatus()
@@ -859,7 +859,7 @@ func (s *matchingEngineSuite) ConcurrentAddAndPollTasks(taskType int, workerCoun
 					ScheduleID:                    scheduleID,
 					TaskList:                      testParam.TaskList,
 					ScheduleToStartTimeoutSeconds: 1,
-					PartitionConfig:               map[string]string{partition.IsolationGroupKey: group},
+					PartitionConfig:               map[string]string{isolationgroup.GroupKey: group},
 				}
 				_, err := addTask(s.matchingEngine, s.handlerContext, addRequest)
 				if err != nil {
@@ -987,11 +987,11 @@ func (s *matchingEngineSuite) MultipleEnginesTasksRangeStealing(taskType int) {
 	testParam := newTestParam(s.T(), taskType)
 	s.taskManager.SetRangeID(testParam.TaskListID, initialRangeID)
 	s.matchingEngine.config.RangeSize = rangeSize // override to low number for the test
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(rangeSize / 2)
+	s.matchingEngine.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(rangeSize / 2)
 
 	engine1 := s.newMatchingEngine(defaultTestConfig(), s.taskManager)
 	engine1.config.RangeSize = rangeSize
-	engine1.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(rangeSize / 2)
+	engine1.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(rangeSize / 2)
 	engine1.Start()
 	defer engine1.Stop()
 
@@ -1014,7 +1014,7 @@ func (s *matchingEngineSuite) MultipleEnginesTasksRangeStealing(taskType int) {
 
 	engine2 := s.newMatchingEngine(defaultTestConfig(), s.taskManager)
 	engine2.config.RangeSize = rangeSize
-	engine2.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(rangeSize / 2)
+	engine2.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(rangeSize / 2)
 	engine2.Start()
 	defer engine2.Stop()
 
@@ -1114,8 +1114,8 @@ func (s *matchingEngineSuite) TestUnloadDecisionTasklistOnIsolationConfigChange(
 }
 
 func (s *matchingEngineSuite) UnloadTasklistOnIsolationConfigChange(taskType int) {
-	s.matchingEngine.config.LongPollExpirationInterval = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(50 * time.Millisecond)
-	s.matchingEngine.config.EnableTasklistIsolation = dynamicconfig.GetBoolPropertyFnFilteredByDomainID(false)
+	s.matchingEngine.config.LongPollExpirationInterval = dynamicproperties.GetDurationPropertyFnFilteredByTaskListInfo(50 * time.Millisecond)
+	s.matchingEngine.config.EnableTasklistIsolation = dynamicproperties.GetBoolPropertyFnFilteredByDomainID(false)
 
 	const taskCount = 1000
 	const initialRangeID = 102
@@ -1125,7 +1125,7 @@ func (s *matchingEngineSuite) UnloadTasklistOnIsolationConfigChange(taskType int
 	testParam := newTestParam(s.T(), taskType)
 	s.taskManager.SetRangeID(testParam.TaskListID, initialRangeID)
 	s.matchingEngine.config.RangeSize = rangeSize // override to low number for the test
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(rangeSize / 2)
+	s.matchingEngine.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(rangeSize / 2)
 
 	addRequest := &addTaskRequest{
 		TaskType:                      taskType,
@@ -1139,7 +1139,7 @@ func (s *matchingEngineSuite) UnloadTasklistOnIsolationConfigChange(taskType int
 	s.NoError(err)
 
 	// enable isolation and verify that poller should not get any task
-	s.matchingEngine.config.EnableTasklistIsolation = dynamicconfig.GetBoolPropertyFnFilteredByDomainID(true)
+	s.matchingEngine.config.EnableTasklistIsolation = dynamicproperties.GetBoolPropertyFnFilteredByDomainID(true)
 	s.setupGetDrainStatus()
 	s.setupRecordTaskStartedMock(taskType, testParam, false)
 
@@ -1161,7 +1161,7 @@ func (s *matchingEngineSuite) UnloadTasklistOnIsolationConfigChange(taskType int
 	s.assertPollTaskResponse(taskType, testParam, 333, result)
 
 	// disable isolation again and verify add tasklist should fail
-	s.matchingEngine.config.EnableTasklistIsolation = dynamicconfig.GetBoolPropertyFnFilteredByDomainID(false)
+	s.matchingEngine.config.EnableTasklistIsolation = dynamicproperties.GetBoolPropertyFnFilteredByDomainID(false)
 	_, err = addTask(s.matchingEngine, s.handlerContext, addRequest)
 	s.Error(err)
 	s.Contains(err.Error(), "task list shutting down")
@@ -1176,9 +1176,9 @@ func (s *matchingEngineSuite) TestDrainDecisionBacklogNoPollersIsolationGroup() 
 }
 
 func (s *matchingEngineSuite) DrainBacklogNoPollersIsolationGroup(taskType int) {
-	s.matchingEngine.config.LongPollExpirationInterval = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
-	s.matchingEngine.config.EnableTasklistIsolation = dynamicconfig.GetBoolPropertyFnFilteredByDomainID(true)
-	s.matchingEngine.config.AsyncTaskDispatchTimeout = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
+	s.matchingEngine.config.LongPollExpirationInterval = dynamicproperties.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
+	s.matchingEngine.config.EnableTasklistIsolation = dynamicproperties.GetBoolPropertyFnFilteredByDomainID(true)
+	s.matchingEngine.config.AsyncTaskDispatchTimeout = dynamicproperties.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
 
 	isolationGroups := s.matchingEngine.config.AllIsolationGroups
 
@@ -1192,7 +1192,7 @@ func (s *matchingEngineSuite) DrainBacklogNoPollersIsolationGroup(taskType int) 
 	testParam := newTestParam(s.T(), taskType)
 	s.taskManager.SetRangeID(testParam.TaskListID, initialRangeID)
 	s.matchingEngine.config.RangeSize = rangeSize // override to low number for the test
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(rangeSize / 2)
+	s.matchingEngine.config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(rangeSize / 2)
 	_, err := s.matchingEngine.getTaskListManager(testParam.TaskListID, testParam.TaskList.Kind)
 	s.NoError(err)
 	// advance the time a bit more than warmup time of new tasklist after the creation of tasklist manager, which is 1 minute
@@ -1209,7 +1209,7 @@ func (s *matchingEngineSuite) DrainBacklogNoPollersIsolationGroup(taskType int) 
 			ScheduleID:                    scheduleID,
 			TaskList:                      testParam.TaskList,
 			ScheduleToStartTimeoutSeconds: 1,
-			PartitionConfig:               map[string]string{partition.IsolationGroupKey: isolationGroups()[int(i)%len(isolationGroups())]},
+			PartitionConfig:               map[string]string{isolationgroup.GroupKey: isolationGroups()[int(i)%len(isolationGroups())]},
 		}
 		_, err := addTask(s.matchingEngine, s.handlerContext, addRequest)
 		s.NoError(err)
@@ -1219,92 +1219,6 @@ func (s *matchingEngineSuite) DrainBacklogNoPollersIsolationGroup(taskType int) 
 	s.setupRecordTaskStartedMock(taskType, testParam, false)
 
 	for i := int64(0); i < taskCount; {
-		pollReq := &pollTaskRequest{
-			TaskType:       taskType,
-			DomainUUID:     testParam.DomainID,
-			TaskList:       testParam.TaskList,
-			Identity:       testParam.Identity,
-			IsolationGroup: isolationGroups()[0],
-		}
-		result, err := pollTask(s.matchingEngine, s.handlerContext, pollReq)
-		s.NoError(err)
-		s.NotNil(result)
-		if isEmptyToken(result.TaskToken) {
-			s.logger.Debug("empty poll returned")
-			continue
-		}
-		s.assertPollTaskResponse(taskType, testParam, scheduleID, result)
-		i++
-	}
-	s.EqualValues(0, s.taskManager.GetTaskCount(testParam.TaskListID))
-	expectedRange := getExpectedRange(initialRangeID, taskCount, rangeSize)
-	// Due to conflicts some ids are skipped and more real ranges are used.
-	s.True(expectedRange <= s.taskManager.GetRangeID(testParam.TaskListID))
-}
-
-func (s *matchingEngineSuite) TestAddStickyDecisionNoPollerIsolation() {
-	s.T().Skip("skip test until we re-enable isolation for sticky tasklist")
-	taskType := persistence.TaskListTypeDecision
-	s.matchingEngine.config.LongPollExpirationInterval = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
-	s.matchingEngine.config.EnableTasklistIsolation = dynamicconfig.GetBoolPropertyFnFilteredByDomainID(true)
-	s.matchingEngine.config.AsyncTaskDispatchTimeout = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(100 * time.Millisecond)
-
-	isolationGroups := s.matchingEngine.config.AllIsolationGroups
-
-	const taskCount = 10
-	const initialRangeID = 102
-	// TODO: Understand why publish is low when rangeSize is 3
-	const rangeSize = 30
-
-	testParam := newTestParam(s.T(), taskType)
-	stickyKind := types.TaskListKindSticky
-	testParam.TaskList.Kind = &stickyKind
-	s.taskManager.SetRangeID(testParam.TaskListID, initialRangeID)
-	s.matchingEngine.config.RangeSize = rangeSize // override to low number for the test
-	s.matchingEngine.config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(rangeSize / 2)
-
-	s.setupGetDrainStatus()
-
-	pollReq := &pollTaskRequest{
-		TaskType:       taskType,
-		DomainUUID:     testParam.DomainID,
-		TaskList:       testParam.TaskList,
-		Identity:       testParam.Identity,
-		IsolationGroup: isolationGroups()[0],
-	}
-	result, err := pollTask(s.matchingEngine, s.handlerContext, pollReq)
-	s.NoError(err)
-	s.True(isEmptyToken(result.TaskToken))
-
-	count := int64(0)
-	scheduleIDs := []int64{}
-	for i := int64(0); i < taskCount; i++ {
-		scheduleID := i * 3
-		addRequest := &addTaskRequest{
-			TaskType:                      taskType,
-			DomainUUID:                    testParam.DomainID,
-			Execution:                     testParam.WorkflowExecution,
-			ScheduleID:                    scheduleID,
-			TaskList:                      testParam.TaskList,
-			ScheduleToStartTimeoutSeconds: 1,
-			PartitionConfig:               map[string]string{partition.IsolationGroupKey: isolationGroups()[int(i)%len(isolationGroups())]},
-		}
-		_, err := addTask(s.matchingEngine, s.handlerContext, addRequest)
-		if int(i)%len(isolationGroups()) == 0 {
-			s.NoError(err)
-			count++
-			scheduleIDs = append(scheduleIDs, scheduleID)
-		} else {
-			s.Error(err)
-			s.Contains(err.Error(), "sticky worker is unavailable")
-		}
-	}
-	s.EqualValues(count, s.taskManager.GetTaskCount(testParam.TaskListID))
-
-	s.setupRecordTaskStartedMock(taskType, testParam, false)
-
-	for i := int64(0); i < count; {
-		scheduleID := scheduleIDs[i]
 		pollReq := &pollTaskRequest{
 			TaskType:       taskType,
 			DomainUUID:     testParam.DomainID,
@@ -1376,7 +1290,7 @@ func (s *matchingEngineSuite) setupRecordTaskStartedMock(taskType int, param *te
 }
 
 func (s *matchingEngineSuite) setupGetDrainStatus() {
-	s.mockIsolationStore.EXPECT().GetListValue(dynamicconfig.DefaultIsolationGroupConfigStoreManagerGlobalMapping, nil).Return(nil, nil).AnyTimes()
+	s.mockIsolationStore.EXPECT().GetListValue(dynamicproperties.DefaultIsolationGroupConfigStoreManagerGlobalMapping, nil).Return(nil, nil).AnyTimes()
 }
 
 func (s *matchingEngineSuite) awaitCondition(cond func() bool, timeout time.Duration) bool {
@@ -1467,13 +1381,13 @@ func validateTimeRange(t time.Time, expectedDuration time.Duration) bool {
 
 func defaultTestConfig() *config.Config {
 	config := config.NewConfig(dynamicconfig.NewNopCollection(), "some random hostname", getIsolationGroupsHelper)
-	config.LongPollExpirationInterval = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(100 * time.Millisecond)
-	config.MaxTaskDeleteBatchSize = dynamicconfig.GetIntPropertyFilteredByTaskListInfo(1)
-	config.ReadRangeSize = dynamicconfig.GetIntPropertyFn(50000)
-	config.GetTasksBatchSize = dynamicconfig.GetIntPropertyFilteredByTaskListInfo(10)
-	config.AsyncTaskDispatchTimeout = dynamicconfig.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
+	config.LongPollExpirationInterval = dynamicproperties.GetDurationPropertyFnFilteredByTaskListInfo(100 * time.Millisecond)
+	config.MaxTaskDeleteBatchSize = dynamicproperties.GetIntPropertyFilteredByTaskListInfo(1)
+	config.ReadRangeSize = dynamicproperties.GetIntPropertyFn(50000)
+	config.GetTasksBatchSize = dynamicproperties.GetIntPropertyFilteredByTaskListInfo(10)
+	config.AsyncTaskDispatchTimeout = dynamicproperties.GetDurationPropertyFnFilteredByTaskListInfo(10 * time.Millisecond)
 	config.MaxTimeBetweenTaskDeletes = time.Duration(0)
-	config.EnableTasklistOwnershipGuard = func(opts ...dynamicconfig.FilterOption) bool { return true }
+	config.EnableTasklistOwnershipGuard = func(opts ...dynamicproperties.FilterOption) bool { return true }
 	return config
 }
 

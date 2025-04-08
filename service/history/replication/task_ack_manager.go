@@ -160,7 +160,7 @@ func (t *TaskAckManager) getTasks(ctx context.Context, pollingCluster string, la
 	}
 
 	t.scope.RecordTimer(metrics.ReplicationTasksLagRaw, time.Duration(t.ackLevels.GetTransferMaxReadLevel()-oldestUnprocessedTaskID))
-	t.scope.RecordTimer(metrics.ReplicationTasksDelay, time.Duration(oldestUnprocessedTaskTimestamp-t.timeSource.Now().UnixNano()))
+	t.scope.RecordHistogramDuration(metrics.ReplicationTasksDelay, time.Duration(oldestUnprocessedTaskTimestamp-t.timeSource.Now().UnixNano()))
 
 	// hydrate the tasks
 	for _, info := range taskInfos {

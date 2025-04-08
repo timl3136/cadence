@@ -20,19 +20,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package partition
+package quotas
 
 import (
-	"context"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
+	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
+	"github.com/uber/cadence/common/quotas"
 )
 
-func TestContext(t *testing.T) {
-	partitionConfig := map[string]string{"test": "abc"}
-	assert.Equal(t, partitionConfig, ConfigFromContext(ContextWithConfig(context.Background(), partitionConfig)))
+// NewSimpleDynamicRateLimiterFactory creates a new LimiterFactory which creates
+// a new DynamicRateLimiter for each domain, the RPS for the DynamicRateLimiter is given by the dynamic config
+func NewSimpleDynamicRateLimiterFactory(rps dynamicproperties.IntPropertyFnWithDomainFilter) quotas.LimiterFactory {
+	return dynamicRateLimiterFactory{
+		rps: rps,
+	}
+}
 
-	isolationGroup := "zone1"
-	assert.Equal(t, isolationGroup, IsolationGroupFromContext(ContextWithIsolationGroup(context.Background(), isolationGroup)))
+type dynamicRateLimiterFactory struct {
+	rps dynamicproperties.IntPropertyFnWithDomainFilter
+}
+
+// GetLimiter returns a new Limiter for the given domain
+func (f dynamicRateLimiterFactory) GetLimiter(domain string) quotas.Limiter {
+	return quotas.NewDynamicRateLimiter(func() float64 { return float64(f.rps(domain)) })
 }

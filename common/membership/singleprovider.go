@@ -20,40 +20,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package quotas
+package membership
 
-import (
-	"testing"
+import "github.com/uber/cadence/common"
 
-	"github.com/stretchr/testify/assert"
+//go:generate mockgen -package $GOPACKAGE -source $GOFILE -destination=singleprovider_mock.go SingleProvider
 
-	"github.com/uber/cadence/common/dynamicconfig"
-)
-
-func TestNewFallbackDynamicRateLimiterFactory(t *testing.T) {
-	factory := NewFallbackDynamicRateLimiterFactory(
-		func(string) int { return 2 },
-		func(opts ...dynamicconfig.FilterOption) int { return 100 },
-	)
-
-	limiter := factory.GetLimiter("TestDomainName")
-
-	// The limiter should accept 2 requests per second
-	assert.Equal(t, true, limiter.Allow())
-	assert.Equal(t, true, limiter.Allow())
-	assert.Equal(t, false, limiter.Allow())
-}
-
-func TestNewFallbackDynamicRateLimiterFactoryFallback(t *testing.T) {
-	factory := NewFallbackDynamicRateLimiterFactory(
-		func(string) int { return 0 },
-		func(opts ...dynamicconfig.FilterOption) int { return 2 },
-	)
-
-	limiter := factory.GetLimiter("TestDomainName")
-
-	// The limiter should accept 2 requests per second
-	assert.Equal(t, true, limiter.Allow())
-	assert.Equal(t, true, limiter.Allow())
-	assert.Equal(t, false, limiter.Allow())
+type SingleProvider interface {
+	common.Daemon
+	Lookup(key string) (HostInfo, error)
+	LookupRaw(key string) (string, error)
+	Subscribe(name string, channel chan<- *ChangedEvent) error
+	AddressToHost(owner string) (HostInfo, error)
+	Unsubscribe(name string) error
+	Members() []HostInfo
+	MemberCount() int
+	Refresh() error
 }

@@ -42,10 +42,10 @@ import (
 	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/domain"
 	"github.com/uber/cadence/common/elasticsearch/validator"
+	"github.com/uber/cadence/common/isolationgroup"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
 	"github.com/uber/cadence/common/metrics"
-	"github.com/uber/cadence/common/partition"
 	"github.com/uber/cadence/common/persistence"
 	persistenceutils "github.com/uber/cadence/common/persistence/persistence-utils"
 	"github.com/uber/cadence/common/resource"
@@ -522,11 +522,11 @@ func (wh *WorkflowHandler) PollForDecisionTask(
 }
 
 func (wh *WorkflowHandler) getIsolationGroup(ctx context.Context, domainName string) string {
-	return partition.IsolationGroupFromContext(ctx)
+	return isolationgroup.IsolationGroupFromContext(ctx)
 }
 
 func (wh *WorkflowHandler) getPartitionConfig(ctx context.Context, domainName string) map[string]string {
-	return partition.ConfigFromContext(ctx)
+	return isolationgroup.ConfigFromContext(ctx)
 }
 
 func (wh *WorkflowHandler) isIsolationGroupHealthy(ctx context.Context, domainName, isolationGroup string) bool {

@@ -65,7 +65,6 @@ const (
 	workflowCloseStatus       = "workflow_close_status"
 	isolationEnabled          = "isolation_enabled"
 	isolationGroup            = "isolation_group"
-	originalIsolationGroup    = "original_isolation_group"
 	leakCause                 = "leak_cause"
 	topic                     = "topic"
 	mode                      = "mode"
@@ -314,10 +313,6 @@ func WorkflowCloseStatusTag(value string) Tag {
 	return simpleMetric{key: workflowCloseStatus, value: value}
 }
 
-func OriginalIsolationGroupTag(group string) Tag {
-	return simpleMetric{key: originalIsolationGroup, value: sanitizer.Value(group)}
-}
-
 func IsolationGroupTag(group string) Tag {
 	return simpleMetric{key: isolationGroup, value: sanitizer.Value(group)}
 }
@@ -345,6 +340,10 @@ func ModeTag(value string) Tag {
 
 func NamespaceTag(namespace string) Tag {
 	return metricWithUnknown("namespace", namespace)
+}
+
+func TaskCategoryTag(category string) Tag {
+	return metricWithUnknown("task_category", category)
 }
 
 // ReasonTag returns a new reason tag

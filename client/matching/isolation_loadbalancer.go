@@ -26,7 +26,8 @@ import (
 	"math/rand"
 
 	"github.com/uber/cadence/common/dynamicconfig"
-	"github.com/uber/cadence/common/partition"
+	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
+	"github.com/uber/cadence/common/isolationgroup"
 	"github.com/uber/cadence/common/types"
 )
 
@@ -38,7 +39,7 @@ type isolationLoadBalancer struct {
 }
 
 func NewIsolationLoadBalancer(fallback LoadBalancer, provider PartitionConfigProvider, domainIDToName func(string) (string, error), config *dynamicconfig.Collection) LoadBalancer {
-	isolationEnabled := config.GetBoolPropertyFilteredByDomain(dynamicconfig.EnableTasklistIsolation)
+	isolationEnabled := config.GetBoolPropertyFilteredByDomain(dynamicproperties.EnableTasklistIsolation)
 	return &isolationLoadBalancer{
 		provider:         provider,
 		fallback:         fallback,
@@ -55,7 +56,7 @@ func (i *isolationLoadBalancer) PickWritePartition(taskListType int, req WriteRe
 		return i.fallback.PickWritePartition(taskListType, req)
 	}
 
-	taskGroup, ok := req.GetPartitionConfig()[partition.IsolationGroupKey]
+	taskGroup, ok := req.GetPartitionConfig()[isolationgroup.GroupKey]
 	if !ok || taskGroup == "" {
 		return i.fallback.PickWritePartition(taskListType, req)
 	}

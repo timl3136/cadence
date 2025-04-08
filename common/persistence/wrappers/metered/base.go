@@ -26,7 +26,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/uber/cadence/common/dynamicconfig"
+	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
 	"github.com/uber/cadence/common/metrics"
@@ -38,8 +38,8 @@ type base struct {
 	metricClient                  metrics.Client
 	logger                        log.Logger
 	enableLatencyHistogramMetrics bool
-	sampleLoggingRate             dynamicconfig.IntPropertyFn
-	enableShardIDMetrics          dynamicconfig.BoolPropertyFn
+	sampleLoggingRate             dynamicproperties.IntPropertyFn
+	enableShardIDMetrics          dynamicproperties.BoolPropertyFn
 }
 
 func (p *base) updateErrorMetricPerDomain(scope int, err error, scopeWithDomainTag metrics.Scope) {
@@ -143,6 +143,23 @@ func (p *base) call(scope int, op func() error, tags ...metrics.Tag) error {
 	return err
 }
 
+func (p *base) callWithoutDomainTag(scope int, op func() error, tags ...metrics.Tag) error {
+	metricsScope := p.metricClient.Scope(scope, tags...)
+	metricsScope.IncCounter(metrics.PersistenceRequests)
+	before := time.Now()
+	err := op()
+	duration := time.Since(before)
+	metricsScope.RecordTimer(metrics.PersistenceLatency, duration)
+
+	if p.enableLatencyHistogramMetrics {
+		metricsScope.RecordHistogramDuration(metrics.PersistenceLatencyHistogram, duration)
+	}
+	if err != nil {
+		p.updateErrorMetric(scope, err, metricsScope)
+	}
+	return err
+}
+
 func (p *base) callWithDomainAndShardScope(scope int, op func() error, domainTag metrics.Tag, shardIDTag metrics.Tag) error {
 	domainMetricsScope := p.metricClient.Scope(scope, domainTag)
 	shardOperationsMetricsScope := p.metricClient.Scope(scope, shardIDTag)
@@ -236,20 +253,11 @@ var emptyCountedMethods = map[string]struct {
 	"ExecutionManager.ListCurrentExecutions": {
 		scope: metrics.PersistenceListCurrentExecutionsScope,
 	},
-	"ExecutionManager.GetTransferTasks": {
-		scope: metrics.PersistenceGetTransferTasksScope,
-	},
-	"ExecutionManager.GetCrossClusterTasks": {
-		scope: metrics.PersistenceGetCrossClusterTasksScope,
-	},
-	"ExecutionManager.GetReplicationTasks": {
-		scope: metrics.PersistenceGetReplicationTasksScope,
-	},
 	"ExecutionManager.GetReplicationTasksFromDLQ": {
 		scope: metrics.PersistenceGetReplicationTasksFromDLQScope,
 	},
-	"ExecutionManager.GetTimerIndexTasks": {
-		scope: metrics.PersistenceGetTimerIndexTasksScope,
+	"ExecutionManager.GetHistoryTasks": {
+		scope: metrics.PersistenceGetHistoryTasksScope,
 	},
 	"TaskManager.GetTasks": {
 		scope: metrics.PersistenceGetTasksScope,
@@ -274,20 +282,11 @@ var payloadSizeEmittingMethods = map[string]struct {
 	"ExecutionManager.ListCurrentExecutions": {
 		scope: metrics.PersistenceListCurrentExecutionsScope,
 	},
-	"ExecutionManager.GetTransferTasks": {
-		scope: metrics.PersistenceGetTransferTasksScope,
-	},
-	"ExecutionManager.GetCrossClusterTasks": {
-		scope: metrics.PersistenceGetCrossClusterTasksScope,
-	},
-	"ExecutionManager.GetReplicationTasks": {
-		scope: metrics.PersistenceGetReplicationTasksScope,
-	},
 	"ExecutionManager.GetReplicationTasksFromDLQ": {
 		scope: metrics.PersistenceGetReplicationTasksFromDLQScope,
 	},
-	"ExecutionManager.GetTimerIndexTasks": {
-		scope: metrics.PersistenceGetTimerIndexTasksScope,
+	"ExecutionManager.GetHistoryTasks": {
+		scope: metrics.PersistenceGetHistoryTasksScope,
 	},
 	"TaskManager.GetTasks": {
 		scope: metrics.PersistenceGetTasksScope,
