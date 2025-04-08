@@ -30,7 +30,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/uber/cadence/common/cache"
-	"github.com/uber/cadence/common/log/loggerimpl"
+	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/metrics"
 	"github.com/uber/cadence/common/types"
 )
@@ -39,7 +39,7 @@ func TestNewRoundRobinLoadBalancer(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	p := NewMockPartitionConfigProvider(ctrl)
 	p.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).AnyTimes()
-	p.EXPECT().GetLogger().Return(loggerimpl.NewNopLogger()).AnyTimes()
+	p.EXPECT().GetLogger().Return(log.NewNoop()).AnyTimes()
 	lb := NewRoundRobinLoadBalancer(p)
 	assert.NotNil(t, lb)
 	rb, ok := lb.(*roundRobinLoadBalancer)
