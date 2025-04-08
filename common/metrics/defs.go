@@ -862,6 +862,12 @@ const (
 	// ShardDistributorClientGetShardOwnerScope tracks GetShardOwner calls made by service to shard distributor
 	ShardDistributorClientGetShardOwnerScope
 
+	// RRLoadBalancerScope is the metrics scope for Round Robin load balancer
+	RRLoadBalancerScope
+
+	// WeightedLoadBalancerScope is the metrics scope for Weighted load balancer
+	WeightedLoadBalancerScope
+
 	NumCommonScopes
 )
 
@@ -1314,6 +1320,10 @@ const (
 	LargeExecutionCountShardScope
 	// LargeExecutionBlobShardScope is the scope to track large blobs for hotshard detection
 	LargeExecutionBlobShardScope
+	// HistoryExecutionCacheScope is the scope used by history execution cache
+	HistoryExecutionCacheScope
+	// HistoryWorkflowCacheScope is the scope used by history workflow cache
+	HistoryWorkflowCacheScope
 
 	NumHistoryScopes
 )
@@ -1782,6 +1792,10 @@ var ScopeDefs = map[ServiceIdx]map[int]scopeDefinition{
 		PartitionConfigProviderScope: {operation: "PartitionConfigProvider"},
 
 		ShardDistributorClientGetShardOwnerScope: {operation: "ShardDistributorClientGetShardOwner"},
+
+		RRLoadBalancerScope: {operation: "RRLoadBalancer"},
+
+		WeightedLoadBalancerScope: {operation: "WeightedLoadBalancer"},
 	},
 	// Frontend Scope Names
 	Frontend: {
@@ -2007,6 +2021,8 @@ var ScopeDefs = map[ServiceIdx]map[int]scopeDefinition{
 		LargeExecutionSizeShardScope:                                    {operation: "LargeExecutionSizeShard"},
 		LargeExecutionCountShardScope:                                   {operation: "LargeExecutionCountShard"},
 		LargeExecutionBlobShardScope:                                    {operation: "LargeExecutionBlobShard"},
+		HistoryExecutionCacheScope:                                      {operation: "HistoryExecutionCache"},
+		HistoryWorkflowCacheScope:                                       {operation: "HistoryWorkflowCache"},
 	},
 	// Matching Scope Names
 	Matching: {
@@ -2298,6 +2314,12 @@ const (
 	TaskListPartitionConfigVersionGauge
 	TaskListPartitionConfigNumReadGauge
 	TaskListPartitionConfigNumWriteGauge
+
+	// base cache metrics
+	BaseCacheByteSize
+	BaseCacheByteSizeLimitGauge
+	BaseCacheHit
+	BaseCacheMiss
 
 	NumCommonMetrics // Needs to be last on this list for iota numbering
 )
@@ -3022,6 +3044,11 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		TaskListPartitionConfigVersionGauge:  {metricName: "task_list_partition_config_version", metricType: Gauge},
 		TaskListPartitionConfigNumReadGauge:  {metricName: "task_list_partition_config_num_read", metricType: Gauge},
 		TaskListPartitionConfigNumWriteGauge: {metricName: "task_list_partition_config_num_write", metricType: Gauge},
+
+		BaseCacheByteSize:           {metricName: "base_cache_byte_size", metricType: Gauge},
+		BaseCacheByteSizeLimitGauge: {metricName: "base_cache_byte_size_limit", metricType: Gauge},
+		BaseCacheHit:                {metricName: "base_cache_hit", metricType: Counter},
+		BaseCacheMiss:               {metricName: "base_cache_miss", metricType: Counter},
 	},
 	History: {
 		TaskRequests:             {metricName: "task_requests", metricType: Counter},

@@ -116,6 +116,7 @@ func NewCache(shard shard.Context) Cache {
 	opts.TTL = config.HistoryCacheTTL()
 	opts.Pin = true
 	opts.MaxCount = config.HistoryCacheMaxSize()
+	opts.MetricsScope = shard.GetMetricsClient().Scope(metrics.HistoryExecutionCacheScope)
 
 	return &cacheImpl{
 		Cache:            cache.New(opts, shard.GetLogger().WithTags(tag.ComponentHistoryCache)),

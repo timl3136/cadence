@@ -90,6 +90,7 @@ func New(params Params) WFCache {
 			Pin:           false,
 			MaxCount:      params.MaxCount,
 			ActivelyEvict: true,
+			MetricsScope:  params.MetricsClient.Scope(metrics.HistoryWorkflowCacheScope),
 		}, params.Logger),
 		externalLimiterFactory: params.ExternalLimiterFactory,
 		internalLimiterFactory: params.InternalLimiterFactory,

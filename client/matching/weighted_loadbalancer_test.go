@@ -33,6 +33,7 @@ import (
 
 	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/log/testlogger"
+	"github.com/uber/cadence/common/metrics"
 	"github.com/uber/cadence/common/types"
 )
 
@@ -110,7 +111,9 @@ func TestNewWeightedLoadBalancer(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	roundRobinMock := NewMockLoadBalancer(ctrl)
 	p := NewMockPartitionConfigProvider(ctrl)
+	p.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).AnyTimes()
 	logger := testlogger.New(t)
+	p.EXPECT().GetLogger().Return(logger).AnyTimes()
 	lb := NewWeightedLoadBalancer(roundRobinMock, p, logger)
 	assert.NotNil(t, lb)
 	weightedLB, ok := lb.(*weightedLoadBalancer)

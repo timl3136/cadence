@@ -31,6 +31,7 @@ import (
 	"github.com/uber/cadence/common/dynamicconfig"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
+	"github.com/uber/cadence/common/metrics"
 )
 
 var (
@@ -61,8 +62,9 @@ type (
 		isSizeBased   bool
 		activelyEvict bool
 		// We use this instead of time.Now() in order to make testing easier
-		timeSource clock.TimeSource
-		logger     log.Logger
+		timeSource   clock.TimeSource
+		logger       log.Logger
+		metricsScope metrics.Scope
 	}
 
 	iteratorImpl struct {
@@ -171,6 +173,11 @@ func New(opts *Options, logger log.Logger) Cache {
 		timeSource:    timeSource,
 		logger:        logger,
 		isSizeBased:   opts.IsSizeBased,
+		metricsScope:  opts.MetricsScope,
+	}
+
+	if cache.metricsScope == nil {
+		cache.metricsScope = metrics.NoopScope(1)
 	}
 
 	if cache.isSizeBased {
@@ -210,6 +217,7 @@ func (c *lru) Get(key interface{}) interface{} {
 
 	element := c.byKey[key]
 	if element == nil {
+		c.metricsScope.IncCounter(metrics.BaseCacheMiss)
 		return nil
 	}
 
@@ -218,6 +226,7 @@ func (c *lru) Get(key interface{}) interface{} {
 	if c.isEntryExpired(entry, c.timeSource.Now()) {
 		// Entry has expired
 		c.deleteInternal(element)
+		c.metricsScope.IncCounter(metrics.BaseCacheMiss)
 		return nil
 	}
 
@@ -225,6 +234,7 @@ func (c *lru) Get(key interface{}) interface{} {
 		entry.refCount++
 	}
 	c.byAccess.MoveToFront(element)
+	c.metricsScope.IncCounter(metrics.BaseCacheHit)
 	return entry.value
 }
 
@@ -410,12 +420,21 @@ func (c *lru) updateSizeOnAdd(key interface{}, valueSize uint64) {
 		c.sizeByKey[key] = valueSize
 		// the int overflow should not happen here
 		c.currSize += uint64(valueSize)
+		c.emitSizeOnUpdate()
 	}
 }
 
 func (c *lru) updateSizeOnDelete(key interface{}) {
 	if c.isSizeBased {
 		c.currSize -= uint64(c.sizeByKey[key])
+		c.emitSizeOnUpdate()
 		delete(c.sizeByKey, key)
+	}
+}
+
+func (c *lru) emitSizeOnUpdate() {
+	if c.isSizeBased {
+		c.metricsScope.UpdateGauge(metrics.BaseCacheByteSize, float64(c.currSize))
+		c.metricsScope.UpdateGauge(metrics.BaseCacheByteSizeLimitGauge, float64(c.maxSize()))
 	}
 }

@@ -139,7 +139,7 @@ func newCacheWithOption(
 	historyManager persistence.HistoryManager,
 	disabled bool,
 	logger log.Logger,
-	metrics metrics.Client,
+	metricsClient metrics.Client,
 	maxSize dynamicconfig.IntPropertyFn,
 	domainCache cache.DomainCache,
 ) *cacheImpl {
@@ -147,6 +147,7 @@ func newCacheWithOption(
 	opts.InitialCapacity = initialCount
 	opts.TTL = ttl
 	opts.MaxCount = maxCount
+	opts.MetricsScope = metricsClient.Scope(metrics.EventsCacheGetEventScope)
 
 	if maxSize() > 0 {
 		opts.MaxSize = maxSize
@@ -160,7 +161,7 @@ func newCacheWithOption(
 		historyManager: historyManager,
 		disabled:       disabled,
 		logger:         logger.WithTags(tag.ComponentEventsCache),
-		metricsClient:  metrics,
+		metricsClient:  metricsClient,
 		shardID:        shardID,
 	}
 }

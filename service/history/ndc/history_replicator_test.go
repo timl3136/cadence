@@ -69,7 +69,8 @@ func createTestHistoryReplicator(t *testing.T) historyReplicatorImpl {
 	mockExecutionManager := persistence.NewMockExecutionManager(ctrl)
 	mockShard.EXPECT().GetExecutionManager().Return(mockExecutionManager).Times(1)
 	mockShard.EXPECT().GetLogger().Return(log.NewNoop()).AnyTimes()
-	mockShard.EXPECT().GetMetricsClient().Return(nil).Times(3)
+	mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).AnyTimes()
+	mockShard.EXPECT().GetLogger().Return(log.NewNoop()).AnyTimes()
 
 	testExecutionCache := execution.NewCache(mockShard)
 	mockEventsReapplier := NewMockEventsReapplier(ctrl)

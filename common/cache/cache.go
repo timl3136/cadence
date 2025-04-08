@@ -100,6 +100,9 @@ type Options struct {
 	// But the item HAS to be able to cast as a Sizeable interface otherwise the cache will fail
 	IsSizeBased bool
 
+	// MetricsScope is used to emit metrics for internals of the cache
+	MetricsScope metrics.Scope
+
 	// Deprecated: GetCacheItemSizeFunc is a function called upon adding the item to update the cache size.
 	// It returns 0 by default, assuming the cache is just count based
 	// It is required option if MaxCount is not provided
