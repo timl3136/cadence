@@ -49,6 +49,7 @@ import (
 
 var (
 	testStopwatch = metrics.NoopScope(metrics.ReplicateHistoryEventsScope).StartTimer(metrics.CacheLatency)
+	testShardID   = 1234
 )
 
 func createTestHistoryReplicator(t *testing.T) historyReplicatorImpl {
@@ -67,7 +68,7 @@ func createTestHistoryReplicator(t *testing.T) historyReplicatorImpl {
 
 	// before going into NewHistoryReplicator
 	mockExecutionManager := persistence.NewMockExecutionManager(ctrl)
-	mockShard.EXPECT().GetExecutionManager().Return(mockExecutionManager).Times(1)
+	mockShard.EXPECT().GetExecutionManager().Return(mockExecutionManager).AnyTimes()
 	mockShard.EXPECT().GetLogger().Return(log.NewNoop()).AnyTimes()
 	mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).AnyTimes()
 	mockShard.EXPECT().GetLogger().Return(log.NewNoop()).AnyTimes()
@@ -119,7 +120,8 @@ func TestNewHistoryReplicator_newBranchManager(t *testing.T) {
 	mockExecutionManager := persistence.NewMockExecutionManager(ctrl)
 	mockShard.EXPECT().GetExecutionManager().Return(mockExecutionManager).Times(1)
 	mockShard.EXPECT().GetLogger().Return(log.NewNoop()).AnyTimes()
-	mockShard.EXPECT().GetMetricsClient().Return(nil).Times(3)
+	mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).AnyTimes()
+	mockShard.EXPECT().GetShardID().Return(testShardID).AnyTimes()
 
 	testExecutionCache := execution.NewCache(mockShard)
 	mockEventsReapplier := NewMockEventsReapplier(ctrl)
@@ -168,7 +170,8 @@ func TestNewHistoryReplicator_newConflictResolver(t *testing.T) {
 	mockExecutionManager := persistence.NewMockExecutionManager(ctrl)
 	mockShard.EXPECT().GetExecutionManager().Return(mockExecutionManager).Times(1)
 	mockShard.EXPECT().GetLogger().Return(log.NewNoop()).AnyTimes()
-	mockShard.EXPECT().GetMetricsClient().Return(nil).Times(3)
+	mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).AnyTimes()
+	mockShard.EXPECT().GetShardID().Return(testShardID).AnyTimes()
 
 	testExecutionCache := execution.NewCache(mockShard)
 	mockEventsReapplier := NewMockEventsReapplier(ctrl)
@@ -196,7 +199,6 @@ func TestNewHistoryReplicator_newConflictResolver(t *testing.T) {
 	// test newConflictResolverFn function in history replicator
 	mockEventsCache := events.NewMockCache(ctrl)
 	mockShard.EXPECT().GetEventsCache().Return(mockEventsCache).Times(1)
-	mockShard.EXPECT().GetShardID().Return(0).Times(1)
 
 	mockExecutionContext := execution.NewMockContext(ctrl)
 	mockExecutionMutableState := execution.NewMockMutableState(ctrl)
@@ -249,7 +251,7 @@ func TestNewHistoryReplicator_newWorkflowResetter(t *testing.T) {
 	// test newWorkflowResetterFn function in history replicator
 	mockEventsCache := events.NewMockCache(ctrl)
 	mockShard.EXPECT().GetEventsCache().Return(mockEventsCache).Times(1)
-	mockShard.EXPECT().GetShardID().Return(0).Times(1)
+	mockShard.EXPECT().GetShardID().Return(testShardID).Times(1)
 
 	mockExecutionContext := execution.NewMockContext(ctrl)
 	assert.NotNil(t, testReplicatorImpl.newWorkflowResetterFn(

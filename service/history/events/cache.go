@@ -148,6 +148,9 @@ func newCacheWithOption(
 	opts.TTL = ttl
 	opts.MaxCount = maxCount
 	opts.MetricsScope = metricsClient.Scope(metrics.EventsCacheGetEventScope)
+	if shardID != nil {
+		opts.MetricsScope = opts.MetricsScope.Tagged(metrics.ShardIDTag(*shardID))
+	}
 
 	if maxSize() > 0 {
 		opts.MaxSize = maxSize
