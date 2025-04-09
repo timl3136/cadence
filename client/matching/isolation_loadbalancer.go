@@ -39,7 +39,7 @@ type isolationLoadBalancer struct {
 }
 
 func NewIsolationLoadBalancer(fallback LoadBalancer, provider PartitionConfigProvider, domainIDToName func(string) (string, error), config *dynamicconfig.Collection) LoadBalancer {
-	isolationEnabled := config.GetBoolPropertyFilteredByDomain(dynamicproperties.EnableTasklistIsolation)
+	isolationEnabled := config.GetBoolPropertyFilteredByDomain(dynamicproperties.EnablePartitionIsolationGroupAssignment)
 	return &isolationLoadBalancer{
 		provider:         provider,
 		fallback:         fallback,

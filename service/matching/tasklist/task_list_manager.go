@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -73,7 +74,10 @@ var (
 	IsolationLeakCauseError           = metrics.IsolationLeakCause("error")
 	IsolationLeakCauseGroupDrained    = metrics.IsolationLeakCause("group_drained")
 	IsolationLeakCauseNoRecentPollers = metrics.IsolationLeakCause("no_recent_pollers")
+	IsolationLeakCausePartitionChange = metrics.IsolationLeakCause("partition_change")
 	IsolationLeakCauseExpired         = metrics.IsolationLeakCause("expired")
+
+	defaultPartition = &types.TaskListPartition{}
 )
 
 type (
@@ -349,6 +353,26 @@ func (c *taskListManagerImpl) TaskListPartitionConfig() *types.TaskListPartition
 	return &config
 }
 
+func (c *taskListManagerImpl) PartitionReadConfig() (*types.TaskListPartition, bool) {
+	tlConfig := c.TaskListPartitionConfig()
+	// no config indicates 1 partition
+	if tlConfig == nil {
+		return defaultPartition, true
+	}
+	partition, ok := tlConfig.ReadPartitions[c.taskListID.Partition()]
+	return partition, ok
+}
+
+func (c *taskListManagerImpl) PartitionWriteConfig() (*types.TaskListPartition, bool) {
+	tlConfig := c.TaskListPartitionConfig()
+	// no config indicates 1 partition
+	if tlConfig == nil {
+		return defaultPartition, true
+	}
+	partition, ok := tlConfig.WritePartitions[c.taskListID.Partition()]
+	return partition, ok
+}
+
 func (c *taskListManagerImpl) LoadBalancerHints() *types.LoadBalancerHints {
 	c.startWG.Wait()
 	if c.timeSource.Now().Sub(c.createTime) < time.Second*10 {
@@ -493,12 +517,9 @@ func (c *taskListManagerImpl) AddTask(ctx context.Context, params AddTaskParams)
 		return false, errShutdown
 	}
 	if c.config.EnableGetNumberOfPartitionsFromCache() {
-		partitionConfig := c.TaskListPartitionConfig()
-		if partitionConfig != nil {
-			_, ok := partitionConfig.WritePartitions[c.taskListID.Partition()]
-			if !ok {
-				return false, &types.InternalServiceError{Message: "Current partition is drained."}
-			}
+		_, ok := c.PartitionWriteConfig()
+		if !ok {
+			return false, &types.InternalServiceError{Message: "Current partition is drained."}
 		}
 	}
 	if params.ForwardedFrom == "" {
@@ -867,6 +888,11 @@ func (c *taskListManagerImpl) getIsolationGroupForTask(ctx context.Context, task
 		c.scope.Tagged(metrics.IsolationGroupTag(group), IsolationLeakCauseNoRecentPollers).IncCounter(metrics.TaskIsolationLeakPerTaskList)
 		return defaultTaskBufferIsolationGroup, noIsolationTimeout
 	}
+	partition, ok := c.PartitionReadConfig()
+	if !ok || (len(partition.IsolationGroups) != 0 && !slices.Contains(partition.IsolationGroups, group)) {
+		c.scope.Tagged(metrics.IsolationGroupTag(group), IsolationLeakCausePartitionChange).IncCounter(metrics.TaskIsolationLeakPerTaskList)
+		return defaultTaskBufferIsolationGroup, noIsolationTimeout
+	}
 
 	totalTaskIsolationDuration := c.config.TaskIsolationDuration()
 	taskIsolationDuration := noIsolationTimeout
@@ -1033,6 +1059,24 @@ func newTaskListConfig(id *Identifier, cfg *config.Config, domainName string) *c
 		},
 		AdaptiveScalerUpdateInterval: func() time.Duration {
 			return cfg.AdaptiveScalerUpdateInterval(domainName, taskListName, taskType)
+		},
+		EnablePartitionIsolationGroupAssignment: func() bool {
+			return cfg.EnablePartitionIsolationGroupAssignment(domainName, taskListName, taskType)
+		},
+		IsolationGroupUpscaleSustainedDuration: func() time.Duration {
+			return cfg.IsolationGroupUpscaleSustainedDuration(domainName, taskListName, taskType)
+		},
+		IsolationGroupDownscaleSustainedDuration: func() time.Duration {
+			return cfg.IsolationGroupDownscaleSustainedDuration(domainName, taskListName, taskType)
+		},
+		IsolationGroupHasPollersSustainedDuration: func() time.Duration {
+			return cfg.IsolationGroupHasPollersSustainedDuration(domainName, taskListName, taskType)
+		},
+		IsolationGroupNoPollersSustainedDuration: func() time.Duration {
+			return cfg.IsolationGroupNoPollersSustainedDuration(domainName, taskListName, taskType)
+		},
+		IsolationGroupsPerPartition: func() int {
+			return cfg.IsolationGroupsPerPartition(domainName, taskListName, taskType)
 		},
 		QPSTrackerInterval: func() time.Duration {
 			return cfg.QPSTrackerInterval(domainName, taskListName, taskType)
