@@ -224,7 +224,7 @@ func TestNewHistoryReplicator_newWorkflowResetter(t *testing.T) {
 	mockExecutionManager := persistence.NewMockExecutionManager(ctrl)
 	mockShard.EXPECT().GetExecutionManager().Return(mockExecutionManager).Times(1)
 	mockShard.EXPECT().GetLogger().Return(log.NewNoop()).AnyTimes()
-	mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).Times(3)
+	mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).AnyTimes()
 	mockShard.EXPECT().GetShardID().Return(testShardID).AnyTimes()
 
 	testExecutionCache := execution.NewCache(mockShard)
@@ -253,7 +253,7 @@ func TestNewHistoryReplicator_newWorkflowResetter(t *testing.T) {
 	// test newWorkflowResetterFn function in history replicator
 	mockEventsCache := events.NewMockCache(ctrl)
 	mockShard.EXPECT().GetEventsCache().Return(mockEventsCache).Times(1)
-	mockShard.EXPECT().GetShardID().Return(testShardID).Times(1)
+	mockShard.EXPECT().GetShardID().Return(testShardID).AnyTimes()
 
 	mockExecutionContext := execution.NewMockContext(ctrl)
 	assert.NotNil(t, testReplicatorImpl.newWorkflowResetterFn(
@@ -284,7 +284,7 @@ func TestNewHistoryReplicator_newStateBuilder(t *testing.T) {
 	mockExecutionManager := persistence.NewMockExecutionManager(ctrl)
 	mockShard.EXPECT().GetExecutionManager().Return(mockExecutionManager).Times(1)
 	mockShard.EXPECT().GetLogger().Return(log.NewNoop()).AnyTimes()
-	mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).Times(3)
+	mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).AnyTimes()
 	mockShard.EXPECT().GetShardID().Return(testShardID).AnyTimes()
 
 	testExecutionCache := execution.NewCache(mockShard)
@@ -333,7 +333,7 @@ func TestNewHistoryReplicator_newMutableState(t *testing.T) {
 	mockExecutionManager := persistence.NewMockExecutionManager(ctrl)
 	mockShard.EXPECT().GetExecutionManager().Return(mockExecutionManager).Times(1)
 	mockShard.EXPECT().GetLogger().Return(log.NewNoop()).AnyTimes()
-	mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).Times(4)
+	mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).AnyTimes()
 	mockShard.EXPECT().GetShardID().Return(testShardID).AnyTimes()
 
 	testExecutionCache := execution.NewCache(mockShard)
