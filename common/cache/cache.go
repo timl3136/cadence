@@ -23,6 +23,7 @@
 package cache
 
 import (
+	"github.com/uber/cadence/common/log"
 	"time"
 
 	"github.com/uber/cadence/common"
@@ -102,6 +103,9 @@ type Options struct {
 
 	// MetricsScope is used to emit metrics for internals of the cache
 	MetricsScope metrics.Scope
+
+	// Logger is used to emit logs for internals of the cache
+	Logger log.Logger
 
 	// Deprecated: GetCacheItemSizeFunc is a function called upon adding the item to update the cache size.
 	// It returns 0 by default, assuming the cache is just count based

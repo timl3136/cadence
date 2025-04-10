@@ -862,11 +862,8 @@ const (
 	// ShardDistributorClientGetShardOwnerScope tracks GetShardOwner calls made by service to shard distributor
 	ShardDistributorClientGetShardOwnerScope
 
-	// RRLoadBalancerScope is the metrics scope for Round Robin load balancer
-	RRLoadBalancerScope
-
-	// WeightedLoadBalancerScope is the metrics scope for Weighted load balancer
-	WeightedLoadBalancerScope
+	// LoadBalancerScope is the metrics scope for Round Robin load balancer
+	LoadBalancerScope
 
 	NumCommonScopes
 )
@@ -1793,9 +1790,7 @@ var ScopeDefs = map[ServiceIdx]map[int]scopeDefinition{
 
 		ShardDistributorClientGetShardOwnerScope: {operation: "ShardDistributorClientGetShardOwner"},
 
-		RRLoadBalancerScope: {operation: "RRLoadBalancer"},
-
-		WeightedLoadBalancerScope: {operation: "WeightedLoadBalancer"},
+		LoadBalancerScope: {operation: "RRLoadBalancer"},
 	},
 	// Frontend Scope Names
 	Frontend: {

@@ -128,8 +128,9 @@ func NewWeightedLoadBalancer(
 			Pin:             false,
 			MaxCount:        3000,
 			ActivelyEvict:   false,
-			MetricsScope:    provider.GetMetricsClient().Scope(metrics.WeightedLoadBalancerScope),
-		}, logger),
+			MetricsScope:    provider.GetMetricsClient().Scope(metrics.LoadBalancerScope),
+			Logger:          logger,
+		}),
 		logger: logger,
 	}
 }

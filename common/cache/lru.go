@@ -149,7 +149,7 @@ func (entry *entryImpl) CreateTime() time.Time {
 }
 
 // New creates a new cache with the given options
-func New(opts *Options, logger log.Logger) Cache {
+func New(opts *Options) Cache {
 	if opts == nil || (opts.MaxCount <= 0 && (opts.MaxSize() <= 0 || opts.GetCacheItemSizeFunc == nil)) {
 		panic("Either MaxCount (count based) or " +
 			"MaxSize and GetCacheItemSizeFunc (size based) options must be provided for the LRU cache")
@@ -158,9 +158,6 @@ func New(opts *Options, logger log.Logger) Cache {
 	timeSource := opts.TimeSource
 	if timeSource == nil {
 		timeSource = clock.NewRealTimeSource()
-	}
-	if logger == nil {
-		logger = log.NewNoop()
 	}
 
 	cache := &lru{
@@ -171,9 +168,13 @@ func New(opts *Options, logger log.Logger) Cache {
 		rmFunc:        opts.RemovedFunc,
 		activelyEvict: opts.ActivelyEvict,
 		timeSource:    timeSource,
-		logger:        logger,
+		logger:        opts.Logger,
 		isSizeBased:   opts.IsSizeBased,
 		metricsScope:  opts.MetricsScope,
+	}
+
+	if cache.logger == nil {
+		cache.logger = log.NewNoop()
 	}
 
 	if cache.metricsScope == nil {

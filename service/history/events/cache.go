@@ -158,8 +158,9 @@ func newCacheWithOption(
 			return common.GetSizeOfHistoryEvent(event.(*types.HistoryEvent))
 		}
 	}
+	opts.Logger = logger.WithTags(tag.ComponentEventsCache)
 	return &cacheImpl{
-		Cache:          cache.New(opts, logger.WithTags(tag.ComponentEventsCache)),
+		Cache:          cache.New(opts),
 		domainCache:    domainCache,
 		historyManager: historyManager,
 		disabled:       disabled,
