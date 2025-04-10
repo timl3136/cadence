@@ -3052,10 +3052,10 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		TaskListPartitionConfigNumReadGauge:  {metricName: "task_list_partition_config_num_read", metricType: Gauge},
 		TaskListPartitionConfigNumWriteGauge: {metricName: "task_list_partition_config_num_write", metricType: Gauge},
 
-		BaseCacheByteSize:           {metricName: "base_cache_byte_size", metricType: Gauge},
-		BaseCacheByteSizeLimitGauge: {metricName: "base_cache_byte_size_limit", metricType: Gauge},
-		BaseCacheHit:                {metricName: "base_cache_hit", metricType: Counter},
-		BaseCacheMiss:               {metricName: "base_cache_miss", metricType: Counter},
+		BaseCacheByteSize:           {metricName: "cache_byte_size", metricType: Gauge},
+		BaseCacheByteSizeLimitGauge: {metricName: "cache_byte_size_limit", metricType: Gauge},
+		BaseCacheHit:                {metricName: "cache_hit", metricType: Counter},
+		BaseCacheMiss:               {metricName: "cache_miss", metricType: Counter},
 	},
 	History: {
 		TaskRequests:             {metricName: "task_requests", metricType: Counter},
