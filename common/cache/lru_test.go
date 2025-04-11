@@ -38,7 +38,7 @@ type keyType struct {
 }
 
 func TestLRU(t *testing.T) {
-	cache := New(&Options{MaxCount: 5}, nil)
+	cache := New(&Options{MaxCount: 5})
 
 	cache.Put("A", "Foo")
 	assert.Equal(t, "Foo", cache.Get("A"))
@@ -78,7 +78,7 @@ func TestGenerics(t *testing.T) {
 	}
 	value := "some random value"
 
-	cache := New(&Options{MaxCount: 5}, nil)
+	cache := New(&Options{MaxCount: 5})
 	cache.Put(key, value)
 
 	assert.Equal(t, value, cache.Get(key))
@@ -98,7 +98,7 @@ func TestLRUWithTTL(t *testing.T) {
 		MaxCount:   5,
 		TTL:        time.Millisecond * 100,
 		TimeSource: mockTimeSource,
-	}, nil).(*lru)
+	}).(*lru)
 
 	cache.Put("A", "foo")
 	assert.Equal(t, "foo", cache.Get("A"))
@@ -110,7 +110,7 @@ func TestLRUWithTTL(t *testing.T) {
 }
 
 func TestLRUCacheConcurrentAccess(t *testing.T) {
-	cache := New(&Options{MaxCount: 5}, nil)
+	cache := New(&Options{MaxCount: 5})
 	values := map[string]string{
 		"A": "foo",
 		"B": "bar",
@@ -171,7 +171,7 @@ func TestRemoveFunc(t *testing.T) {
 			assert.True(t, ok)
 			ch <- true
 		},
-	}, nil)
+	})
 
 	cache.Put("testing", t)
 	cache.Delete("testing")
@@ -198,7 +198,7 @@ func TestRemovedFuncWithTTL(t *testing.T) {
 			ch <- true
 		},
 		TimeSource: mockTimeSource,
-	}, nil).(*lru)
+	}).(*lru)
 
 	cache.Put("A", t)
 	assert.Equal(t, t, cache.Get("A"))
@@ -228,7 +228,7 @@ func TestRemovedFuncWithTTL_Pin(t *testing.T) {
 			ch <- true
 		},
 		TimeSource: mockTimeSource,
-	}, nil).(*lru)
+	}).(*lru)
 
 	_, err := cache.PutIfNotExist("A", t)
 	assert.NoError(t, err)
@@ -257,7 +257,7 @@ func TestIterator(t *testing.T) {
 		"D": "Delta",
 	}
 
-	cache := New(&Options{MaxCount: 5}, nil)
+	cache := New(&Options{MaxCount: 5})
 
 	for k, v := range expected {
 		cache.Put(k, v)
@@ -296,7 +296,7 @@ func TestLRU_SizeBased_SizeExceeded(t *testing.T) {
 	cache := New(&Options{
 		IsSizeBased: dynamicproperties.GetBoolPropertyFn(true),
 		MaxSize:     dynamicproperties.GetIntPropertyFn(15),
-	}, nil)
+	})
 
 	fooValue := sizeableValue{val: "Foo", size: 5}
 	cache.Put("A", fooValue)
@@ -344,7 +344,7 @@ func TestLRU_SizeBased_CountExceeded(t *testing.T) {
 		MaxCount:    5,
 		IsSizeBased: dynamicproperties.GetBoolPropertyFn(true),
 		MaxSize:     dynamicproperties.GetIntPropertyFn(10000),
-	}, nil)
+	})
 
 	fooValue := sizeableValue{val: "Foo", size: 5}
 	cache.Put("A", fooValue)
@@ -386,7 +386,7 @@ func TestLRU_EvictWhileSwitchToSizeBased(t *testing.T) {
 		MaxCount:    2,
 		IsSizeBased: func(...dynamicproperties.FilterOption) bool { return sizeBased },
 		MaxSize:     dynamicproperties.GetIntPropertyFn(10000),
-	}, nil)
+	})
 
 	fooValue := sizeableValue{val: "Foo", size: 5}
 	barValue := sizeableValue{val: "Bar", size: 5}
@@ -424,7 +424,7 @@ func TestPanicMaxCountAndSizeNotProvided(t *testing.T) {
 		GetCacheItemSizeFunc: func(interface{}) uint64 {
 			return 5
 		},
-	}, nil)
+	})
 }
 
 func TestPanicMaxCountAndSizeFuncNotProvided(t *testing.T) {
@@ -437,7 +437,7 @@ func TestPanicMaxCountAndSizeFuncNotProvided(t *testing.T) {
 	New(&Options{
 		TTL:     time.Millisecond * 100,
 		MaxSize: dynamicproperties.GetIntPropertyFn(0),
-	}, nil)
+	})
 }
 
 func TestPanicOptionsIsNil(t *testing.T) {
@@ -447,7 +447,7 @@ func TestPanicOptionsIsNil(t *testing.T) {
 		}
 	}()
 
-	New(nil, nil)
+	New(nil)
 }
 
 func TestEvictItemsPastTimeToLive_ActivelyEvict(t *testing.T) {
@@ -458,7 +458,7 @@ func TestEvictItemsPastTimeToLive_ActivelyEvict(t *testing.T) {
 		TTL:           time.Second * 75,
 		ActivelyEvict: true,
 		TimeSource:    mockTimeSource,
-	}, nil).(*lru)
+	}).(*lru)
 	require.True(t, ok)
 
 	_, err := cache.PutIfNotExist("A", 1)

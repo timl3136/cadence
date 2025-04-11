@@ -69,7 +69,9 @@ func NewProducerManager(
 			InitialCapacity: 5,
 			MaxCount:        100,
 			Pin:             true,
-		}, logger),
+			MetricsScope:    metricsClient.Scope(metrics.Frontend),
+			Logger:          logger,
+		}),
 	}
 }
 

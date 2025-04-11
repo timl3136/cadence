@@ -31,6 +31,7 @@ import (
 	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
+	"github.com/uber/cadence/common/metrics"
 )
 
 var (
@@ -64,8 +65,9 @@ type (
 		isSizeBased   dynamicproperties.BoolPropertyFn
 		activelyEvict bool
 		// We use this instead of time.Now() in order to make testing easier
-		timeSource clock.TimeSource
-		logger     log.Logger
+		timeSource   clock.TimeSource
+		logger       log.Logger
+		metricsScope metrics.Scope
 	}
 
 	iteratorImpl struct {
@@ -150,7 +152,7 @@ func (entry *entryImpl) CreateTime() time.Time {
 }
 
 // New creates a new cache with the given options
-func New(opts *Options, logger log.Logger) Cache {
+func New(opts *Options) Cache {
 	if opts == nil || (opts.MaxCount <= 0 && (opts.MaxSize() <= 0)) {
 		panic("Either MaxCount (count based) or " +
 			"MaxSize must be provided for the LRU cache")
@@ -159,9 +161,6 @@ func New(opts *Options, logger log.Logger) Cache {
 	timeSource := opts.TimeSource
 	if timeSource == nil {
 		timeSource = clock.NewRealTimeSource()
-	}
-	if logger == nil {
-		logger = log.NewNoop()
 	}
 
 	cache := &lru{
@@ -172,7 +171,17 @@ func New(opts *Options, logger log.Logger) Cache {
 		rmFunc:        opts.RemovedFunc,
 		activelyEvict: opts.ActivelyEvict,
 		timeSource:    timeSource,
-		logger:        logger,
+		logger:        opts.Logger,
+		isSizeBased:   opts.IsSizeBased,
+		metricsScope:  opts.MetricsScope,
+	}
+
+	if cache.logger == nil {
+		cache.logger = log.NewNoop()
+	}
+
+	if cache.metricsScope == nil {
+		cache.metricsScope = metrics.NoopScope(1)
 	}
 
 	if opts.IsSizeBased == nil {
@@ -192,7 +201,7 @@ func New(opts *Options, logger log.Logger) Cache {
 
 	cache.logger.Info("LRU cache initialized",
 		tag.Value(map[string]interface{}{
-			"isSizeBased": cache.isSizeBased,
+			"isSizeBased": cache.isSizeBased(),
 			"maxCount":    cache.maxCount,
 			"maxSize":     cache.maxSize(),
 		}),
@@ -210,6 +219,7 @@ func (c *lru) Get(key interface{}) interface{} {
 
 	element := c.byKey[key]
 	if element == nil {
+		c.metricsScope.IncCounter(metrics.BaseCacheMiss)
 		return nil
 	}
 
@@ -218,6 +228,7 @@ func (c *lru) Get(key interface{}) interface{} {
 	if c.isEntryExpired(entry, c.timeSource.Now()) {
 		// Entry has expired
 		c.deleteInternal(element)
+		c.metricsScope.IncCounter(metrics.BaseCacheMiss)
 		return nil
 	}
 
@@ -225,6 +236,7 @@ func (c *lru) Get(key interface{}) interface{} {
 		entry.refCount++
 	}
 	c.byAccess.MoveToFront(element)
+	c.metricsScope.IncCounter(metrics.BaseCacheHit)
 	return entry.value
 }
 
@@ -311,7 +323,7 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 	sizeableValue, ok := value.(Sizeable)
 	if !ok {
 		c.isSizeBased = dynamicproperties.GetBoolPropertyFn(false)
-		c.logger.Warn(fmt.Sprintf("Cache is strictly count-based because value %T does not implement sizable. Key: %+v", value, key))
+		c.logger.Warn(fmt.Sprintf("Cache is strictly count-based because value %T does not implement sizable", value))
 	} else {
 		valueSize = sizeableValue.ByteSize()
 	}
@@ -390,7 +402,6 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 			c.deleteInternal(c.byAccess.Back())
 		}
 	} else {
-
 		for c.isCacheFull() {
 			oldest := c.byAccess.Back().Value.(*entryImpl)
 			if oldest.refCount > 0 {
@@ -431,11 +442,18 @@ func (c *lru) updateSizeOnAdd(key interface{}, valueSize uint64) {
 	c.sizeByKey[key] = valueSize
 	// the int overflow should not happen here
 	c.currSize += uint64(valueSize)
+	c.emitSizeOnUpdate()
 
 }
 
 func (c *lru) updateSizeOnDelete(key interface{}) {
 	c.currSize -= uint64(c.sizeByKey[key])
+	c.emitSizeOnUpdate()
 	delete(c.sizeByKey, key)
+}
+
+func (c *lru) emitSizeOnUpdate() {
+	c.metricsScope.UpdateGauge(metrics.BaseCacheByteSize, float64(c.currSize))
+	c.metricsScope.UpdateGauge(metrics.BaseCacheByteSizeLimitGauge, float64(c.maxSize()))
 
 }

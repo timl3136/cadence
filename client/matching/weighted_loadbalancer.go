@@ -33,6 +33,7 @@ import (
 	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
+	"github.com/uber/cadence/common/metrics"
 	"github.com/uber/cadence/common/types"
 )
 
@@ -127,7 +128,9 @@ func NewWeightedLoadBalancer(
 			Pin:             false,
 			MaxCount:        3000,
 			ActivelyEvict:   false,
-		}, logger),
+			MetricsScope:    provider.GetMetricsClient().Scope(metrics.LoadBalancerScope),
+			Logger:          logger,
+		}),
 		logger: logger,
 	}
 }
