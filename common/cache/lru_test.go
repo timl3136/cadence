@@ -296,7 +296,7 @@ func (s sizeableValue) ByteSize() uint64 {
 func TestLRU_SizeBased_SizeExceeded(t *testing.T) {
 	cache := New(&Options{
 		MaxCount:    5,
-		IsSizeBased: true,
+		IsSizeBased: dynamicproperties.GetBoolPropertyFn(true),
 		MaxSize:     dynamicproperties.GetIntPropertyFn(15),
 	}, nil)
 
@@ -344,7 +344,7 @@ func TestLRU_SizeBased_SizeExceeded(t *testing.T) {
 func TestLRU_SizeBased_CountExceeded(t *testing.T) {
 	cache := New(&Options{
 		MaxCount:    5,
-		IsSizeBased: true,
+		IsSizeBased: dynamicproperties.GetBoolPropertyFn(true),
 		MaxSize:     dynamicproperties.GetIntPropertyFn(10000),
 	}, nil)
 
@@ -378,6 +378,40 @@ func TestLRU_SizeBased_CountExceeded(t *testing.T) {
 	assert.Equal(t, epsiValue, cache.Get("E"))
 	assert.Equal(t, foo2Value, cache.Get("A"))
 	assert.Equal(t, 5, cache.Size())
+}
+
+func TestLRU_EvictWhileSwitchToSizeBased(t *testing.T) {
+	sizeBased := true
+
+	// Create a function literal that can be implicitly coerced to BoolPropertyFn
+	cache := New(&Options{
+		MaxCount:    2,
+		IsSizeBased: func(...dynamicproperties.FilterOption) bool { return sizeBased },
+		MaxSize:     dynamicproperties.GetIntPropertyFn(10000),
+	}, nil)
+
+	fooValue := sizeableValue{val: "Foo", size: 5}
+	barValue := sizeableValue{val: "Bar", size: 5}
+	cidValue := sizeableValue{val: "Cid", size: 5}
+	deltValue := sizeableValue{val: "Delt", size: 5}
+	cache.Put("A", fooValue)
+	cache.Put("B", barValue)
+	cache.Put("C", cidValue)
+	cache.Put("D", deltValue)
+	assert.Equal(t, 4, cache.Size())
+	assert.Equal(t, fooValue, cache.Get("A"))
+	assert.Equal(t, barValue, cache.Get("B"))
+	assert.Equal(t, cidValue, cache.Get("C"))
+	assert.Equal(t, deltValue, cache.Get("D"))
+
+	// Change the sizeBased flag to false
+	sizeBased = false
+
+	echoValue := sizeableValue{val: "Echo", size: 5}
+	cache.Put("E", echoValue)
+	assert.Equal(t, deltValue, cache.Get("D"))
+	assert.Equal(t, echoValue, cache.Get("E"))
+	assert.Equal(t, 2, cache.Size())
 }
 
 func TestPanicMaxCountAndSizeNotProvided(t *testing.T) {
