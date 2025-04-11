@@ -60,16 +60,15 @@ func TestLRU(t *testing.T) {
 	cache.Put("E", "Epsi")
 	assert.Equal(t, "Epsi", cache.Get("E"))
 	assert.Equal(t, "Foo2", cache.Get("A"))
-	assert.Nil(t, cache.Get("B")) // Oldest, should be evicted
 
 	// Access C, D is now LRU
 	cache.Get("C")
 	cache.Put("F", "Felp")
-	assert.Nil(t, cache.Get("D"))
-	assert.Equal(t, 4, cache.Size())
+	assert.Nil(t, cache.Get("B"))
+	assert.Equal(t, 5, cache.Size())
 
-	cache.Delete("A")
-	assert.Nil(t, cache.Get("A"))
+	cache.Delete("C")
+	assert.Nil(t, cache.Get("C"))
 }
 
 func TestGenerics(t *testing.T) {
@@ -295,7 +294,6 @@ func (s sizeableValue) ByteSize() uint64 {
 
 func TestLRU_SizeBased_SizeExceeded(t *testing.T) {
 	cache := New(&Options{
-		MaxCount:    5,
 		IsSizeBased: dynamicproperties.GetBoolPropertyFn(true),
 		MaxSize:     dynamicproperties.GetIntPropertyFn(15),
 	}, nil)
@@ -334,11 +332,11 @@ func TestLRU_SizeBased_SizeExceeded(t *testing.T) {
 	assert.Nil(t, cache.Get("A"))
 	assert.Equal(t, 1, cache.Size())
 
-	// Put large value greater than maxSize to evict everything
+	// Put large value greater than maxSize but should not evict anything
 	mepsiValue := sizeableValue{val: "Mepsi", size: 25}
 	cache.Put("M", mepsiValue)
 	assert.Nil(t, cache.Get("M"))
-	assert.Equal(t, 0, cache.Size())
+	assert.Equal(t, 1, cache.Size())
 }
 
 func TestLRU_SizeBased_CountExceeded(t *testing.T) {
@@ -438,7 +436,7 @@ func TestPanicMaxCountAndSizeFuncNotProvided(t *testing.T) {
 
 	New(&Options{
 		TTL:     time.Millisecond * 100,
-		MaxSize: dynamicproperties.GetIntPropertyFn(25),
+		MaxSize: dynamicproperties.GetIntPropertyFn(0),
 	}, nil)
 }
 

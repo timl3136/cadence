@@ -36,6 +36,9 @@ import (
 var (
 	// ErrCacheFull is returned if Put fails due to cache being filled with pinned elements
 	ErrCacheFull = errors.New("Cache capacity is fully occupied with pinned elements")
+
+	// ErrEntryTooBig is returned if the entry is too big to be cached
+	ErrEntryTooBig = errors.New("Entry is too big to be cached")
 )
 
 // upper limit to prevent infinite growing
@@ -148,9 +151,9 @@ func (entry *entryImpl) CreateTime() time.Time {
 
 // New creates a new cache with the given options
 func New(opts *Options, logger log.Logger) Cache {
-	if opts == nil || (opts.MaxCount <= 0 && (opts.MaxSize() <= 0 || opts.GetCacheItemSizeFunc == nil)) {
+	if opts == nil || (opts.MaxCount <= 0 && (opts.MaxSize() <= 0)) {
 		panic("Either MaxCount (count based) or " +
-			"MaxSize and GetCacheItemSizeFunc (size based) options must be provided for the LRU cache")
+			"MaxSize must be provided for the LRU cache")
 	}
 
 	timeSource := opts.TimeSource
@@ -368,20 +371,40 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 	}
 
 	// ensuring that the cache has at least one spot for the new entry
-	for c.isCacheFull() {
-		oldest := c.byAccess.Back().Value.(*entryImpl)
+	// different logic between count and size approach
+	if c.isSizeBased() {
+		if valueSize > uint64(c.maxSize()) {
+			// value is too big to be cached, we also don't want to evict everyone else
+			return nil, ErrEntryTooBig
+		}
+		c.byKey[key] = c.byAccess.PushFront(entry)
+		c.updateSizeOnAdd(key, valueSize)
+		for c.isCacheFull() {
+			oldest := c.byAccess.Back().Value.(*entryImpl)
+			if oldest.refCount > 0 {
+				// Cache is full with pinned elements
+				// revert the insert and return
+				c.deleteInternal(c.byAccess.Front())
+				return nil, ErrCacheFull
+			}
+			c.deleteInternal(c.byAccess.Back())
+		}
+	} else {
 
-		if oldest.refCount > 0 {
-			// Cache is full with pinned elements
-			// revert the insert and return
-			c.deleteInternal(c.byAccess.Front())
-			return nil, ErrCacheFull
+		for c.isCacheFull() {
+			oldest := c.byAccess.Back().Value.(*entryImpl)
+			if oldest.refCount > 0 {
+				// Cache is full with pinned elements
+				// revert the insert and return
+				c.deleteInternal(c.byAccess.Front())
+				return nil, ErrCacheFull
+			}
+			c.deleteInternal(c.byAccess.Back())
 		}
 
-		c.deleteInternal(c.byAccess.Back())
+		c.byKey[key] = c.byAccess.PushFront(entry)
+		c.updateSizeOnAdd(key, valueSize)
 	}
-	c.byKey[key] = c.byAccess.PushFront(entry)
-	c.updateSizeOnAdd(key, valueSize)
 	return nil, nil
 }
 
