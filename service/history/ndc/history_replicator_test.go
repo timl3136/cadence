@@ -57,13 +57,14 @@ func createTestHistoryReplicator(t *testing.T) historyReplicatorImpl {
 
 	mockShard := shard.NewMockContext(ctrl)
 	mockShard.EXPECT().GetConfig().Return(&config.Config{
-		NumberOfShards:           0,
-		IsAdvancedVisConfigExist: false,
-		MaxResponseSize:          0,
-		HistoryCacheInitialSize:  dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheMaxSize:      dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheTTL:          dynamicproperties.GetDurationPropertyFn(10),
-		HostName:                 "test-host",
+		NumberOfShards:                       0,
+		IsAdvancedVisConfigExist:             false,
+		MaxResponseSize:                      0,
+		HistoryCacheInitialSize:              dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheMaxSize:                  dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheTTL:                      dynamicproperties.GetDurationPropertyFn(10),
+		HostName:                             "test-host",
+		EnableSizeBasedHistoryExecutionCache: dynamicproperties.GetBoolPropertyFn(false),
 	}).Times(1)
 
 	// before going into NewHistoryReplicator
@@ -108,13 +109,14 @@ func TestNewHistoryReplicator_newBranchManager(t *testing.T) {
 
 	mockShard := shard.NewMockContext(ctrl)
 	mockShard.EXPECT().GetConfig().Return(&config.Config{
-		NumberOfShards:           0,
-		IsAdvancedVisConfigExist: false,
-		MaxResponseSize:          0,
-		HistoryCacheInitialSize:  dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheMaxSize:      dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheTTL:          dynamicproperties.GetDurationPropertyFn(10),
-		HostName:                 "test-host",
+		NumberOfShards:                       0,
+		IsAdvancedVisConfigExist:             false,
+		MaxResponseSize:                      0,
+		HistoryCacheInitialSize:              dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheMaxSize:                  dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheTTL:                      dynamicproperties.GetDurationPropertyFn(10),
+		HostName:                             "test-host",
+		EnableSizeBasedHistoryExecutionCache: dynamicproperties.GetBoolPropertyFn(false),
 	}).Times(1)
 
 	// before going into NewHistoryReplicator
@@ -158,13 +160,14 @@ func TestNewHistoryReplicator_newConflictResolver(t *testing.T) {
 
 	mockShard := shard.NewMockContext(ctrl)
 	mockShard.EXPECT().GetConfig().Return(&config.Config{
-		NumberOfShards:           0,
-		IsAdvancedVisConfigExist: false,
-		MaxResponseSize:          0,
-		HistoryCacheInitialSize:  dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheMaxSize:      dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheTTL:          dynamicproperties.GetDurationPropertyFn(10),
-		HostName:                 "test-host",
+		NumberOfShards:                       0,
+		IsAdvancedVisConfigExist:             false,
+		MaxResponseSize:                      0,
+		HistoryCacheInitialSize:              dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheMaxSize:                  dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheTTL:                      dynamicproperties.GetDurationPropertyFn(10),
+		HostName:                             "test-host",
+		EnableSizeBasedHistoryExecutionCache: dynamicproperties.GetBoolPropertyFn(false),
 	}).Times(2)
 
 	// before going into NewHistoryReplicator
@@ -211,13 +214,14 @@ func TestNewHistoryReplicator_newWorkflowResetter(t *testing.T) {
 
 	mockShard := shard.NewMockContext(ctrl)
 	mockShard.EXPECT().GetConfig().Return(&config.Config{
-		NumberOfShards:           0,
-		IsAdvancedVisConfigExist: false,
-		MaxResponseSize:          0,
-		HistoryCacheInitialSize:  dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheMaxSize:      dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheTTL:          dynamicproperties.GetDurationPropertyFn(10),
-		HostName:                 "test-host",
+		NumberOfShards:                       0,
+		IsAdvancedVisConfigExist:             false,
+		MaxResponseSize:                      0,
+		HistoryCacheInitialSize:              dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheMaxSize:                  dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheTTL:                      dynamicproperties.GetDurationPropertyFn(10),
+		HostName:                             "test-host",
+		EnableSizeBasedHistoryExecutionCache: dynamicproperties.GetBoolPropertyFn(false),
 	}).Times(2)
 
 	// before going into NewHistoryReplicator
@@ -271,13 +275,14 @@ func TestNewHistoryReplicator_newStateBuilder(t *testing.T) {
 
 	mockShard := shard.NewMockContext(ctrl)
 	mockShard.EXPECT().GetConfig().Return(&config.Config{
-		NumberOfShards:           0,
-		IsAdvancedVisConfigExist: false,
-		MaxResponseSize:          0,
-		HistoryCacheInitialSize:  dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheMaxSize:      dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheTTL:          dynamicproperties.GetDurationPropertyFn(10),
-		HostName:                 "test-host",
+		NumberOfShards:                       0,
+		IsAdvancedVisConfigExist:             false,
+		MaxResponseSize:                      0,
+		HistoryCacheInitialSize:              dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheMaxSize:                  dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheTTL:                      dynamicproperties.GetDurationPropertyFn(10),
+		HostName:                             "test-host",
+		EnableSizeBasedHistoryExecutionCache: dynamicproperties.GetBoolPropertyFn(false),
 	}).Times(1)
 
 	// before going into NewHistoryReplicator
@@ -320,13 +325,14 @@ func TestNewHistoryReplicator_newMutableState(t *testing.T) {
 
 	mockShard := shard.NewMockContext(ctrl)
 	mockShard.EXPECT().GetConfig().Return(&config.Config{
-		NumberOfShards:           0,
-		IsAdvancedVisConfigExist: false,
-		MaxResponseSize:          0,
-		HistoryCacheInitialSize:  dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheMaxSize:      dynamicproperties.GetIntPropertyFn(10),
-		HistoryCacheTTL:          dynamicproperties.GetDurationPropertyFn(10),
-		HostName:                 "test-host",
+		NumberOfShards:                       0,
+		IsAdvancedVisConfigExist:             false,
+		MaxResponseSize:                      0,
+		HistoryCacheInitialSize:              dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheMaxSize:                  dynamicproperties.GetIntPropertyFn(10),
+		HistoryCacheTTL:                      dynamicproperties.GetDurationPropertyFn(10),
+		HostName:                             "test-host",
+		EnableSizeBasedHistoryExecutionCache: dynamicproperties.GetBoolPropertyFn(false),
 	}).Times(2)
 
 	// before going into NewHistoryReplicator
@@ -1057,14 +1063,15 @@ func Test_applyStartEvents(t *testing.T) {
 			},
 			mockShardContextAffordance: func(mockShard *shard.MockContext) {
 				mockShard.EXPECT().GetConfig().Return(&config.Config{
-					NumberOfShards:           0,
-					IsAdvancedVisConfigExist: false,
-					MaxResponseSize:          0,
-					HistoryCacheInitialSize:  dynamicproperties.GetIntPropertyFn(10),
-					HistoryCacheMaxSize:      dynamicproperties.GetIntPropertyFn(10),
-					HistoryCacheTTL:          dynamicproperties.GetDurationPropertyFn(10),
-					HostName:                 "test-host",
-					StandbyClusterDelay:      dynamicproperties.GetDurationPropertyFn(10),
+					NumberOfShards:                       0,
+					IsAdvancedVisConfigExist:             false,
+					MaxResponseSize:                      0,
+					HistoryCacheInitialSize:              dynamicproperties.GetIntPropertyFn(10),
+					HistoryCacheMaxSize:                  dynamicproperties.GetIntPropertyFn(10),
+					HistoryCacheTTL:                      dynamicproperties.GetDurationPropertyFn(10),
+					HostName:                             "test-host",
+					StandbyClusterDelay:                  dynamicproperties.GetDurationPropertyFn(10),
+					EnableSizeBasedHistoryExecutionCache: dynamicproperties.GetBoolPropertyFn(false),
 				}).Times(1)
 				mockShard.EXPECT().SetCurrentTime(gomock.Any(), gomock.Any()).Times(1)
 			},
@@ -1448,14 +1455,15 @@ func Test_applyNonStartEventsToCurrentBranch(t *testing.T) {
 				mockShard.EXPECT().GetExecutionManager().Return(nil).Times(1)
 				mockShard.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient()).Times(1)
 				mockShard.EXPECT().GetConfig().Return(&config.Config{
-					NumberOfShards:           0,
-					IsAdvancedVisConfigExist: false,
-					MaxResponseSize:          0,
-					HistoryCacheInitialSize:  dynamicproperties.GetIntPropertyFn(10),
-					HistoryCacheMaxSize:      dynamicproperties.GetIntPropertyFn(10),
-					HistoryCacheTTL:          dynamicproperties.GetDurationPropertyFn(10),
-					HostName:                 "test-host",
-					StandbyClusterDelay:      dynamicproperties.GetDurationPropertyFn(10),
+					NumberOfShards:                       0,
+					IsAdvancedVisConfigExist:             false,
+					MaxResponseSize:                      0,
+					HistoryCacheInitialSize:              dynamicproperties.GetIntPropertyFn(10),
+					HistoryCacheMaxSize:                  dynamicproperties.GetIntPropertyFn(10),
+					HistoryCacheTTL:                      dynamicproperties.GetDurationPropertyFn(10),
+					HostName:                             "test-host",
+					StandbyClusterDelay:                  dynamicproperties.GetDurationPropertyFn(10),
+					EnableSizeBasedHistoryExecutionCache: dynamicproperties.GetBoolPropertyFn(false),
 				}).Times(1)
 				mockShard.EXPECT().SetCurrentTime(gomock.Any(), gomock.Any()).Times(1)
 			},
@@ -2044,14 +2052,15 @@ func Test_applyNonStartEventsResetWorkflow(t *testing.T) {
 			},
 			mockShardContextAffordance: func(mockShard *shard.MockContext) {
 				mockShard.EXPECT().GetConfig().Return(&config.Config{
-					NumberOfShards:           0,
-					IsAdvancedVisConfigExist: false,
-					MaxResponseSize:          0,
-					HistoryCacheInitialSize:  dynamicproperties.GetIntPropertyFn(10),
-					HistoryCacheMaxSize:      dynamicproperties.GetIntPropertyFn(10),
-					HistoryCacheTTL:          dynamicproperties.GetDurationPropertyFn(10),
-					HostName:                 "test-host",
-					StandbyClusterDelay:      dynamicproperties.GetDurationPropertyFn(10),
+					NumberOfShards:                       0,
+					IsAdvancedVisConfigExist:             false,
+					MaxResponseSize:                      0,
+					HistoryCacheInitialSize:              dynamicproperties.GetIntPropertyFn(10),
+					HistoryCacheMaxSize:                  dynamicproperties.GetIntPropertyFn(10),
+					HistoryCacheTTL:                      dynamicproperties.GetDurationPropertyFn(10),
+					HostName:                             "test-host",
+					StandbyClusterDelay:                  dynamicproperties.GetDurationPropertyFn(10),
+					EnableSizeBasedHistoryExecutionCache: dynamicproperties.GetBoolPropertyFn(false),
 				}).Times(1)
 				mockShard.EXPECT().SetCurrentTime(gomock.Any(), gomock.Any()).Times(1)
 			},
