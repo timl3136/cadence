@@ -345,13 +345,21 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 			existing := entry.value
 			if allowUpdate {
 				for c.isCacheFull() {
-					oldest := c.byAccess.Back().Value.(*entryImpl)
-					if oldest.refCount > 0 {
-						// Cache is full with pinned elements
-						// we don't update
+					// Find the oldest unpinned item to evict
+					oldest := c.byAccess.Back()
+					for oldest != nil {
+						entry := oldest.Value.(*entryImpl)
+						if entry.refCount == 0 {
+							// Found an unpinned item, evict it
+							c.deleteInternal(oldest)
+							break
+						}
+						oldest = oldest.Prev()
+					}
+					if oldest == nil {
+						// All items are pinned, can't evict anything
 						return existing, ErrCacheFull
 					}
-					c.deleteInternal(c.byAccess.Back())
 				}
 				c.updateSizeOnDelete(key)
 				c.updateSizeOnAdd(key, valueSize)
@@ -393,28 +401,44 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 		c.byKey[key] = c.byAccess.PushFront(entry)
 		c.updateSizeOnAdd(key, valueSize)
 		for c.isCacheFull() {
-			oldest := c.byAccess.Back().Value.(*entryImpl)
-			if oldest.refCount > 0 {
-				// Cache is full with pinned elements
-				// revert the insert and return
+			// Find the oldest unpinned item to evict
+			oldest := c.byAccess.Back()
+			for oldest != nil {
+				entry := oldest.Value.(*entryImpl)
+				if entry.refCount == 0 {
+					// Found an unpinned item, evict it
+					c.deleteInternal(oldest)
+					break
+				}
+				oldest = oldest.Prev()
+			}
+			if oldest == nil {
+				// All items are pinned, can't evict anything
 				c.deleteInternal(c.byAccess.Front())
 				return nil, ErrCacheFull
 			}
-			c.deleteInternal(c.byAccess.Back())
 		}
 	} else {
 		c.byKey[key] = c.byAccess.PushFront(entry)
 		c.updateSizeOnAdd(key, valueSize)
 
 		for c.isCacheFull() {
-			oldest := c.byAccess.Back().Value.(*entryImpl)
-			if oldest.refCount > 0 {
-				// Cache is full with pinned elements
-				// revert the insert and return
+			// Find the oldest unpinned item to evict
+			oldest := c.byAccess.Back()
+			for oldest != nil {
+				entry := oldest.Value.(*entryImpl)
+				if entry.refCount == 0 {
+					// Found an unpinned item, evict it
+					c.deleteInternal(oldest)
+					break
+				}
+				oldest = oldest.Prev()
+			}
+			if oldest == nil {
+				// All items are pinned, can't evict anything
 				c.deleteInternal(c.byAccess.Front())
 				return nil, ErrCacheFull
 			}
-			c.deleteInternal(c.byAccess.Back())
 		}
 	}
 	return nil, nil
