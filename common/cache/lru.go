@@ -467,9 +467,8 @@ func (c *lru) isCacheFull() bool {
 			return c.currSize > uint64(cacheDefaultSizeLimit) || count > cacheCountLimit
 		}
 		return c.currSize > uint64(c.maxSize()) || count > cacheCountLimit
-	} else {
-		return count > c.maxCount || count > cacheCountLimit
 	}
+	return count > c.maxCount || count > cacheCountLimit
 }
 
 func (c *lru) updateSizeOnAdd(key interface{}, valueSize uint64) {
