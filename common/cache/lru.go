@@ -459,8 +459,17 @@ func (c *lru) isEntryExpired(entry *entryImpl, currentTime time.Time) bool {
 
 func (c *lru) isCacheFull() bool {
 	count := len(c.byKey)
-	// if the value size is greater than maxSize(should never happen) then the item won't be cached
-	return (!c.isSizeBased() && count > c.maxCount) || c.currSize > uint64(c.maxSize()) || count > cacheCountLimit
+	if c.isSizeBased() {
+		if c.maxSize() == 0 {
+			// we don't want to stop caching if maxSize is misconfigured to 0, we will use cacheDefaultSizeLimit instead
+			// BUT we need to warn users for this config
+			c.logger.Error(fmt.Sprintf("Cache size is misconfigured to 0 for value type %t, please fix config", c.byKey[0].Value.(*entryImpl).value))
+			return c.currSize > uint64(cacheDefaultSizeLimit) || count > cacheCountLimit
+		}
+		return c.currSize > uint64(c.maxSize()) || count > cacheCountLimit
+	} else {
+		return count > c.maxCount || count > cacheCountLimit
+	}
 }
 
 func (c *lru) updateSizeOnAdd(key interface{}, valueSize uint64) {

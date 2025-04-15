@@ -158,7 +158,7 @@ func newCacheWithOption(
 
 	opts.MaxSize = maxSize
 	opts.Logger = logger.WithTags(tag.ComponentEventsCache)
-	opts.IsSizeBased = enableSizeBasedCache()
+	opts.IsSizeBased = enableSizeBasedCache
 
 	return &cacheImpl{
 		Cache:          cache.New(opts),
