@@ -18,53 +18,43 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package mysql
+package sqlite
 
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	pt "github.com/uber/cadence/common/persistence/persistence-tests"
-	"github.com/uber/cadence/testflags"
 )
 
-func TestMySQLHistoryV2PersistenceSuite(t *testing.T) {
-	testflags.RequireMySQL(t)
+func TestSQLiteHistoryV2PersistenceSuite(t *testing.T) {
 	s := new(pt.HistoryV2PersistenceSuite)
-	option, err := GetTestClusterOption()
-	assert.NoError(t, err)
+	option := GetTestClusterOption()
 	s.TestBase = pt.NewTestBaseWithSQL(t, option)
 	s.TestBase.Setup()
 	suite.Run(t, s)
 }
 
-func TestMySQLMatchingPersistenceSuite(t *testing.T) {
-	testflags.RequireMySQL(t)
+func TestSQLiteMatchingPersistenceSuite(t *testing.T) {
 	s := new(pt.MatchingPersistenceSuite)
-	option, err := GetTestClusterOption()
-	assert.NoError(t, err)
+	option := GetTestClusterOption()
 	s.TestBase = pt.NewTestBaseWithSQL(t, option)
 	s.TestBase.Setup()
 	suite.Run(t, s)
 }
 
-func TestMySQLMetadataPersistenceSuiteV2(t *testing.T) {
-	testflags.RequireMySQL(t)
+func TestSQLiteMetadataPersistenceSuiteV2(t *testing.T) {
 	s := new(pt.MetadataPersistenceSuiteV2)
-	option, err := GetTestClusterOption()
-	assert.NoError(t, err)
+	option := GetTestClusterOption()
 	s.TestBase = pt.NewTestBaseWithSQL(t, option)
 	s.TestBase.Setup()
 	suite.Run(t, s)
 }
 
-func TestMySQLShardPersistenceSuite(t *testing.T) {
-	testflags.RequireMySQL(t)
+func TestSQLiteShardPersistenceSuite(t *testing.T) {
 	s := new(pt.ShardPersistenceSuite)
-	option, err := GetTestClusterOption()
-	assert.NoError(t, err)
+	option := GetTestClusterOption()
 	s.TestBase = pt.NewTestBaseWithSQL(t, option)
 	s.TestBase.Setup()
 	suite.Run(t, s)
@@ -75,58 +65,48 @@ type ExecutionManagerSuite struct {
 }
 
 func (s *ExecutionManagerSuite) TestCreateWorkflowExecutionWithWorkflowRequestsDedup() {
-	s.T().Skip("skip the test until we store workflow_request in mysql")
+	s.T().Skip("skip the test until we store workflow_request in sqlite")
 }
 
 func (s *ExecutionManagerSuite) TestUpdateWorkflowExecutionWithWorkflowRequestsDedup() {
-	s.T().Skip("skip the test until we store workflow_request in mysql")
+	s.T().Skip("skip the test until we store workflow_request in sqlite")
 }
 
-func TestMySQLExecutionManagerSuite(t *testing.T) {
-	testflags.RequireMySQL(t)
+func TestSQLiteExecutionManagerSuite(t *testing.T) {
 	s := new(ExecutionManagerSuite)
-	option, err := GetTestClusterOption()
-	assert.NoError(t, err)
+	option := GetTestClusterOption()
 	s.TestBase = pt.NewTestBaseWithSQL(t, option)
 	s.TestBase.Setup()
 	suite.Run(t, s)
 }
 
-func TestMySQLExecutionManagerWithEventsV2(t *testing.T) {
-	testflags.RequireMySQL(t)
+func TestSQLiteExecutionManagerWithEventsV2(t *testing.T) {
 	s := new(pt.ExecutionManagerSuiteForEventsV2)
-	option, err := GetTestClusterOption()
-	assert.NoError(t, err)
+	option := GetTestClusterOption()
 	s.TestBase = pt.NewTestBaseWithSQL(t, option)
 	s.TestBase.Setup()
 	suite.Run(t, s)
 }
 
-func TestMySQLVisibilityPersistenceSuite(t *testing.T) {
-	testflags.RequireMySQL(t)
+func TestSQLiteVisibilityPersistenceSuite(t *testing.T) {
 	s := new(pt.DBVisibilityPersistenceSuite)
-	option, err := GetTestClusterOption()
-	assert.NoError(t, err)
+	option := GetTestClusterOption()
 	s.TestBase = pt.NewTestBaseWithSQL(t, option)
 	s.TestBase.Setup()
 	suite.Run(t, s)
 }
 
-func TestMySQLQueuePersistence(t *testing.T) {
-	testflags.RequireMySQL(t)
+func TestSQLiteQueuePersistence(t *testing.T) {
 	s := new(pt.QueuePersistenceSuite)
-	option, err := GetTestClusterOption()
-	assert.NoError(t, err)
+	option := GetTestClusterOption()
 	s.TestBase = pt.NewTestBaseWithSQL(t, option)
 	s.TestBase.Setup()
 	suite.Run(t, s)
 }
 
-func TestMySQLConfigPersistence(t *testing.T) {
-	testflags.RequireMySQL(t)
+func TestSQLiteConfigPersistence(t *testing.T) {
 	s := new(pt.ConfigStorePersistenceSuite)
-	option, err := GetTestClusterOption()
-	assert.NoError(t, err)
+	option := GetTestClusterOption()
 	s.TestBase = pt.NewTestBaseWithSQL(t, option)
 	s.TestBase.Setup()
 	suite.Run(t, s)

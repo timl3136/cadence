@@ -138,3 +138,55 @@ func TestDisableArchivalActivity(t *testing.T) {
 		})
 	}
 }
+
+func TestDeprecateDomainActivity(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := frontend.NewMockClient(ctrl)
+	mockClientBean := client.NewMockBean(ctrl)
+	mockClientBean.EXPECT().GetFrontendClient().Return(mockClient).AnyTimes()
+
+	deprecator := &domainDeprecator{
+		cfg: Config{
+			AdminOperationToken: dynamicproperties.GetStringPropertyFn(""),
+		},
+		clientBean: mockClientBean,
+		logger:     testlogger.New(t),
+	}
+
+	testDomain := "test-domain"
+
+	tests := []struct {
+		name          string
+		setupMocks    func()
+		expectedError error
+	}{
+		{
+			name: "Success - Deprecate domain",
+			setupMocks: func() {
+				mockClient.EXPECT().DeprecateDomain(gomock.Any(), gomock.Any()).Return(nil)
+			},
+			expectedError: nil,
+		},
+		{
+			name: "Error - Deprecate domain",
+			setupMocks: func() {
+				mockClient.EXPECT().DeprecateDomain(gomock.Any(), gomock.Any()).Return(assert.AnError)
+			},
+			expectedError: assert.AnError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMocks()
+			err := deprecator.DeprecateDomainActivity(context.Background(), testDomain)
+			if tt.expectedError != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

@@ -64,19 +64,22 @@ type Config struct {
 
 	// HistoryCache settings
 	// Change of these configs require shard restart
-	HistoryCacheInitialSize dynamicproperties.IntPropertyFn
-	HistoryCacheMaxSize     dynamicproperties.IntPropertyFn
-	HistoryCacheTTL         dynamicproperties.DurationPropertyFn
+	HistoryCacheInitialSize              dynamicproperties.IntPropertyFn
+	HistoryCacheMaxSize                  dynamicproperties.IntPropertyFn
+	HistoryCacheTTL                      dynamicproperties.DurationPropertyFn
+	EnableSizeBasedHistoryExecutionCache dynamicproperties.BoolPropertyFn
+	ExecutionCacheMaxByteSize            dynamicproperties.IntPropertyFn
 
 	// EventsCache settings
 	// Change of these configs require shard restart
-	EventsCacheInitialCount       dynamicproperties.IntPropertyFn
-	EventsCacheMaxCount           dynamicproperties.IntPropertyFn
-	EventsCacheMaxSize            dynamicproperties.IntPropertyFn
-	EventsCacheTTL                dynamicproperties.DurationPropertyFn
-	EventsCacheGlobalEnable       dynamicproperties.BoolPropertyFn
-	EventsCacheGlobalInitialCount dynamicproperties.IntPropertyFn
-	EventsCacheGlobalMaxCount     dynamicproperties.IntPropertyFn
+	EventsCacheInitialCount          dynamicproperties.IntPropertyFn
+	EventsCacheMaxCount              dynamicproperties.IntPropertyFn
+	EventsCacheMaxSize               dynamicproperties.IntPropertyFn
+	EventsCacheTTL                   dynamicproperties.DurationPropertyFn
+	EventsCacheGlobalEnable          dynamicproperties.BoolPropertyFn
+	EventsCacheGlobalInitialCount    dynamicproperties.IntPropertyFn
+	EventsCacheGlobalMaxCount        dynamicproperties.IntPropertyFn
+	EnableSizeBasedHistoryEventCache dynamicproperties.BoolPropertyFn
 
 	// ShardController settings
 	RangeSizeBits           uint
@@ -356,7 +359,9 @@ func New(dc *dynamicconfig.Collection, numberOfShards int, maxMessageSize int, i
 		EmitShardDiffLog:                     dc.GetBoolProperty(dynamicproperties.EmitShardDiffLog),
 		HistoryCacheInitialSize:              dc.GetIntProperty(dynamicproperties.HistoryCacheInitialSize),
 		HistoryCacheMaxSize:                  dc.GetIntProperty(dynamicproperties.HistoryCacheMaxSize),
+		ExecutionCacheMaxByteSize:            dc.GetIntProperty(dynamicproperties.ExecutionCacheMaxByteSize),
 		HistoryCacheTTL:                      dc.GetDurationProperty(dynamicproperties.HistoryCacheTTL),
+		EnableSizeBasedHistoryExecutionCache: dc.GetBoolProperty(dynamicproperties.EnableSizeBasedHistoryExecutionCache),
 		EventsCacheInitialCount:              dc.GetIntProperty(dynamicproperties.EventsCacheInitialCount),
 		EventsCacheMaxCount:                  dc.GetIntProperty(dynamicproperties.EventsCacheMaxCount),
 		EventsCacheMaxSize:                   dc.GetIntProperty(dynamicproperties.EventsCacheMaxSize),
@@ -364,6 +369,7 @@ func New(dc *dynamicconfig.Collection, numberOfShards int, maxMessageSize int, i
 		EventsCacheGlobalEnable:              dc.GetBoolProperty(dynamicproperties.EventsCacheGlobalEnable),
 		EventsCacheGlobalInitialCount:        dc.GetIntProperty(dynamicproperties.EventsCacheGlobalInitialCount),
 		EventsCacheGlobalMaxCount:            dc.GetIntProperty(dynamicproperties.EventsCacheGlobalMaxCount),
+		EnableSizeBasedHistoryEventCache:     dc.GetBoolProperty(dynamicproperties.EnableSizeBasedHistoryEventCache),
 		RangeSizeBits:                        20, // 20 bits for sequencer, 2^20 sequence number for any range
 		AcquireShardInterval:                 dc.GetDurationProperty(dynamicproperties.AcquireShardInterval),
 		AcquireShardConcurrency:              dc.GetIntProperty(dynamicproperties.AcquireShardConcurrency),

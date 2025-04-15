@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package tests
+package cassandra
 
 import (
 	"github.com/uber/cadence/common/persistence/nosql/nosqlplugin/cassandra/gocql"
@@ -27,7 +27,8 @@ import (
 )
 
 // NOTE: change this when moving the test files around during refactoring
-const rootRelativePath = "../../../../../../"
+// Path to root folder of cadence repo
+const rootRelativePath = "../../../"
 
 func NewTestCQLClient(keyspace string) (cassandra.CqlClient, error) {
 	protoVersion, err := environment.GetCassandraProtoVersion()

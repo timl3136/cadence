@@ -33,6 +33,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
 	"go.uber.org/mock/gomock"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 
 	"github.com/uber/cadence/common"
 	"github.com/uber/cadence/common/backoff"
@@ -3596,6 +3598,153 @@ func TestCloseTransactionAsMutation(t *testing.T) {
 			assert.Equal(t, td.expectedMutation, mutation)
 			assert.Equal(t, td.expectedEvent, workflowEvents)
 			assert.Equal(t, td.expectedErr, err)
+		})
+	}
+}
+
+func Test__logDuplicatedActivityEvents(t *testing.T) {
+	testCases := []struct {
+		name         string
+		buildHistory func(msb *mutableStateBuilder) []*types.HistoryEvent
+		assertions   func(*testing.T, *observer.ObservedLogs)
+	}{
+		{
+			name: "no duplicates",
+			buildHistory: func(msb *mutableStateBuilder) []*types.HistoryEvent {
+				event1 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskStarted)
+				event1.ActivityTaskStartedEventAttributes = &types.ActivityTaskStartedEventAttributes{
+					ScheduledEventID: 1,
+					Attempt:          1,
+				}
+				event2 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskCompleted)
+				event2.ActivityTaskCompletedEventAttributes = &types.ActivityTaskCompletedEventAttributes{
+					ScheduledEventID: 1,
+				}
+
+				return []*types.HistoryEvent{event1, event2}
+			},
+			assertions: func(t *testing.T, logs *observer.ObservedLogs) {
+				assert.Equal(t, 0, logs.FilterMessage("Duplicate activity task event found").Len())
+			},
+		},
+		{
+			name: "started event duplicated",
+			buildHistory: func(msb *mutableStateBuilder) []*types.HistoryEvent {
+				event1 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskStarted)
+				event1.ActivityTaskStartedEventAttributes = &types.ActivityTaskStartedEventAttributes{
+					ScheduledEventID: 1,
+					Attempt:          1,
+				}
+				event2 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskStarted)
+				event2.ActivityTaskStartedEventAttributes = &types.ActivityTaskStartedEventAttributes{
+					ScheduledEventID: 1,
+					Attempt:          1,
+				}
+
+				return []*types.HistoryEvent{event1, event2}
+			},
+			assertions: func(t *testing.T, logs *observer.ObservedLogs) {
+				assert.Equal(t, 1, logs.FilterMessage("Duplicate activity task event found").Len())
+			},
+		},
+		{
+			name: "completed event duplicated",
+			buildHistory: func(msb *mutableStateBuilder) []*types.HistoryEvent {
+				event1 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskCompleted)
+				event1.ActivityTaskCompletedEventAttributes = &types.ActivityTaskCompletedEventAttributes{
+					ScheduledEventID: 1,
+				}
+				event2 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskCompleted)
+				event2.ActivityTaskCompletedEventAttributes = &types.ActivityTaskCompletedEventAttributes{
+					ScheduledEventID: 1,
+				}
+
+				return []*types.HistoryEvent{event1, event2}
+			},
+			assertions: func(t *testing.T, logs *observer.ObservedLogs) {
+				assert.Equal(t, 1, logs.FilterMessage("Duplicate activity task event found").Len())
+			},
+		},
+		{
+			name: "canceled event duplicated",
+			buildHistory: func(msb *mutableStateBuilder) []*types.HistoryEvent {
+				event1 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskCanceled)
+				event1.ActivityTaskCanceledEventAttributes = &types.ActivityTaskCanceledEventAttributes{
+					ScheduledEventID: 1,
+				}
+				event2 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskCanceled)
+				event2.ActivityTaskCanceledEventAttributes = &types.ActivityTaskCanceledEventAttributes{
+					ScheduledEventID: 1,
+				}
+
+				return []*types.HistoryEvent{event1, event2}
+			},
+			assertions: func(t *testing.T, logs *observer.ObservedLogs) {
+				assert.Equal(t, 1, logs.FilterMessage("Duplicate activity task event found").Len())
+			},
+		},
+		{
+			name: "failed event duplicated",
+			buildHistory: func(msb *mutableStateBuilder) []*types.HistoryEvent {
+				event1 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskFailed)
+				event1.ActivityTaskFailedEventAttributes = &types.ActivityTaskFailedEventAttributes{
+					ScheduledEventID: 1,
+				}
+				event2 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskFailed)
+				event2.ActivityTaskFailedEventAttributes = &types.ActivityTaskFailedEventAttributes{
+					ScheduledEventID: 1,
+				}
+
+				return []*types.HistoryEvent{event1, event2}
+			},
+			assertions: func(t *testing.T, logs *observer.ObservedLogs) {
+				assert.Equal(t, 1, logs.FilterMessage("Duplicate activity task event found").Len())
+			},
+		},
+		{
+			name: "timed out event duplicated",
+			buildHistory: func(msb *mutableStateBuilder) []*types.HistoryEvent {
+				event1 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskTimedOut)
+				event1.ActivityTaskTimedOutEventAttributes = &types.ActivityTaskTimedOutEventAttributes{
+					ScheduledEventID: 1,
+				}
+				event2 := msb.CreateNewHistoryEvent(types.EventTypeActivityTaskTimedOut)
+				event2.ActivityTaskTimedOutEventAttributes = &types.ActivityTaskTimedOutEventAttributes{
+					ScheduledEventID: 1,
+				}
+
+				return []*types.HistoryEvent{event1, event2}
+			},
+			assertions: func(t *testing.T, logs *observer.ObservedLogs) {
+				assert.Equal(t, 1, logs.FilterMessage("Duplicate activity task event found").Len())
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			core, observedLogs := observer.New(zap.ErrorLevel)
+
+			mockCache := events.NewMockCache(ctrl)
+			shardContext := shard.NewMockContext(ctrl)
+			mockDomainCache := cache.NewMockDomainCache(ctrl)
+
+			msb := createMSBWithMocks(mockCache, shardContext, mockDomainCache)
+
+			msb.logger = log.NewLogger(zap.New(core))
+
+			msb.executionInfo.DomainID = "some-domain-id"
+			msb.executionInfo.WorkflowID = "some-workflow-id"
+			msb.executionInfo.RunID = "some-run-id"
+
+			msb.hBuilder.history = tc.buildHistory(msb)
+
+			msb.logDuplicatedActivityEvents()
+
+			tc.assertions(t, observedLogs)
 		})
 	}
 }

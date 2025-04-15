@@ -91,6 +91,7 @@ func (w *domainDeprecator) Start() error {
 	newWorker := worker.New(w.svcClient, constants.SystemLocalDomainName, domainDeprecationTaskListName, workerOpts)
 	newWorker.RegisterWorkflowWithOptions(w.DomainDeprecationWorkflow, workflow.RegisterOptions{Name: domainDeprecationWorkflowTypeName})
 	newWorker.RegisterActivityWithOptions(w.DisableArchivalActivity, activity.RegisterOptions{Name: disableArchivalActivity})
+	newWorker.RegisterActivityWithOptions(w.DeprecateDomainActivity, activity.RegisterOptions{Name: deprecateDomainActivity})
 	w.worker = newWorker
 	return newWorker.Start()
 }

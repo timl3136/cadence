@@ -91,6 +91,7 @@ func NewGlobalCache(
 	historyManager persistence.HistoryManager,
 	logger log.Logger,
 	metricsClient metrics.Client,
+	enableSizeBasedCache dynamicproperties.BoolPropertyFn,
 	maxSize dynamicproperties.IntPropertyFn,
 	domainCache cache.DomainCache,
 ) Cache {
@@ -103,6 +104,7 @@ func NewGlobalCache(
 		false,
 		logger,
 		metricsClient,
+		enableSizeBasedCache,
 		maxSize,
 		domainCache,
 	)
@@ -126,6 +128,7 @@ func NewCache(
 		false,
 		logger,
 		metricsClient,
+		config.EnableSizeBasedHistoryEventCache,
 		config.EventsCacheMaxSize,
 		domainCache,
 	)
@@ -140,6 +143,7 @@ func newCacheWithOption(
 	disabled bool,
 	logger log.Logger,
 	metricsClient metrics.Client,
+	enableSizeBasedCache dynamicproperties.BoolPropertyFn,
 	maxSize dynamicproperties.IntPropertyFn,
 	domainCache cache.DomainCache,
 ) *cacheImpl {
@@ -152,13 +156,10 @@ func newCacheWithOption(
 		opts.MetricsScope = opts.MetricsScope.Tagged(metrics.ShardIDTag(*shardID))
 	}
 
-	if maxSize() > 0 {
-		opts.MaxSize = maxSize
-		opts.GetCacheItemSizeFunc = func(event interface{}) uint64 {
-			return common.GetSizeOfHistoryEvent(event.(*types.HistoryEvent))
-		}
-	}
+	opts.MaxSize = maxSize
 	opts.Logger = logger.WithTags(tag.ComponentEventsCache)
+	opts.IsSizeBased = enableSizeBasedCache()
+
 	return &cacheImpl{
 		Cache:          cache.New(opts),
 		domainCache:    domainCache,

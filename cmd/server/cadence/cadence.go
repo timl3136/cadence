@@ -35,6 +35,8 @@ import (
 	"github.com/uber/cadence/common/config"
 	"github.com/uber/cadence/common/log/logfx"
 	"github.com/uber/cadence/common/service"
+
+	_ "go.uber.org/automaxprocs" // defines automaxpocs for dockerized usage.
 )
 
 // validServices is the list of all valid cadence services

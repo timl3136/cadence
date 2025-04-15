@@ -79,3 +79,7 @@ func (_m *MockLogger) WithTags(tags ...tag.Tag) Logger {
 
 	return r0
 }
+
+func (_m *MockLogger) DebugOn() bool {
+	return _m.Called().Bool(0)
+}

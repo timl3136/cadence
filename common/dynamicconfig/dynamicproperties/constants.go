@@ -871,6 +871,12 @@ const (
 	// Default value: 512
 	// Allowed filters: N/A
 	HistoryCacheMaxSize
+	// ExecutionCacheMaxByteSize is the max byte size of history cache
+	// KeyName: history.executionCacheMaxSize
+	// Value type: Int
+	// Default value: 0
+	// Allowed filters: N/A
+	ExecutionCacheMaxByteSize
 	// EventsCacheInitialCount is initial count of events cache
 	// KeyName: history.eventsCacheInitialSize
 	// Value type: Int
@@ -2074,6 +2080,18 @@ const (
 
 	EnableNoSQLHistoryTaskDualWriteMode
 	ReadNoSQLHistoryTaskFromDataBlob
+
+	// EnableSizeBasedHistoryExecutionCache is the feature flag to enable size based cache for execution cache
+	// KeyName: history.enableSizeBasedHistoryExecutionCache
+	// Value type: Bool
+	// Default value: false
+	EnableSizeBasedHistoryExecutionCache
+
+	// EnableSizeBasedHistoryEventCache is the feature flag to enable size based cache for event cache
+	// KeyName: history.enableSizeBasedHistoryEventCache
+	// Value type: Bool
+	// Default value: false
+	EnableSizeBasedHistoryEventCache
 
 	// LastBoolKey must be the last one in this const group
 	LastBoolKey
@@ -3418,6 +3436,11 @@ var IntKeys = map[IntKey]DynamicInt{
 		Description:  "HistoryCacheMaxSize is max size of history cache",
 		DefaultValue: 512,
 	},
+	ExecutionCacheMaxByteSize: {
+		KeyName:      "history.executionCacheMaxSizeInBytes",
+		Description:  "ExecutionCacheMaxByteSize is max size of execution cache in bytes",
+		DefaultValue: 0,
+	},
 	EventsCacheInitialCount: {
 		KeyName:      "history.eventsCacheInitialSize",
 		Description:  "EventsCacheInitialCount is initial count of events cache",
@@ -4510,6 +4533,16 @@ var BoolKeys = map[BoolKey]DynamicBool{
 	ReadNoSQLHistoryTaskFromDataBlob: {
 		KeyName:      "history.readNoSQLHistoryTaskFromDataBlob",
 		Description:  "ReadNoSQLHistoryTaskFromDataBlob is to read history tasks from data blob",
+		DefaultValue: false,
+	},
+	EnableSizeBasedHistoryExecutionCache: {
+		KeyName:      "history.enableSizeBasedHistoryExecutionCache",
+		Description:  "EnableSizeBasedHistoryExecutionCache is to enable size based history execution cache",
+		DefaultValue: false,
+	},
+	EnableSizeBasedHistoryEventCache: {
+		KeyName:      "history.enableSizeBasedHistoryEventCache",
+		Description:  "EnableSizeBasedHistoryEventCache is to enable size based history event cache",
 		DefaultValue: false,
 	},
 }

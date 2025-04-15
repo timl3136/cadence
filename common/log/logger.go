@@ -25,6 +25,8 @@ import (
 	"math/rand"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -33,15 +35,20 @@ import (
 )
 
 type loggerImpl struct {
-	zapLogger     *zap.Logger
-	skip          int
-	sampleLocalFn func(int) bool
+	zapLogger                  *zap.Logger
+	skip                       int
+	sampleLocalFn              func(int) bool
+	debugOn                    int32
+	debugOnCheckTimestampNanos int64
+	debugCheckInterval         time.Duration
 }
 
 const (
 	skipForDefaultLogger = 3
 	// we put a default message when it is empty so that the log can be searchable/filterable
 	defaultMsgForEmpty = "none"
+	// debugCheckInterval is the interval to check if debug level is on
+	debugCheckInterval = 10 * time.Second
 )
 
 var defaultSampleFn = func(i int) bool { return rand.Intn(i) == 0 }
@@ -49,13 +56,15 @@ var defaultSampleFn = func(i int) bool { return rand.Intn(i) == 0 }
 // NewLogger returns a new logger
 func NewLogger(zapLogger *zap.Logger, opts ...Option) Logger {
 	impl := &loggerImpl{
-		zapLogger:     zapLogger,
-		skip:          skipForDefaultLogger,
-		sampleLocalFn: defaultSampleFn,
+		zapLogger:          zapLogger,
+		skip:               skipForDefaultLogger,
+		sampleLocalFn:      defaultSampleFn,
+		debugCheckInterval: debugCheckInterval,
 	}
 	for _, opt := range opts {
 		opt(impl)
 	}
+
 	return impl
 }
 
@@ -98,23 +107,21 @@ func setDefaultMsg(msg string) string {
 }
 
 func (lg *loggerImpl) Debugf(msg string, args ...any) {
-	ce := lg.zapLogger.Check(zap.DebugLevel, setDefaultMsg(fmt.Sprintf(msg, args...)))
-	if ce == nil {
+	if !lg.DebugOn() {
 		return
 	}
 
 	fields := lg.buildFieldsWithCallat(nil)
-	ce.Write(fields...)
+	lg.zapLogger.Debug(setDefaultMsg(fmt.Sprintf(msg, args...)), fields...)
 }
 
 func (lg *loggerImpl) Debug(msg string, tags ...tag.Tag) {
-	ce := lg.zapLogger.Check(zap.DebugLevel, setDefaultMsg(msg))
-	if ce == nil {
+	if !lg.DebugOn() {
 		return
 	}
 
 	fields := lg.buildFieldsWithCallat(tags)
-	ce.Write(fields...)
+	lg.zapLogger.Debug(msg, fields...)
 }
 
 func (lg *loggerImpl) Info(msg string, tags ...tag.Tag) {
@@ -149,6 +156,26 @@ func (lg *loggerImpl) WithTags(tags ...tag.Tag) Logger {
 		skip:          lg.skip,
 		sampleLocalFn: lg.sampleLocalFn,
 	}
+}
+
+// DebugOn checks if debug level is on.
+// This is useful to avoid expensive debugging serializations etc. in production.
+// It caches the result for debugOnCheckInterval and checks again if the interval has passed.
+// Log level changes not reflected immediately because of the cache but it's acceptable.
+func (lg *loggerImpl) DebugOn() bool {
+	if time.Since(time.Unix(0, atomic.LoadInt64(&lg.debugOnCheckTimestampNanos))) < lg.debugCheckInterval {
+		return atomic.LoadInt32(&lg.debugOn) != 0
+	}
+
+	on := int32(0)
+	if lg.zapLogger.Check(zap.DebugLevel, "test") != nil {
+		on = 1
+	}
+
+	// no locking to avoid performance overhead. there's chance of redundant computation but it's acceptable.
+	atomic.StoreInt32(&lg.debugOn, on)
+	atomic.StoreInt64(&lg.debugOnCheckTimestampNanos, time.Now().UnixNano())
+	return on != 0
 }
 
 func (lg *loggerImpl) SampleInfo(msg string, sampleRate int, tags ...tag.Tag) {

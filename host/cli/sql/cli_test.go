@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package clitest
+package sql
 
 import (
 	"testing"
@@ -28,8 +28,6 @@ import (
 	"github.com/uber/cadence/common/persistence/sql/sqlplugin/mysql"
 	"github.com/uber/cadence/testflags"
 )
-
-// TODO: Setup postgres test in build-kite
 
 func TestMySQLConnTestSuite(t *testing.T) {
 	testflags.RequireMySQL(t)

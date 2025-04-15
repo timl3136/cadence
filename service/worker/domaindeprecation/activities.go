@@ -74,3 +74,18 @@ func (w *domainDeprecator) DisableArchivalActivity(ctx context.Context, domainNa
 	w.logger.Info("Disabled archival for domain", tag.WorkflowDomainName(domainName))
 	return nil
 }
+
+// DeprecateDomainActivity deprecates the domain
+func (w *domainDeprecator) DeprecateDomainActivity(ctx context.Context, domainName string) error {
+	client := w.clientBean.GetFrontendClient()
+
+	err := client.DeprecateDomain(ctx, &types.DeprecateDomainRequest{
+		Name:          domainName,
+		SecurityToken: w.cfg.AdminOperationToken(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to deprecate domain: %v", err)
+	}
+
+	return nil
+}

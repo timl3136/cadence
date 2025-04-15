@@ -33,6 +33,7 @@ const (
 	domainDeprecationTaskListName     = "domain-deprecation-tasklist"
 
 	disableArchivalActivity = "disableArchival"
+	deprecateDomainActivity = "deprecateDomain"
 )
 
 var (
@@ -59,12 +60,21 @@ func (w *domainDeprecator) DomainDeprecationWorkflow(ctx workflow.Context, domai
 	logger.Info("Starting domain deprecation workflow", zap.String("domain", domainName))
 
 	// Step 1: Activity disables archival
-	var verifyErr error
 	err := workflow.ExecuteActivity(
 		workflow.WithActivityOptions(ctx, activityOptions),
-		disableArchivalActivity,
+		w.DisableArchivalActivity,
 		domainName,
-	).Get(ctx, &verifyErr)
+	).Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// Step 2: Deprecate a domain
+	err = workflow.ExecuteActivity(
+		workflow.WithActivityOptions(ctx, activityOptions),
+		w.DeprecateDomainActivity,
+		domainName,
+	).Get(ctx, nil)
 	if err != nil {
 		return err
 	}

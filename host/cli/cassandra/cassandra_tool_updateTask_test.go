@@ -18,70 +18,74 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package clitest
+package cassandra
 
 import (
 	"log"
 	"os"
+	"testing"
 
-	"github.com/uber/cadence/environment"
-	"github.com/uber/cadence/schema/mysql"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/uber/cadence/schema/cassandra"
+	"github.com/uber/cadence/testflags"
+	cassandra2 "github.com/uber/cadence/tools/cassandra"
 	"github.com/uber/cadence/tools/common/schema/test"
-	"github.com/uber/cadence/tools/sql"
 )
 
-// UpdateSchemaTestSuite defines a test suite
 type UpdateSchemaTestSuite struct {
 	test.UpdateSchemaTestBase
-	pluginName string
 }
 
-// NewUpdateSchemaTestSuite returns a test suite
-func NewUpdateSchemaTestSuite(pluginName string) *UpdateSchemaTestSuite {
-	return &UpdateSchemaTestSuite{
-		pluginName: pluginName,
-	}
+func TestUpdateSchemaTestSuite(t *testing.T) {
+	testflags.RequireCassandra(t)
+	suite.Run(t, new(UpdateSchemaTestSuite))
 }
 
-// SetupSuite setups test suite
 func (s *UpdateSchemaTestSuite) SetupSuite() {
-	os.Setenv("SQL_HOST", environment.GetMySQLAddress())
-	os.Setenv("SQL_USER", environment.GetMySQLUser())
-	os.Setenv("SQL_PASSWORD", environment.GetMySQLPassword())
-	conn, err := newTestConn("", s.pluginName)
+	client, err := NewTestCQLClient(cassandra2.SystemKeyspace)
 	if err != nil {
 		log.Fatal("Error creating CQLClient")
 	}
-	s.SetupSuiteBase(conn)
+	s.SetupSuiteBase(client)
 }
 
-// TearDownSuite tear down test suite
 func (s *UpdateSchemaTestSuite) TearDownSuite() {
 	s.TearDownSuiteBase()
 }
 
-// TestUpdateSchema test
 func (s *UpdateSchemaTestSuite) TestUpdateSchema() {
-	conn, err := newTestConn(s.DBName, s.pluginName)
+	client, err := NewTestCQLClient(s.DBName)
 	s.Nil(err)
-	defer conn.Close()
-	s.RunUpdateSchemaTest(sql.BuildCLIOptions(), conn, "--db", createTestSQLFileContent(), []string{"task_maps", "tasks"})
+	defer client.Close()
+	s.RunUpdateSchemaTest(cassandra2.BuildCLIOptions(), client, "-k", CreateTestCQLFileContent(), []string{"events", "tasks"})
 }
 
-// TestDryrun test
 func (s *UpdateSchemaTestSuite) TestDryrun() {
-	conn, err := newTestConn(s.DBName, s.pluginName)
+	client, err := NewTestCQLClient(s.DBName)
 	s.Nil(err)
-	defer conn.Close()
-	dir := "../../../schema/mysql/v8/cadence/versioned"
-	s.RunDryrunTest(sql.BuildCLIOptions(), conn, "--db", dir, mysql.Version)
+	defer client.Close()
+	dir := rootRelativePath + "schema/cassandra/cadence/versioned"
+	s.RunDryrunTest(cassandra2.BuildCLIOptions(), client, "-k", dir, cassandra.Version)
 }
 
-// TestVisibilityDryrun test
 func (s *UpdateSchemaTestSuite) TestVisibilityDryrun() {
-	conn, err := newTestConn(s.DBName, s.pluginName)
+	client, err := NewTestCQLClient(s.DBName)
 	s.Nil(err)
-	defer conn.Close()
-	dir := "../../../schema/mysql/v8/visibility/versioned"
-	s.RunDryrunTest(sql.BuildCLIOptions(), conn, "--db", dir, mysql.VisibilityVersion)
+	defer client.Close()
+	dir := rootRelativePath + "schema/cassandra/visibility/versioned"
+	s.RunDryrunTest(cassandra2.BuildCLIOptions(), client, "-k", dir, cassandra.VisibilityVersion)
+}
+
+func (s *UpdateSchemaTestSuite) TestShortcut() {
+	client, err := NewTestCQLClient(s.DBName)
+	s.Nil(err)
+	defer client.Close()
+	dir := rootRelativePath + "schema/cassandra/cadence/versioned"
+
+	cqlshArgs := []string{"--cqlversion=3.4.6", "-e", "DESC KEYSPACE %s;"}
+	if cassandraHost := os.Getenv("CASSANDRA_HOST"); cassandraHost != "" {
+		cqlshArgs = append(cqlshArgs, cassandraHost)
+	}
+	s.RunShortcutTest(cassandra2.BuildCLIOptions(), client, "-k", dir, "cqlsh", cqlshArgs...)
 }

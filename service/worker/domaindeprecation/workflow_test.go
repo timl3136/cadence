@@ -68,6 +68,7 @@ func (s *domainDeprecationWorkflowTestSuite) SetupTest() {
 
 	s.workflowEnv.RegisterWorkflowWithOptions(s.deprecator.DomainDeprecationWorkflow, workflow.RegisterOptions{Name: domainDeprecationWorkflowTypeName})
 	s.workflowEnv.RegisterActivityWithOptions(s.deprecator.DisableArchivalActivity, activity.RegisterOptions{Name: disableArchivalActivity})
+	s.workflowEnv.RegisterActivityWithOptions(s.deprecator.DeprecateDomainActivity, activity.RegisterOptions{Name: deprecateDomainActivity})
 }
 
 func (s *domainDeprecationWorkflowTestSuite) TearDownTest() {
@@ -77,15 +78,27 @@ func (s *domainDeprecationWorkflowTestSuite) TearDownTest() {
 func (s *domainDeprecationWorkflowTestSuite) TestWorkflow_Success() {
 	testDomain := "test-domain"
 	s.workflowEnv.OnActivity(disableArchivalActivity, mock.Anything, testDomain).Return(nil)
+	s.workflowEnv.OnActivity(deprecateDomainActivity, mock.Anything, testDomain).Return(nil)
 	s.workflowEnv.ExecuteWorkflow(domainDeprecationWorkflowTypeName, testDomain)
 	s.True(s.workflowEnv.IsWorkflowCompleted())
 	s.NoError(s.workflowEnv.GetWorkflowError())
 }
 
-func (s *domainDeprecationWorkflowTestSuite) TestWorkflow_Error() {
+func (s *domainDeprecationWorkflowTestSuite) TestWorkflow_Disable_Archival_Error() {
 	testDomain := "test-domain"
 	mockErr := "error"
 	s.workflowEnv.OnActivity(disableArchivalActivity, mock.Anything, testDomain).Return(mockErr)
+	s.workflowEnv.ExecuteWorkflow(domainDeprecationWorkflowTypeName, testDomain)
+	s.True(s.workflowEnv.IsWorkflowCompleted())
+	s.Error(s.workflowEnv.GetWorkflowError())
+	s.Contains(s.workflowEnv.GetWorkflowError().Error(), mockErr)
+}
+
+func (s *domainDeprecationWorkflowTestSuite) TestWorkflow_Deprecate_Domain_Error() {
+	testDomain := "test-domain"
+	mockErr := "error"
+	s.workflowEnv.OnActivity(disableArchivalActivity, mock.Anything, testDomain).Return(nil)
+	s.workflowEnv.OnActivity(deprecateDomainActivity, mock.Anything, testDomain).Return(mockErr)
 	s.workflowEnv.ExecuteWorkflow(domainDeprecationWorkflowTypeName, testDomain)
 	s.True(s.workflowEnv.IsWorkflowCompleted())
 	s.Error(s.workflowEnv.GetWorkflowError())
