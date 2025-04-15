@@ -319,14 +319,13 @@ func (c *lru) evictExpiredItems() {
 // Put puts a new value associated with a given key, returning the existing value (if present)
 // allowUpdate flag is used to control overwrite behavior if the value exists
 func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) (interface{}, error) {
-	valueSize := uint64(0)
+	valueSize := uint64(1)
 	sizeableValue, ok := value.(Sizeable)
 
 	c.mut.Lock()
 	defer c.mut.Unlock()
 
 	if !ok {
-		c.isSizeBased = dynamicproperties.GetBoolPropertyFn(false)
 		c.logger.Warn(fmt.Sprintf("Cache is strictly count-based because value %T does not implement sizable", value))
 	} else {
 		valueSize = sizeableValue.ByteSize()
@@ -396,6 +395,7 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 	if c.isSizeBased() {
 		if valueSize > uint64(c.maxSize()) {
 			// value is too big to be cached, we also don't want to evict everyone else
+			// TODO: we should handle this logic in the caller
 			return nil, ErrEntryTooBig
 		}
 		c.byKey[key] = c.byAccess.PushFront(entry)
@@ -463,7 +463,7 @@ func (c *lru) isCacheFull() bool {
 		if c.maxSize() == 0 {
 			// we don't want to stop caching if maxSize is misconfigured to 0, we will use cacheDefaultSizeLimit instead
 			// BUT we need to warn users for this config
-			c.logger.Error(fmt.Sprintf("Cache size is misconfigured to 0 for value type %t, please fix config", c.byKey[0].Value.(*entryImpl).value))
+			c.logger.Error(fmt.Sprintf("Cache size is misconfigured to 0 for value type %T, please fix config", c.byKey[0].Value.(*entryImpl).value))
 			return c.currSize > uint64(cacheDefaultSizeLimit) || count > cacheCountLimit
 		}
 		return c.currSize > uint64(c.maxSize()) || count > cacheCountLimit
