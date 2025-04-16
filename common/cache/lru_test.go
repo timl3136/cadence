@@ -565,7 +565,7 @@ func TestLRU_PutInternal_EvictUnpinnedFront(t *testing.T) {
 	cache.Release("C")
 	cache.Release("C")
 
-	// Try to add a new item - should evict unpinned items C and D
+	// Try to add a new item - should evict unpinned item C
 	_, err = cache.PutIfNotExist("F", "Foxtrot")
 	require.NoError(t, err)
 
@@ -573,11 +573,11 @@ func TestLRU_PutInternal_EvictUnpinnedFront(t *testing.T) {
 	assert.Equal(t, "Foxtrot", cache.Get("F"))
 	assert.Equal(t, "Alpha", cache.Get("A"))
 	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Delta", cache.Get("D"))
 	assert.Equal(t, "Echo", cache.Get("E"))
 
 	// Verify only C was evicted
 	assert.Nil(t, cache.Get("C"))
-	assert.Equal(t, "Delta", cache.Get("D"))
 }
 
 func TestLRU_PutInternal_EvictUnpinnedBack(t *testing.T) {
@@ -609,14 +609,15 @@ func TestLRU_PutInternal_EvictUnpinnedBack(t *testing.T) {
 	cache.Release("A")
 	cache.Release("A")
 
-	// Try to add a new item - should evict unpinned items C and D
+	// Try to add a new item - should evict unpinned item A
 	_, err = cache.PutIfNotExist("F", "Foxtrot")
 	require.NoError(t, err)
 
 	// Verify pinned items are still present
 	assert.Equal(t, "Foxtrot", cache.Get("F"))
-	assert.Equal(t, "Charlie", cache.Get("C"))
 	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Charlie", cache.Get("C"))
+	assert.Equal(t, "Delta", cache.Get("D"))
 	assert.Equal(t, "Echo", cache.Get("E"))
 
 	// Verify A was evicted
@@ -648,7 +649,7 @@ func TestLRU_PutInternal_AllPinned(t *testing.T) {
 	assert.Equal(t, "Delta", cache.Get("D"))
 	assert.Equal(t, "Echo", cache.Get("E"))
 
-	// Try to add a new item - should evict unpinned items C and D
+	// Try to add a new item - should not evict anything
 	_, err = cache.PutIfNotExist("F", "Foxtrot")
 	assert.Error(t, err)
 
@@ -659,7 +660,7 @@ func TestLRU_PutInternal_AllPinned(t *testing.T) {
 	assert.Equal(t, "Delta", cache.Get("D"))
 	assert.Equal(t, "Echo", cache.Get("E"))
 
-	// Verify A was evicted
+	// Verify F was never added
 	assert.Nil(t, cache.Get("F"))
 }
 
@@ -688,17 +689,16 @@ func TestLRU_PutInternal_Unpinned(t *testing.T) {
 	assert.Equal(t, "Delta", cache.Get("D"))
 	assert.Equal(t, "Echo", cache.Get("E"))
 
-	// Try to add a new item - should evict unpinned items C and D
+	// Try to add a new item - should just evict A
 	_, err = cache.PutIfNotExist("F", "Foxtrot")
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
-	// Verify pinned items are still present
-	assert.Equal(t, "Alpha", cache.Get("A"))
+	assert.Equal(t, "Foxtrot", cache.Get("F"))
 	assert.Equal(t, "Beta", cache.Get("B"))
 	assert.Equal(t, "Charlie", cache.Get("C"))
 	assert.Equal(t, "Delta", cache.Get("D"))
 	assert.Equal(t, "Echo", cache.Get("E"))
 
 	// Verify A was evicted
-	assert.Nil(t, cache.Get("F"))
+	assert.Nil(t, cache.Get("A"))
 }
