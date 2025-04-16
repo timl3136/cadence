@@ -486,3 +486,219 @@ func TestEvictItemsPastTimeToLive_ActivelyEvict(t *testing.T) {
 	mockTimeSource.Advance(time.Second * 50)
 	assert.Equal(t, 0, cache.Size())
 }
+
+func TestLRU_PutInternal_EvictUnpinnedInMiddle(t *testing.T) {
+	cache, ok := New(&Options{
+		MaxCount: 5,
+		Pin:      true,
+	}).(*lru)
+	require.True(t, ok)
+
+	_, err := cache.PutIfNotExist("A", "Alpha")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("B", "Beta")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("C", "Charlie")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("D", "Delta")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("E", "Echo")
+	require.NoError(t, err)
+
+	// Verify all items are present
+	assert.Equal(t, "Alpha", cache.Get("A"))
+	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Charlie", cache.Get("C"))
+	assert.Equal(t, "Delta", cache.Get("D"))
+	assert.Equal(t, "Echo", cache.Get("E"))
+
+	// release C and D twice
+	cache.Release("C")
+	cache.Release("C")
+	cache.Release("D")
+	cache.Release("D")
+
+	// Try to add a new item - should evict unpinned items C and D
+	_, err = cache.PutIfNotExist("F", "Foxtrot")
+	require.NoError(t, err)
+
+	// Verify pinned items are still present
+	assert.Equal(t, "Alpha", cache.Get("A"))
+	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Echo", cache.Get("E"))
+	assert.Equal(t, "Foxtrot", cache.Get("F"))
+
+	// Verify only C was evicted
+	assert.Nil(t, cache.Get("C"))
+	assert.Equal(t, "Delta", cache.Get("D"))
+
+}
+
+func TestLRU_PutInternal_EvictUnpinnedFront(t *testing.T) {
+	cache, ok := New(&Options{
+		MaxCount: 5,
+		Pin:      true,
+	}).(*lru)
+	require.True(t, ok)
+
+	_, err := cache.PutIfNotExist("A", "Alpha")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("B", "Beta")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("C", "Charlie")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("D", "Delta")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("E", "Echo")
+	require.NoError(t, err)
+
+	// Verify all items are present
+	assert.Equal(t, "Alpha", cache.Get("A"))
+	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Delta", cache.Get("D"))
+	assert.Equal(t, "Echo", cache.Get("E"))
+
+	// move C to the front
+	assert.Equal(t, "Charlie", cache.Get("C"))
+
+	// release C twice
+	cache.Release("C")
+	cache.Release("C")
+
+	// Try to add a new item - should evict unpinned items C and D
+	_, err = cache.PutIfNotExist("F", "Foxtrot")
+	require.NoError(t, err)
+
+	// Verify pinned items are still present
+	assert.Equal(t, "Foxtrot", cache.Get("F"))
+	assert.Equal(t, "Alpha", cache.Get("A"))
+	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Echo", cache.Get("E"))
+
+	// Verify only C was evicted
+	assert.Nil(t, cache.Get("C"))
+	assert.Equal(t, "Delta", cache.Get("D"))
+}
+
+func TestLRU_PutInternal_EvictUnpinnedBack(t *testing.T) {
+	cache, ok := New(&Options{
+		MaxCount: 5,
+		Pin:      true,
+	}).(*lru)
+	require.True(t, ok)
+
+	_, err := cache.PutIfNotExist("A", "Alpha")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("B", "Beta")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("C", "Charlie")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("D", "Delta")
+	require.NoError(t, err)
+	_, err = cache.PutIfNotExist("E", "Echo")
+	require.NoError(t, err)
+
+	// Verify all items are present
+	assert.Equal(t, "Alpha", cache.Get("A"))
+	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Charlie", cache.Get("C"))
+	assert.Equal(t, "Delta", cache.Get("D"))
+	assert.Equal(t, "Echo", cache.Get("E"))
+
+	// release A twice
+	cache.Release("A")
+	cache.Release("A")
+
+	// Try to add a new item - should evict unpinned items C and D
+	_, err = cache.PutIfNotExist("F", "Foxtrot")
+	require.NoError(t, err)
+
+	// Verify pinned items are still present
+	assert.Equal(t, "Foxtrot", cache.Get("F"))
+	assert.Equal(t, "Charlie", cache.Get("C"))
+	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Echo", cache.Get("E"))
+
+	// Verify A was evicted
+	assert.Nil(t, cache.Get("A"))
+}
+
+func TestLRU_PutInternal_AllPinned(t *testing.T) {
+	cache, ok := New(&Options{
+		MaxCount: 5,
+		Pin:      true,
+	}).(*lru)
+	assert.True(t, ok)
+
+	_, err := cache.PutIfNotExist("A", "Alpha")
+	assert.NoError(t, err)
+	_, err = cache.PutIfNotExist("B", "Beta")
+	assert.NoError(t, err)
+	_, err = cache.PutIfNotExist("C", "Charlie")
+	assert.NoError(t, err)
+	_, err = cache.PutIfNotExist("D", "Delta")
+	assert.NoError(t, err)
+	_, err = cache.PutIfNotExist("E", "Echo")
+	assert.NoError(t, err)
+
+	// Verify all items are present
+	assert.Equal(t, "Alpha", cache.Get("A"))
+	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Charlie", cache.Get("C"))
+	assert.Equal(t, "Delta", cache.Get("D"))
+	assert.Equal(t, "Echo", cache.Get("E"))
+
+	// Try to add a new item - should evict unpinned items C and D
+	_, err = cache.PutIfNotExist("F", "Foxtrot")
+	assert.Error(t, err)
+
+	// Verify pinned items are still present
+	assert.Equal(t, "Alpha", cache.Get("A"))
+	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Charlie", cache.Get("C"))
+	assert.Equal(t, "Delta", cache.Get("D"))
+	assert.Equal(t, "Echo", cache.Get("E"))
+
+	// Verify A was evicted
+	assert.Nil(t, cache.Get("F"))
+}
+
+func TestLRU_PutInternal_Unpinned(t *testing.T) {
+	cache, ok := New(&Options{
+		MaxCount: 5,
+		Pin:      false,
+	}).(*lru)
+	assert.True(t, ok)
+
+	_, err := cache.PutIfNotExist("A", "Alpha")
+	assert.NoError(t, err)
+	_, err = cache.PutIfNotExist("B", "Beta")
+	assert.NoError(t, err)
+	_, err = cache.PutIfNotExist("C", "Charlie")
+	assert.NoError(t, err)
+	_, err = cache.PutIfNotExist("D", "Delta")
+	assert.NoError(t, err)
+	_, err = cache.PutIfNotExist("E", "Echo")
+	assert.NoError(t, err)
+
+	// Verify all items are present
+	assert.Equal(t, "Alpha", cache.Get("A"))
+	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Charlie", cache.Get("C"))
+	assert.Equal(t, "Delta", cache.Get("D"))
+	assert.Equal(t, "Echo", cache.Get("E"))
+
+	// Try to add a new item - should evict unpinned items C and D
+	_, err = cache.PutIfNotExist("F", "Foxtrot")
+	assert.Error(t, err)
+
+	// Verify pinned items are still present
+	assert.Equal(t, "Alpha", cache.Get("A"))
+	assert.Equal(t, "Beta", cache.Get("B"))
+	assert.Equal(t, "Charlie", cache.Get("C"))
+	assert.Equal(t, "Delta", cache.Get("D"))
+	assert.Equal(t, "Echo", cache.Get("E"))
+
+	// Verify A was evicted
+	assert.Nil(t, cache.Get("F"))
+}

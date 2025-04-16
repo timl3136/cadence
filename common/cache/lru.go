@@ -153,7 +153,7 @@ func (entry *entryImpl) CreateTime() time.Time {
 
 // New creates a new cache with the given options
 func New(opts *Options) Cache {
-	if opts == nil || (opts.MaxCount <= 0 && (opts.MaxSize() <= 0)) {
+	if opts == nil || (opts.MaxCount <= 0 && opts.MaxSize() <= 0) {
 		panic("Either MaxCount (count based) or " +
 			"MaxSize must be provided for the LRU cache")
 	}
@@ -427,7 +427,7 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 			oldest := c.byAccess.Back()
 			for oldest != nil {
 				entry := oldest.Value.(*entryImpl)
-				if entry.refCount == 0 {
+				if entry.refCount <= 0 {
 					// Found an unpinned item, evict it
 					c.deleteInternal(oldest)
 					break
