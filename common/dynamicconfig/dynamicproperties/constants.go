@@ -872,7 +872,7 @@ const (
 	// Allowed filters: N/A
 	HistoryCacheMaxSize
 	// ExecutionCacheMaxByteSize is the max byte size of history cache
-	// KeyName: history.executionCacheMaxSize
+	// KeyName: history.executionCacheMaxByteSize
 	// Value type: Int
 	// Default value: 0
 	// Allowed filters: N/A
@@ -3437,7 +3437,7 @@ var IntKeys = map[IntKey]DynamicInt{
 		DefaultValue: 512,
 	},
 	ExecutionCacheMaxByteSize: {
-		KeyName:      "history.executionCacheMaxSizeInBytes",
+		KeyName:      "history.executionCacheMaxByteSize",
 		Description:  "ExecutionCacheMaxByteSize is max size of execution cache in bytes",
 		DefaultValue: 0,
 	},
