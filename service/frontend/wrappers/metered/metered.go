@@ -26,9 +26,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"go.uber.org/yarpc/yarpcerrors"
 
+	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
 	"github.com/uber/cadence/common/metrics"
@@ -86,6 +88,13 @@ func (h *apiHandler) handleErr(err error, scope metrics.Scope, logger log.Logger
 		scope.IncCounter(metrics.CadenceErrContextTimeoutCounter)
 		return err
 	}
+
+	// Check for gRPC connection closing error
+	if strings.Contains(err.Error(), constants.GRPCConnectionClosingError) {
+		logger.Warn(constants.GRPCConnectionClosingError, tag.Error(err))
+		return err
+	}
+
 	logger.Error("Uncategorized error", tag.Error(err))
 	scope.IncCounter(metrics.CadenceFailures)
 	return frontendInternalServiceError("cadence internal uncategorized error, msg: %v", err.Error())
