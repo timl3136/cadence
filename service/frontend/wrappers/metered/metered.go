@@ -91,6 +91,7 @@ func (h *apiHandler) handleErr(err error, scope metrics.Scope, logger log.Logger
 
 	// Check for gRPC connection closing error
 	if strings.Contains(err.Error(), constants.GRPCConnectionClosingError) {
+		scope.IncCounter(metrics.CadenceErrGRPCConnectionClosingCounter)
 		logger.Warn(constants.GRPCConnectionClosingError, tag.Error(err))
 		return err
 	}
