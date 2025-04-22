@@ -22,12 +22,13 @@ package persistencetests
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"log"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 type (
