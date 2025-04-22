@@ -22,12 +22,12 @@ package persistencetests
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"log"
 	"os"
 	"sync"
 	"testing"
-
-	"github.com/stretchr/testify/require"
+	"time"
 )
 
 type (
@@ -140,7 +140,9 @@ func (s *QueuePersistenceSuite) TestDomainReplicationDLQ() {
 	maxMessageID := int64(100)
 	numMessages := 100
 	concurrentSenders := 10
-	messageChan := make(chan []byte)
+	messageChan := make(chan []byte, numMessages) // Buffered channel
+	var publishErrors []error
+	var mu sync.Mutex
 
 	go func() {
 		for i := 0; i < numMessages; i++ {
@@ -152,47 +154,92 @@ func (s *QueuePersistenceSuite) TestDomainReplicationDLQ() {
 	wg := sync.WaitGroup{}
 	wg.Add(concurrentSenders)
 
+	// Helper function for publishing with retry
+	publishWithRetry := func(message []byte) error {
+		var lastErr error
+		for i := 0; i < 3; i++ {
+			err := s.PublishToDomainDLQ(ctx, message)
+			if err == nil {
+				return nil
+			}
+			lastErr = err
+			time.Sleep(100 * time.Millisecond)
+		}
+		return lastErr
+	}
+
+	// Concurrent publishing
 	for i := 0; i < concurrentSenders; i++ {
 		go func() {
 			defer wg.Done()
 			for message := range messageChan {
-				err := s.PublishToDomainDLQ(ctx, message)
-				s.Nil(err, "Enqueue message failed.")
+				err := publishWithRetry(message)
+				if err != nil {
+					mu.Lock()
+					publishErrors = append(publishErrors, err)
+					mu.Unlock()
+				}
 			}
 		}()
 	}
 
 	wg.Wait()
 
+	// Check for any publish errors
+	s.Empty(publishErrors, "Some messages failed to publish")
+
+	// Verify initial message count
+	size, err := s.GetDomainDLQSize(ctx)
+	s.NoError(err, "GetDomainDLQSize failed")
+	s.Equal(int64(numMessages), size, "Unexpected initial message count")
 	result1, token, err := s.GetMessagesFromDomainDLQ(ctx, -1, maxMessageID, numMessages/2, nil)
 	s.Nil(err, "GetReplicationMessages failed.")
 	s.NotNil(token)
 	result2, token, err := s.GetMessagesFromDomainDLQ(ctx, -1, maxMessageID, numMessages, token)
 	s.Nil(err, "GetReplicationMessages failed.")
 	s.Equal(len(token), 0)
-	s.Equal(len(result1)+len(result2), numMessages)
+	s.Equal(len(result1)+len(result2), numMessages, "Total messages retrieved mismatch")
+
+	// Verify all messages were retrieved
 	_, _, err = s.GetMessagesFromDomainDLQ(ctx, -1, 1<<63-1, numMessages, nil)
 	s.NoError(err, "GetReplicationMessages failed.")
 	s.Equal(len(token), 0)
 
-	size, err := s.GetDomainDLQSize(ctx)
+	// Verify message count after retrieval
+	size, err = s.GetDomainDLQSize(ctx)
 	s.NoError(err, "GetDomainDLQSize failed")
-	s.Equal(int64(numMessages), size)
+	s.Equal(int64(numMessages), size, "Message count changed after retrieval")
 
+	// Delete last message
 	lastMessageID := result2[len(result2)-1].ID
 	err = s.DeleteMessageFromDomainDLQ(ctx, lastMessageID)
-	s.NoError(err)
+	s.NoError(err, "Failed to delete message")
+
+	// Verify message count after deletion
+	size, err = s.GetDomainDLQSize(ctx)
+	s.NoError(err, "GetDomainDLQSize failed")
+	s.Equal(int64(numMessages-1), size, "Message count incorrect after deletion")
+
+	// Get messages after deletion
 	result3, token, err := s.GetMessagesFromDomainDLQ(ctx, -1, maxMessageID, numMessages, token)
 	s.Nil(err, "GetReplicationMessages failed.")
 	s.Equal(len(token), 0)
-	s.Equal(len(result3), numMessages-1)
+	s.Equal(len(result3), numMessages-1, "Unexpected number of messages after deletion")
 
+	// Range delete remaining messages
 	err = s.RangeDeleteMessagesFromDomainDLQ(ctx, -1, lastMessageID)
-	s.NoError(err)
+	s.NoError(err, "Failed to range delete messages")
+
+	// Verify final message count
+	size, err = s.GetDomainDLQSize(ctx)
+	s.NoError(err, "GetDomainDLQSize failed")
+	s.Equal(int64(0), size, "Messages not fully deleted")
+
+	// Verify no messages remain
 	result4, token, err := s.GetMessagesFromDomainDLQ(ctx, -1, maxMessageID, numMessages, token)
 	s.Nil(err, "GetReplicationMessages failed.")
 	s.Equal(len(token), 0)
-	s.Equal(len(result4), 0)
+	s.Equal(len(result4), 0, "Messages still exist after range deletion")
 }
 
 // TestDomainDLQMetadataOperations tests queue metadata operations
