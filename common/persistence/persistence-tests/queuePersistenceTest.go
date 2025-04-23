@@ -89,7 +89,7 @@ func (s *QueuePersistenceSuite) TestDomainReplicationQueue() {
 				return nil
 			}
 			lastErr = err
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(20 * time.Millisecond)
 		}
 		return lastErr
 	}
@@ -192,7 +192,7 @@ func (s *QueuePersistenceSuite) TestDomainReplicationDLQ() {
 				return nil
 			}
 			lastErr = err
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(20 * time.Millisecond)
 		}
 		return lastErr
 	}
