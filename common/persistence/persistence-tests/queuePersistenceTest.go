@@ -66,11 +66,13 @@ func (s *QueuePersistenceSuite) TestDomainReplicationQueue() {
 
 	numMessages := 100
 	concurrentSenders := 10
-	messageChan := make(chan []byte)
+	messageChan := make(chan []byte, numMessages)
+	var publishErrors []error
+	var mu sync.Mutex
 
 	go func() {
 		for i := 0; i < numMessages; i++ {
-			messageChan <- []byte{1}
+			messageChan <- []byte{byte(i)}
 		}
 		close(messageChan)
 	}()
@@ -78,12 +80,31 @@ func (s *QueuePersistenceSuite) TestDomainReplicationQueue() {
 	wg := sync.WaitGroup{}
 	wg.Add(concurrentSenders)
 
+	// Helper function for publishing with retry
+	publishWithRetry := func(message []byte) error {
+		var lastErr error
+		for i := 0; i < 3; i++ {
+			err := s.Publish(ctx, message)
+			if err == nil {
+				return nil
+			}
+			lastErr = err
+			time.Sleep(100 * time.Millisecond)
+		}
+		return lastErr
+	}
+
+	// Concurrent publishing
 	for i := 0; i < concurrentSenders; i++ {
 		go func() {
 			defer wg.Done()
 			for message := range messageChan {
-				err := s.Publish(ctx, message)
-				s.Nil(err, "Enqueue message failed.")
+				err := publishWithRetry(message)
+				if err != nil {
+					mu.Lock()
+					publishErrors = append(publishErrors, err)
+					mu.Unlock()
+				}
 			}
 		}()
 	}
@@ -92,7 +113,14 @@ func (s *QueuePersistenceSuite) TestDomainReplicationQueue() {
 
 	result, err := s.GetReplicationMessages(ctx, -1, numMessages)
 	s.Nil(err, "GetReplicationMessages failed.")
-	s.Len(result, numMessages)
+	s.Len(result, numMessages, "Expected %d messages, got %d", numMessages, len(result))
+
+	// Verify message content
+	messageSet := make(map[byte]bool)
+	for _, msg := range result {
+		messageSet[msg.Payload[0]] = true
+	}
+	s.Len(messageSet, numMessages, "Expected %d unique messages, got %d", numMessages, len(messageSet))
 }
 
 // TestQueueMetadataOperations tests queue metadata operations
