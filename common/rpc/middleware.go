@@ -23,11 +23,12 @@ package rpc
 import (
 	"context"
 	"encoding/json"
-	"io"
-
+	"fmt"
+	"github.com/uber/cadence/common/log"
 	"go.uber.org/cadence/worker"
 	"go.uber.org/yarpc"
 	"go.uber.org/yarpc/api/transport"
+	"io"
 
 	"github.com/uber/cadence/common"
 	"github.com/uber/cadence/common/config"
@@ -259,4 +260,22 @@ func (m *ClientPartitionConfigMiddleware) Handle(ctx context.Context, req *trans
 		ctx = isolationgroup.ContextWithIsolationGroup(ctx, zone)
 	}
 	return h.Handle(ctx, req, resw)
+}
+
+type PeerLoggingOutboundMiddleware struct {
+	logger log.Logger
+}
+
+func (m *PeerLoggingOutboundMiddleware) Call(
+	ctx context.Context,
+	request *transport.Request,
+	out transport.UnaryOutbound,
+) (*transport.Response, error) {
+	resp, err := out.Call(ctx, request)
+
+	if err != nil {
+		m.logger.Error(fmt.Errorf("failed to make outbound call: %w for service %s", err, request.Service).Error())
+	}
+
+	return resp, err
 }

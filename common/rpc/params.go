@@ -175,7 +175,7 @@ func NewParams(serviceName string, config *config.Config, dc *dynamicconfig.Coll
 		OutboundMiddleware: yarpc.OutboundMiddleware{
 			Unary: yarpc.UnaryOutboundMiddleware(&HeaderForwardingMiddleware{
 				Rules: forwardingRules,
-			}, &ForwardPartitionConfigMiddleware{}),
+			}, &ForwardPartitionConfigMiddleware{}, &PeerLoggingOutboundMiddleware{logger: logger}),
 		},
 	}, nil
 }
