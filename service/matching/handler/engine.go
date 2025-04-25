@@ -97,8 +97,6 @@ type (
 		membershipResolver   membership.Resolver
 		isolationState       isolationgroup.State
 		timeSource           clock.TimeSource
-
-		waitForQueryResultFn func(hCtx *handlerContext, isStrongConsistencyQuery bool, queryResultCh <-chan *queryResult) (*types.MatchingQueryWorkflowResponse, error)
 	}
 
 	// HistoryInfo consists of two integer regarding the history size and history count
@@ -160,7 +158,6 @@ func NewEngine(
 	e.shutdownCompletion.Add(1)
 	go e.subscribeToMembershipChanges()
 
-	e.waitForQueryResultFn = e.waitForQueryResult
 	return e
 }
 
@@ -871,6 +868,10 @@ func (e *matchingEngineImpl) QueryWorkflow(
 	}
 
 	taskID := uuid.New()
+	queryResultCh := make(chan *queryResult, 1)
+	e.lockableQueryTaskMap.put(taskID, queryResultCh)
+	defer e.lockableQueryTaskMap.delete(taskID)
+
 	resp, err := tlMgr.DispatchQueryTask(hCtx.Context, taskID, queryRequest)
 	// if get response or error it means that query task was handled by forwarding to another matching host
 	// this remote host's result can be returned directly
@@ -884,10 +885,7 @@ func (e *matchingEngineImpl) QueryWorkflow(
 
 	// if get here it means that dispatch of query task has occurred locally
 	// must wait on result channel to get query result
-	queryResultCh := make(chan *queryResult, 1)
-	e.lockableQueryTaskMap.put(taskID, queryResultCh)
-	defer e.lockableQueryTaskMap.delete(taskID)
-	resp, err = e.waitForQueryResultFn(hCtx, queryRequest.GetQueryRequest().GetQueryConsistencyLevel() == types.QueryConsistencyLevelStrong, queryResultCh)
+	resp, err = e.waitForQueryResult(hCtx, queryRequest.GetQueryRequest().GetQueryConsistencyLevel() == types.QueryConsistencyLevelStrong, queryResultCh)
 	if err != nil {
 		return nil, err
 	}

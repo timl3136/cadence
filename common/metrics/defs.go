@@ -1321,6 +1321,8 @@ const (
 	HistoryExecutionCacheScope
 	// HistoryWorkflowCacheScope is the scope used by history workflow cache
 	HistoryWorkflowCacheScope
+	// HistoryFlushBufferedEventsScope is the scope used by history when flushing buffered events
+	HistoryFlushBufferedEventsScope
 
 	NumHistoryScopes
 )
@@ -2018,6 +2020,7 @@ var ScopeDefs = map[ServiceIdx]map[int]scopeDefinition{
 		LargeExecutionBlobShardScope:                                    {operation: "LargeExecutionBlobShard"},
 		HistoryExecutionCacheScope:                                      {operation: "HistoryExecutionCache"},
 		HistoryWorkflowCacheScope:                                       {operation: "HistoryWorkflowCache"},
+		HistoryFlushBufferedEventsScope:                                 {operation: "HistoryFlushBufferedEvents"},
 	},
 	// Matching Scope Names
 	Matching: {
@@ -2273,6 +2276,7 @@ const (
 
 	DomainReplicationQueueSizeGauge
 	DomainReplicationQueueSizeErrorCount
+	DomainCacheUpdateLatency
 
 	ParentClosePolicyProcessorSuccess
 	ParentClosePolicyProcessorFailures
@@ -2421,6 +2425,7 @@ const (
 	DecisionRetriesExceededCounter
 	StaleMutableStateCounter
 	DataInconsistentCounter
+	DuplicateActivityTaskEventCounter
 	TimerResurrectionCounter
 	TimerProcessingDeletionTimerNoopDueToMutableStateNotLoading
 	TimerProcessingDeletionTimerNoopDueToWFRunning
@@ -3020,6 +3025,7 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		CadenceShardFailureGauge:             {metricName: "cadence_shard_failure", metricType: Gauge},
 		DomainReplicationQueueSizeGauge:      {metricName: "domain_replication_queue_size", metricType: Gauge},
 		DomainReplicationQueueSizeErrorCount: {metricName: "domain_replication_queue_failed", metricType: Counter},
+		DomainCacheUpdateLatency:             {metricName: "domain_cache_update_latency", metricType: Histogram, buckets: DomainCacheUpdateBuckets},
 		ParentClosePolicyProcessorSuccess:    {metricName: "parent_close_policy_processor_requests", metricType: Counter},
 		ParentClosePolicyProcessorFailures:   {metricName: "parent_close_policy_processor_errors", metricType: Counter},
 
@@ -3154,6 +3160,7 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		DecisionRetriesExceededCounter:                               {metricName: "decision_retries_exceeded", metricType: Counter},
 		StaleMutableStateCounter:                                     {metricName: "stale_mutable_state", metricType: Counter},
 		DataInconsistentCounter:                                      {metricName: "data_inconsistent", metricType: Counter},
+		DuplicateActivityTaskEventCounter:                            {metricName: "duplicate_activity_task_event", metricType: Counter},
 		TimerResurrectionCounter:                                     {metricName: "timer_resurrection", metricType: Counter},
 		TimerProcessingDeletionTimerNoopDueToMutableStateNotLoading:  {metricName: "timer_processing_skipping_deletion_due_to_missing_mutable_state", metricType: Counter},
 		TimerProcessingDeletionTimerNoopDueToWFRunning:               {metricName: "timer_processing_skipping_deletion_due_to_running", metricType: Counter},
@@ -3613,6 +3620,12 @@ var GlobalRatelimiterUsageHistogram = append(
 
 // ResponseRowSizeBuckets contains buckets for tracking how many rows are returned per persistence operation
 var ResponseRowSizeBuckets = append(
+	tally.ValueBuckets{0},                              // need an explicit 0 or zero is reported as 1
+	tally.MustMakeExponentialValueBuckets(1, 2, 17)..., // 1..65536
+)
+
+// DomainCacheUpdateBuckets contain metric results for domain update operations
+var DomainCacheUpdateBuckets = append(
 	tally.ValueBuckets{0},                              // need an explicit 0 or zero is reported as 1
 	tally.MustMakeExponentialValueBuckets(1, 2, 17)..., // 1..65536
 )

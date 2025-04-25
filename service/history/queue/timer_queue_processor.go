@@ -172,6 +172,9 @@ func (t *timerQueueProcessor) Start() {
 		return
 	}
 
+	t.logger.Info("Starting timer queue processor")
+	defer t.logger.Info("Timer queue processor started")
+
 	t.activeQueueProcessor.Start()
 	for _, standbyQueueProcessor := range t.standbyQueueProcessors {
 		standbyQueueProcessor.Start()
@@ -187,6 +190,8 @@ func (t *timerQueueProcessor) Stop() {
 	}
 
 	if !t.shard.GetConfig().QueueProcessorEnableGracefulSyncShutdown() {
+		t.logger.Info("Stopping timer queue processor non-gracefully")
+		defer t.logger.Info("Timer queue processor stopped non-gracefully")
 		t.activeQueueProcessor.Stop()
 		// stop active executor after queue processor
 		t.activeTaskExecutor.Stop()
@@ -200,9 +205,14 @@ func (t *timerQueueProcessor) Stop() {
 		}
 
 		close(t.shutdownChan)
-		common.AwaitWaitGroup(&t.shutdownWG, time.Minute)
+		if !common.AwaitWaitGroup(&t.shutdownWG, time.Minute) {
+			t.logger.Warn("timerQueueProcessor timed out on shut down", tag.LifeCycleStopTimedout)
+		}
 		return
 	}
+
+	t.logger.Info("Stopping timer queue processor gracefully")
+	defer t.logger.Info("Timer queue processor stopped gracefully")
 
 	// close the shutdown channel first so processor pumps drains tasks
 	// and then stop the processors
@@ -380,10 +390,12 @@ func (t *timerQueueProcessor) HandleAction(ctx context.Context, clusterName stri
 }
 
 func (t *timerQueueProcessor) LockTaskProcessing() {
+	t.logger.Debug("Timer queue processor locking task processing")
 	t.taskAllocator.Lock()
 }
 
 func (t *timerQueueProcessor) UnlockTaskProcessing() {
+	t.logger.Debug("Timer queue processor unlocking task processing")
 	t.taskAllocator.Unlock()
 }
 
@@ -405,6 +417,9 @@ func (t *timerQueueProcessor) drain() {
 
 func (t *timerQueueProcessor) completeTimerLoop() {
 	defer t.shutdownWG.Done()
+
+	t.logger.Info("Timer queue processor completeTimerLoop")
+	defer t.logger.Info("Timer queue processor completeTimerLoop completed")
 
 	completeTimer := time.NewTimer(t.config.TimerProcessorCompleteTimerInterval())
 	defer completeTimer.Stop()
@@ -428,7 +443,7 @@ func (t *timerQueueProcessor) completeTimerLoop() {
 					break
 				}
 
-				t.logger.Error("Failed to complete timer task", tag.Error(err))
+				t.logger.Error("Failed to complete timer task", tag.Error(err), tag.Attempt(int32(attempt)))
 				var errShardClosed *shard.ErrShardClosed
 				if errors.As(err, &errShardClosed) {
 					if !t.shard.GetConfig().QueueProcessorEnableGracefulSyncShutdown() {
