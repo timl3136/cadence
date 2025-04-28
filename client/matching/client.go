@@ -170,7 +170,7 @@ func (c *clientImpl) PollForDecisionTask(
 	}
 	resp, err := c.client.PollForDecisionTask(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return nil, err
+		return nil, cluster.WrapPeerHostname(err, peer)
 	}
 	request.PollRequest.TaskList.Name = originalTaskListName
 	c.provider.UpdatePartitionConfig(
