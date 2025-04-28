@@ -20,7 +20,12 @@
 
 package cluster
 
-import "github.com/uber/cadence/common/persistence"
+import (
+	"errors"
+
+	"github.com/uber/cadence/common/persistence"
+	"github.com/uber/cadence/common/types"
+)
 
 // GetOrUseDefaultActiveCluster return the current cluster name or use the input if valid
 func GetOrUseDefaultActiveCluster(currentClusterName string, activeClusterName string) string {
@@ -40,4 +45,35 @@ func GetOrUseDefaultClusters(currentClusterName string, clusters []*persistence.
 		}
 	}
 	return clusters
+}
+
+// WrapPeerHostname wraps an error with peer hostname information
+func WrapPeerHostname(err error, peer string) error {
+	if err == nil {
+		return nil
+	}
+	if peer == "" {
+		return err
+	}
+	return &types.PeerHostnameError{
+		PeerHostname: peer,
+		WrappedError: err,
+	}
+}
+
+// ExtractPeerHostname extracts the peer hostname from a wrapped error
+// Returns the hostname and the original unwrapped error
+func ExtractPeerHostname(err error) (string, error) {
+	if err == nil {
+		return "", nil
+	}
+	var peerErr *types.PeerHostnameError
+	current := err
+	for current != nil {
+		if errors.As(current, &peerErr) {
+			return peerErr.PeerHostname, peerErr.WrappedError
+		}
+		current = errors.Unwrap(current)
+	}
+	return "", err
 }

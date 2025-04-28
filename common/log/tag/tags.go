@@ -1167,3 +1167,8 @@ func HashRingResult(addr string) Tag {
 func ShardDistributorResult(addr string) Tag {
 	return newStringTag("shard-distributor-result", addr)
 }
+
+// PeerHostname returns a tag for peer hostname
+func PeerHostname(hostname string) Tag {
+	return newStringTag("peer-hostname", hostname)
+}

@@ -25,6 +25,7 @@ import (
 
 	"go.uber.org/yarpc"
 
+	"github.com/uber/cadence/common/cluster"
 	"github.com/uber/cadence/common/future"
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/types"
@@ -130,8 +131,9 @@ func (c *clientImpl) PollForActivityTask(
 	}
 	resp, err := c.client.PollForActivityTask(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return nil, err
+		return nil, cluster.WrapPeerHostname(err, peer)
 	}
+
 	request.PollRequest.TaskList.Name = originalTaskListName
 	c.provider.UpdatePartitionConfig(
 		request.GetDomainUUID(),

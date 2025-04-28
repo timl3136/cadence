@@ -29,6 +29,7 @@ import (
 
 	"go.uber.org/yarpc/yarpcerrors"
 
+	"github.com/uber/cadence/common/cluster"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
 	"github.com/uber/cadence/common/metrics"
@@ -36,6 +37,13 @@ import (
 )
 
 func (h *apiHandler) handleErr(err error, scope metrics.Scope, logger log.Logger) error {
+
+	// attempt to extract hostname if possible
+	hostname, err := cluster.ExtractPeerHostname(err)
+	if hostname != "" {
+		logger = logger.WithTags(tag.PeerHostname(hostname))
+	}
+
 	switch err := err.(type) {
 	case *types.InternalServiceError:
 		logger.Error("Internal service error", tag.Error(err))

@@ -20,7 +20,11 @@
 
 package types
 
-import "go.uber.org/zap/zapcore"
+import (
+	"fmt"
+
+	"go.uber.org/zap/zapcore"
+)
 
 // EventAlreadyStartedError is an internal type (TBD...)
 type EventAlreadyStartedError struct {
@@ -163,4 +167,19 @@ func (err EventAlreadyStartedError) Error() string {
 
 func (err StickyWorkerUnavailableError) Error() string {
 	return err.Message
+}
+
+// Error implements the error interface
+func (err *PeerHostnameError) Error() string {
+	return fmt.Sprintf("request to %s failed: %v", err.PeerHostname, err.WrappedError)
+}
+
+// Unwrap implements the unwrap interface
+func (err *PeerHostnameError) Unwrap() error {
+	return err.WrappedError
+}
+
+// Hostname returns the peer hostname
+func (err *PeerHostnameError) Hostname() string {
+	return err.PeerHostname
 }
