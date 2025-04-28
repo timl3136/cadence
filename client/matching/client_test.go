@@ -24,6 +24,7 @@ package matching
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,6 +41,15 @@ const (
 	_testTaskList   = "test-tasklist"
 	_testPartition  = "test-partition"
 )
+
+type testCase struct {
+	name          string
+	op            func(Client) (any, error)
+	mock          func(*MockPeerResolver, *MockLoadBalancer, *MockClient, *MockPartitionConfigProvider)
+	want          any
+	wantError     bool
+	validateError func(*testing.T, error)
+}
 
 func TestNewClient(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -148,11 +158,12 @@ func TestClient_withoutResponse(t *testing.T) {
 
 func TestClient_withResponse(t *testing.T) {
 	tests := []struct {
-		name      string
-		op        func(Client) (any, error)
-		mock      func(*MockPeerResolver, *MockLoadBalancer, *MockClient, *MockPartitionConfigProvider)
-		want      any
-		wantError bool
+		name          string
+		op            func(Client) (any, error)
+		mock          func(*MockPeerResolver, *MockLoadBalancer, *MockClient, *MockPartitionConfigProvider)
+		want          any
+		wantError     bool
+		validateError func(*testing.T, error)
 	}{
 		{
 			name: "AddActivityTask",
@@ -260,10 +271,18 @@ func TestClient_withResponse(t *testing.T) {
 			mock: func(p *MockPeerResolver, balancer *MockLoadBalancer, c *MockClient, mp *MockPartitionConfigProvider) {
 				balancer.EXPECT().PickReadPartition(persistence.TaskListTypeActivity, testMatchingPollForActivityTaskRequest(), "").Return(_testPartition)
 				p.EXPECT().FromTaskList(_testPartition).Return("peer0", nil)
-				c.EXPECT().PollForActivityTask(gomock.Any(), gomock.Any(), []yarpc.CallOption{yarpc.WithShardKey("peer0")}).Return(nil, assert.AnError)
+				c.EXPECT().PollForActivityTask(gomock.Any(), gomock.Any(), []yarpc.CallOption{yarpc.WithShardKey("peer0")}).Return(nil, &types.InternalServiceError{Message: "test error"})
 			},
 			want:      nil,
 			wantError: true,
+			validateError: func(t *testing.T, err error) {
+				var peerErr *types.PeerHostnameError
+				assert.True(t, errors.As(err, &peerErr))
+				assert.Equal(t, "peer0", peerErr.PeerHostname)
+				var internalErr *types.InternalServiceError
+				assert.True(t, errors.As(peerErr.WrappedError, &internalErr))
+				assert.Equal(t, "test error", internalErr.Message)
+			},
 		},
 		{
 			name: "PollForDecisionTask",
@@ -299,10 +318,18 @@ func TestClient_withResponse(t *testing.T) {
 			mock: func(p *MockPeerResolver, balancer *MockLoadBalancer, c *MockClient, mp *MockPartitionConfigProvider) {
 				balancer.EXPECT().PickReadPartition(persistence.TaskListTypeDecision, testMatchingPollForDecisionTaskRequest(), "").Return(_testPartition)
 				p.EXPECT().FromTaskList(_testPartition).Return("peer0", nil)
-				c.EXPECT().PollForDecisionTask(gomock.Any(), gomock.Any(), []yarpc.CallOption{yarpc.WithShardKey("peer0")}).Return(nil, assert.AnError)
+				c.EXPECT().PollForDecisionTask(gomock.Any(), gomock.Any(), []yarpc.CallOption{yarpc.WithShardKey("peer0")}).Return(nil, &types.InternalServiceError{Message: "test error"})
 			},
 			want:      nil,
 			wantError: true,
+			validateError: func(t *testing.T, err error) {
+				var peerErr *types.PeerHostnameError
+				assert.True(t, errors.As(err, &peerErr))
+				assert.Equal(t, "peer0", peerErr.PeerHostname)
+				var internalErr *types.InternalServiceError
+				assert.True(t, errors.As(peerErr.WrappedError, &internalErr))
+				assert.Equal(t, "test error", internalErr.Message)
+			},
 		},
 		{
 			name: "QueryWorkflow",
@@ -522,6 +549,9 @@ func TestClient_withResponse(t *testing.T) {
 			if tt.wantError {
 				assert.Error(t, err)
 				assert.Nil(t, res)
+				if tt.validateError != nil {
+					tt.validateError(t, err)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, res)
