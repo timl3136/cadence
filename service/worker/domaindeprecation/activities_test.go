@@ -129,7 +129,9 @@ func TestDisableArchivalActivity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMocks()
-			err := deprecator.DisableArchivalActivity(context.Background(), testDomain)
+			err := deprecator.DisableArchivalActivity(context.Background(), DomainActivityParams{
+				DomainName: testDomain,
+			})
 			if tt.expectedError != nil {
 				assert.Error(t, err)
 			} else {
@@ -163,14 +165,14 @@ func TestDeprecateDomainActivity(t *testing.T) {
 		expectedError error
 	}{
 		{
-			name: "Success - Deprecate domain",
+			name: "Success",
 			setupMocks: func() {
 				mockClient.EXPECT().DeprecateDomain(gomock.Any(), gomock.Any()).Return(nil)
 			},
 			expectedError: nil,
 		},
 		{
-			name: "Error - Deprecate domain",
+			name: "Error",
 			setupMocks: func() {
 				mockClient.EXPECT().DeprecateDomain(gomock.Any(), gomock.Any()).Return(assert.AnError)
 			},
@@ -181,7 +183,9 @@ func TestDeprecateDomainActivity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupMocks()
-			err := deprecator.DeprecateDomainActivity(context.Background(), testDomain)
+			err := deprecator.DeprecateDomainActivity(context.Background(), DomainActivityParams{
+				DomainName: testDomain,
+			})
 			if tt.expectedError != nil {
 				assert.Error(t, err)
 			} else {

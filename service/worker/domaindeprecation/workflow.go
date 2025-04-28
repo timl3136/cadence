@@ -21,19 +21,28 @@
 package domaindeprecation
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/pborman/uuid"
 	"go.uber.org/cadence"
 	"go.uber.org/cadence/workflow"
 	"go.uber.org/zap"
+
+	"github.com/uber/cadence/common"
+	"github.com/uber/cadence/service/worker/batcher"
 )
 
 const (
 	domainDeprecationWorkflowTypeName = "domain-deprecation-workflow"
 	domainDeprecationTaskListName     = "domain-deprecation-tasklist"
+	domainDeprecationBatchPrefix      = "domain-deprecation-batch"
 
 	disableArchivalActivity = "disableArchival"
 	deprecateDomainActivity = "deprecateDomain"
+
+	workflowStartToCloseTimeout     = time.Hour * 24 * 30
+	workflowTaskStartToCloseTimeout = 5 * time.Minute
 )
 
 var (
@@ -41,15 +50,17 @@ var (
 		InitialInterval:    10 * time.Second,
 		BackoffCoefficient: 1.7,
 		MaximumInterval:    5 * time.Minute,
-		ExpirationInterval: 10 * time.Minute,
+		ExpirationInterval: 24 * time.Hour,
 		NonRetriableErrorReasons: []string{
-			errDomainDoesNotExistNonRetryable,
+			ErrDomainDoesNotExistNonRetryable,
+			ErrAccessDeniedNonRetryable,
 		},
 	}
 
 	activityOptions = workflow.ActivityOptions{
-		ScheduleToStartTimeout: time.Minute,
+		ScheduleToStartTimeout: 5 * time.Minute,
 		StartToCloseTimeout:    5 * time.Minute,
+		HeartbeatTimeout:       5 * time.Minute,
 		RetryPolicy:            &retryPolicy,
 	}
 )
@@ -59,11 +70,15 @@ func (w *domainDeprecator) DomainDeprecationWorkflow(ctx workflow.Context, domai
 	logger := workflow.GetLogger(ctx)
 	logger.Info("Starting domain deprecation workflow", zap.String("domain", domainName))
 
+	domainParams := DomainActivityParams{
+		DomainName: domainName,
+	}
+
 	// Step 1: Activity disables archival
 	err := workflow.ExecuteActivity(
 		workflow.WithActivityOptions(ctx, activityOptions),
 		w.DisableArchivalActivity,
-		domainName,
+		domainParams,
 	).Get(ctx, nil)
 	if err != nil {
 		return err
@@ -73,10 +88,44 @@ func (w *domainDeprecator) DomainDeprecationWorkflow(ctx workflow.Context, domai
 	err = workflow.ExecuteActivity(
 		workflow.WithActivityOptions(ctx, activityOptions),
 		w.DeprecateDomainActivity,
-		domainName,
+		domainParams,
 	).Get(ctx, nil)
 	if err != nil {
 		return err
+	}
+
+	// Step 3: Start child batch workflow to terminate open workflows of a domain
+	batchParams := batcher.BatchParams{
+		DomainName: domainName,
+		Query:      "CloseTime = missing",
+		Reason:     "domain is deprecated",
+		BatchType:  batcher.BatchTypeTerminate,
+		TerminateParams: batcher.TerminateParams{
+			TerminateChildren: common.BoolPtr(true),
+		},
+		RPS:                      DefaultRPS,
+		Concurrency:              DefaultConcurrency,
+		PageSize:                 DefaultPageSize,
+		AttemptsOnRetryableError: DefaultAttemptsOnRetryableError,
+		ActivityHeartBeatTimeout: DefaultActivityHeartBeatTimeout,
+		MaxActivityRetries:       DefaultMaxActivityRetries,
+		NonRetryableErrors: []string{
+			ErrAccessDeniedNonRetryable,
+			ErrWorkflowAlreadyCompletedNonRetryable,
+		},
+	}
+
+	workflowID := uuid.New()
+	childWorkflowOptions := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		WorkflowID:                   fmt.Sprintf("%s-%s-%s", domainDeprecationBatchPrefix, domainName, workflowID),
+		ExecutionStartToCloseTimeout: workflowStartToCloseTimeout,
+		TaskStartToCloseTimeout:      workflowTaskStartToCloseTimeout,
+	})
+
+	var result batcher.HeartBeatDetails
+	err = workflow.ExecuteChildWorkflow(childWorkflowOptions, batcher.BatchWorkflow, batchParams).Get(ctx, &result)
+	if err != nil {
+		return fmt.Errorf("batch workflow failed: %v", err)
 	}
 
 	logger.Info("Domain deprecation workflow completed successfully", zap.String("domain", domainName))
