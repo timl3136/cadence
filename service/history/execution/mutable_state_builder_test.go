@@ -37,6 +37,7 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 
 	"github.com/uber/cadence/common"
+	"github.com/uber/cadence/common/activecluster"
 	"github.com/uber/cadence/common/backoff"
 	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/checksum"
@@ -48,6 +49,7 @@ import (
 	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
+	"github.com/uber/cadence/common/log/testlogger"
 	"github.com/uber/cadence/common/metrics"
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/testing/testdatagen"
@@ -352,7 +354,7 @@ func (s *mutableStateSuite) TestReorderEvents() {
 		BufferedEvents: bufferedEvents,
 	}
 
-	s.msBuilder.Load(dbState)
+	s.msBuilder.Load(context.Background(), dbState)
 	s.Equal(types.EventTypeActivityTaskCompleted, s.msBuilder.bufferedEvents[0].GetEventType())
 	s.Equal(types.EventTypeActivityTaskStarted, s.msBuilder.bufferedEvents[1].GetEventType())
 
@@ -415,7 +417,7 @@ func (s *mutableStateSuite) TestChecksum() {
 
 			// create mutable state and verify checksum is generated on close
 			loadErrors = loadErrorsFunc()
-			s.msBuilder.Load(dbState)
+			s.msBuilder.Load(context.Background(), dbState)
 			s.Equal(loadErrors, loadErrorsFunc()) // no errors expected
 			s.EqualValues(dbState.Checksum, s.msBuilder.checksum)
 			s.msBuilder.domainEntry = s.newDomainCacheEntry()
@@ -428,7 +430,7 @@ func (s *mutableStateSuite) TestChecksum() {
 
 			// verify checksum is verified on Load
 			dbState.Checksum = csum
-			err = s.msBuilder.Load(dbState)
+			err = s.msBuilder.Load(context.Background(), dbState)
 			s.NoError(err)
 			s.Equal(loadErrors, loadErrorsFunc())
 
@@ -440,7 +442,7 @@ func (s *mutableStateSuite) TestChecksum() {
 
 			// modify checksum and verify Load fails
 			dbState.Checksum.Value[0]++
-			err = s.msBuilder.Load(dbState)
+			err = s.msBuilder.Load(context.Background(), dbState)
 			s.Error(err)
 			s.Equal(loadErrors+1, loadErrorsFunc())
 			s.EqualValues(dbState.Checksum, s.msBuilder.checksum)
@@ -450,7 +452,7 @@ func (s *mutableStateSuite) TestChecksum() {
 			s.mockShard.GetConfig().MutableStateChecksumInvalidateBefore = func(...dynamicproperties.FilterOption) float64 {
 				return float64((s.msBuilder.executionInfo.LastUpdatedTimestamp.UnixNano() / int64(time.Second)) + 1)
 			}
-			err = s.msBuilder.Load(dbState)
+			err = s.msBuilder.Load(context.Background(), dbState)
 			s.NoError(err)
 			s.Equal(loadErrors, loadErrorsFunc())
 			s.EqualValues(checksum.Checksum{}, s.msBuilder.checksum)
@@ -850,7 +852,7 @@ func (s *mutableStateSuite) prepareTransientDecisionCompletionFirstBatchReplicat
 func (s *mutableStateSuite) TestLoad_BackwardsCompatibility() {
 	mutableState := s.buildWorkflowMutableState()
 
-	s.msBuilder.Load(mutableState)
+	s.msBuilder.Load(context.Background(), mutableState)
 
 	s.Equal(constants.TestDomainID, s.msBuilder.pendingChildExecutionInfoIDs[81].DomainID)
 }
@@ -858,7 +860,7 @@ func (s *mutableStateSuite) TestLoad_BackwardsCompatibility() {
 func (s *mutableStateSuite) TestUpdateCurrentVersion_WorkflowOpen() {
 	mutableState := s.buildWorkflowMutableState()
 
-	s.msBuilder.Load(mutableState)
+	s.msBuilder.Load(context.Background(), mutableState)
 	s.Equal(commonconstants.EmptyVersion, s.msBuilder.GetCurrentVersion())
 
 	version := int64(2000)
@@ -871,7 +873,7 @@ func (s *mutableStateSuite) TestUpdateCurrentVersion_WorkflowClosed() {
 	mutableState.ExecutionInfo.State = persistence.WorkflowStateCompleted
 	mutableState.ExecutionInfo.CloseStatus = persistence.WorkflowCloseStatusCompleted
 
-	s.msBuilder.Load(mutableState)
+	s.msBuilder.Load(context.Background(), mutableState)
 	s.Equal(commonconstants.EmptyVersion, s.msBuilder.GetCurrentVersion())
 
 	versionHistory, err := mutableState.VersionHistories.GetCurrentVersionHistory()
@@ -1941,10 +1943,14 @@ func TestMutableStateBuilder_CopyToPersistence_roundtrip(t *testing.T) {
 		shardContext.EXPECT().GetTimeSource().Return(clock.NewMockedTimeSource())
 		shardContext.EXPECT().GetMetricsClient().Return(metrics.NewNoopMetricsClient())
 		shardContext.EXPECT().GetDomainCache().Return(mockDomainCache).AnyTimes()
+		shardContext.EXPECT().GetLogger().Return(testlogger.New(t)).AnyTimes()
+
+		activeClusterManager := activecluster.NewMockManager(ctrl)
+		shardContext.EXPECT().GetActiveClusterManager().Return(activeClusterManager).AnyTimes()
 
 		msb := newMutableStateBuilder(shardContext, log.NewNoop(), constants.TestGlobalDomainEntry)
 
-		msb.Load(execution)
+		msb.Load(context.Background(), execution)
 
 		out := msb.CopyToPersistence()
 
@@ -1967,7 +1973,6 @@ func TestMutableStateBuilder_CopyToPersistence_roundtrip(t *testing.T) {
 }
 
 func TestMutableStateBuilder_closeTransactionHandleWorkflowReset(t *testing.T) {
-
 	t1 := time.Unix(123, 0)
 	now := time.Unix(500, 0)
 
@@ -2139,6 +2144,7 @@ func TestMutableStateBuilder_closeTransactionHandleWorkflowReset(t *testing.T) {
 			mockCache := events.NewMockCache(ctrl)
 			mockDomainCache := cache.NewMockDomainCache(ctrl)
 
+			shardContext.EXPECT().GetLogger().Return(testlogger.New(t)).AnyTimes()
 			td.shardContextExpectations(mockCache, shardContext, mockDomainCache)
 
 			nowClock := clock.NewMockedTimeSourceAt(now)
@@ -2156,12 +2162,10 @@ func TestMutableStateBuilder_closeTransactionHandleWorkflowReset(t *testing.T) {
 }
 
 func TestMutableStateBuilder_GetVersionHistoriesStart(t *testing.T) {
-
 	tests := map[string]struct {
 		mutableStateBuilderStartingState func(m *mutableStateBuilder)
-
-		expectedVersion int64
-		expectedErr     error
+		expectedVersion                  int64
+		expectedErr                      error
 	}{
 		"A mutable state with version history": {
 			mutableStateBuilderStartingState: func(m *mutableStateBuilder) {
@@ -2250,6 +2254,8 @@ func TestMutableStateBuilder_GetVersionHistoriesStart(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			shardContext := shard.NewMockContext(ctrl)
+			shardContext.EXPECT().GetLogger().Return(testlogger.New(t)).AnyTimes()
+
 			mockCache := events.NewMockCache(ctrl)
 			mockDomainCache := cache.NewMockDomainCache(ctrl)
 
@@ -2463,6 +2469,7 @@ func TestGetCronRetryBackoffDuration(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			shardContext := shard.NewMockContext(ctrl)
+			shardContext.EXPECT().GetLogger().Return(testlogger.New(t)).AnyTimes()
 			mockCache := events.NewMockCache(ctrl)
 			mockDomainCache := cache.NewMockDomainCache(ctrl)
 
@@ -2551,10 +2558,41 @@ func TestStartTransactionHandleFailover(t *testing.T) {
 
 	for name, td := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			ctrl := gomock.NewController(t)
 
+			clusterMetadata := cluster.NewMetadata(
+				commonConfig.ClusterGroupMetadata{
+					FailoverVersionIncrement: 10,
+					PrimaryClusterName:       "cluster0",
+					CurrentClusterName:       "cluster0",
+					ClusterGroup: map[string]commonConfig.ClusterInformation{
+						"cluster0": {
+							Enabled:                true,
+							InitialFailoverVersion: 1,
+						},
+						"cluster1": {
+							Enabled:                true,
+							InitialFailoverVersion: 0,
+						},
+						"cluster2": {
+							Enabled:                true,
+							InitialFailoverVersion: 2,
+						},
+					},
+				},
+				func(string) bool { return false },
+				metrics.NewNoopMetricsClient(),
+				log.NewNoop(),
+			)
+
 			shardContext := shardCtx.NewMockContext(ctrl)
+			shardContext.EXPECT().GetLogger().Return(testlogger.New(t)).AnyTimes()
+
+			activeClusterManager := activecluster.NewMockManager(ctrl)
+			activeClusterManager.EXPECT().ClusterNameForFailoverVersion(gomock.Any(), gomock.Any()).DoAndReturn(func(version int64, domainID string) (string, error) {
+				return clusterMetadata.ClusterNameForFailoverVersion(version)
+			}).AnyTimes()
+			shardContext.EXPECT().GetActiveClusterManager().Return(activeClusterManager).AnyTimes()
 
 			decisionManager := NewMockmutableStateDecisionTaskManager(ctrl)
 			td.decisionManagerAffordance(decisionManager)
@@ -2568,31 +2606,6 @@ func TestStartTransactionHandleFailover(t *testing.T) {
 				EnableReplicationTaskGeneration:       func(_ string, _ string) bool { return true },
 				HostName:                              "test-host",
 			}).Times(1)
-
-			clusterMetadata := cluster.NewMetadata(
-				commonConfig.ClusterGroupMetadata{
-					FailoverVersionIncrement: 10,
-					PrimaryClusterName:       "cluster0",
-					CurrentClusterName:       "cluster0",
-					ClusterGroup: map[string]commonConfig.ClusterInformation{
-						"cluster0": commonConfig.ClusterInformation{
-							Enabled:                true,
-							InitialFailoverVersion: 1,
-						},
-						"cluster1": commonConfig.ClusterInformation{
-							Enabled:                true,
-							InitialFailoverVersion: 0,
-						},
-						"cluster2": commonConfig.ClusterInformation{
-							Enabled:                true,
-							InitialFailoverVersion: 2,
-						},
-					},
-				},
-				func(string) bool { return false },
-				metrics.NewNoopMetricsClient(),
-				log.NewNoop(),
-			)
 
 			domainEntry := cache.NewDomainCacheEntryForTest(&persistence.DomainInfo{
 				ID:   "domain-id",
@@ -2651,6 +2664,7 @@ func TestStartTransactionHandleFailover(t *testing.T) {
 					NextEventID:            0,
 					LastProcessedEvent:     0,
 				},
+				logger: testlogger.New(t),
 			}
 
 			msb.hBuilder = NewHistoryBuilder(&msb)
@@ -2668,7 +2682,7 @@ func TestStartTransactionHandleFailover(t *testing.T) {
 
 func TestSimpleGetters(t *testing.T) {
 
-	msb := createMSB()
+	msb := createMSB(t)
 	assert.Equal(t, msb.versionHistories, msb.GetVersionHistories())
 
 	branchToken, err := msb.GetCurrentBranchToken()
@@ -2755,13 +2769,14 @@ func TestMutableState_IsCurrentWorkflowGuaranteed(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			msb := mutableStateBuilder{
 				stateInDB: td.state,
+				logger:    testlogger.New(t),
 			}
 			assert.Equal(t, td.expected, msb.IsCurrentWorkflowGuaranteed())
 		})
 	}
 }
 
-func createMSB() mutableStateBuilder {
+func createMSB(t *testing.T) mutableStateBuilder {
 
 	sampleDomain := cache.NewDomainCacheEntryForTest(&persistence.DomainInfo{ID: "domain-id", Name: "domain"}, &persistence.DomainConfig{}, true, nil, 0, nil, 0, 0, 0)
 
@@ -2881,6 +2896,7 @@ func createMSB() mutableStateBuilder {
 		checksum:         checksum.Checksum{},
 		executionStats:   &persistence.ExecutionStats{HistorySize: 403},
 		queryRegistry:    query.NewRegistry(),
+		logger:           testlogger.New(t),
 	}
 }
 
@@ -3199,6 +3215,7 @@ func TestAssignTaskIDToTransientHistoryEvents(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			shardContext := shard.NewMockContext(ctrl)
+			shardContext.EXPECT().GetLogger().Return(testlogger.New(t)).AnyTimes()
 			mockCache := events.NewMockCache(ctrl)
 			mockDomainCache := cache.NewMockDomainCache(ctrl)
 
@@ -3311,6 +3328,7 @@ func TestAssignTaskIDToHistoryEvents(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			shardContext := shard.NewMockContext(ctrl)
+			shardContext.EXPECT().GetLogger().Return(testlogger.New(t)).AnyTimes()
 			mockCache := events.NewMockCache(ctrl)
 			mockDomainCache := cache.NewMockDomainCache(ctrl)
 
@@ -3390,6 +3408,7 @@ func TestAddUpsertWorkflowSearchAttributesEvent(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			shardContext := shard.NewMockContext(ctrl)
+			shardContext.EXPECT().GetLogger().Return(testlogger.New(t)).AnyTimes()
 			mockCache := events.NewMockCache(ctrl)
 			mockDomainCache := cache.NewMockDomainCache(ctrl)
 
@@ -3589,12 +3608,21 @@ func TestCloseTransactionAsMutation(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			shardContext := shard.NewMockContext(ctrl)
+			shardContext.EXPECT().GetLogger().Return(testlogger.New(t)).AnyTimes()
+
+			activeClusterManager := activecluster.NewMockManager(ctrl)
+			shardContext.EXPECT().GetActiveClusterManager().Return(activeClusterManager).AnyTimes()
+
 			mockCache := events.NewMockCache(ctrl)
 			mockDomainCache := cache.NewMockDomainCache(ctrl)
 
 			ms := createMSBWithMocks(mockCache, shardContext, mockDomainCache)
 			td.mutableStateSetup(ms)
 			td.shardContextExpectations(mockCache, shardContext, mockDomainCache)
+
+			activeClusterManager.EXPECT().ClusterNameForFailoverVersion(gomock.Any(), gomock.Any()).DoAndReturn(func(version int64, domainID string) (string, error) {
+				return cluster.TestActiveClusterMetadata.GetCurrentClusterName(), nil
+			}).AnyTimes()
 
 			mutation, workflowEvents, err := ms.CloseTransactionAsMutation(now, td.transactionPolicy)
 			assert.Equal(t, td.expectedMutation, mutation)
@@ -3732,6 +3760,7 @@ func Test__logDuplicatedActivityEvents(t *testing.T) {
 
 			mockCache := events.NewMockCache(ctrl)
 			shardContext := shard.NewMockContext(ctrl)
+			shardContext.EXPECT().GetLogger().Return(testlogger.New(t)).AnyTimes()
 			mockDomainCache := cache.NewMockDomainCache(ctrl)
 
 			msb := createMSBWithMocks(mockCache, shardContext, mockDomainCache)
