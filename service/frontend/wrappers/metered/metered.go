@@ -26,8 +26,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-
 	"go.uber.org/yarpc/yarpcerrors"
 
 	"github.com/uber/cadence/common/constants"
@@ -82,17 +80,15 @@ func (h *apiHandler) handleErr(err error, scope metrics.Scope, logger log.Logger
 			scope.IncCounter(metrics.CadenceErrContextTimeoutCounter)
 			return err
 		}
+		if err.Code() == yarpcerrors.CodeCancelled {
+			scope.IncCounter(metrics.CadenceErrGRPCConnectionClosingCounter)
+			logger.Warn(constants.GRPCConnectionClosingError, tag.Error(err))
+			return err
+		}
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		logger.Error("Frontend request timedout", tag.Error(err))
 		scope.IncCounter(metrics.CadenceErrContextTimeoutCounter)
-		return err
-	}
-
-	// Check for gRPC connection closing error
-	if strings.Contains(err.Error(), constants.GRPCConnectionClosingError) {
-		scope.IncCounter(metrics.CadenceErrGRPCConnectionClosingCounter)
-		logger.Warn(constants.GRPCConnectionClosingError, tag.Error(err))
 		return err
 	}
 
