@@ -26,6 +26,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"go.uber.org/yarpc/yarpcerrors"
 
 	"github.com/uber/cadence/common/constants"
