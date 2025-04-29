@@ -24,13 +24,14 @@ package matching
 
 import (
 	"context"
-	"errors"
+	stdErrors "errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"go.uber.org/yarpc"
 
+	"github.com/uber/cadence/common/errors"
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/types"
 )
@@ -276,11 +277,11 @@ func TestClient_withResponse(t *testing.T) {
 			want:      nil,
 			wantError: true,
 			validateError: func(t *testing.T, err error) {
-				var peerErr *types.PeerHostnameError
-				assert.True(t, errors.As(err, &peerErr))
+				var peerErr *errors.PeerHostnameError
+				assert.True(t, stdErrors.As(err, &peerErr))
 				assert.Equal(t, "peer0", peerErr.PeerHostname)
 				var internalErr *types.InternalServiceError
-				assert.True(t, errors.As(peerErr.WrappedError, &internalErr))
+				assert.True(t, stdErrors.As(peerErr.WrappedError, &internalErr))
 				assert.Equal(t, "test error", internalErr.Message)
 			},
 		},
@@ -323,11 +324,11 @@ func TestClient_withResponse(t *testing.T) {
 			want:      nil,
 			wantError: true,
 			validateError: func(t *testing.T, err error) {
-				var peerErr *types.PeerHostnameError
-				assert.True(t, errors.As(err, &peerErr))
+				var peerErr *errors.PeerHostnameError
+				assert.True(t, stdErrors.As(err, &peerErr))
 				assert.Equal(t, "peer0", peerErr.PeerHostname)
 				var internalErr *types.InternalServiceError
-				assert.True(t, errors.As(peerErr.WrappedError, &internalErr))
+				assert.True(t, stdErrors.As(peerErr.WrappedError, &internalErr))
 				assert.Equal(t, "test error", internalErr.Message)
 			},
 		},

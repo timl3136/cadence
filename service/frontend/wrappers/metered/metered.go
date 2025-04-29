@@ -29,7 +29,7 @@ import (
 
 	"go.uber.org/yarpc/yarpcerrors"
 
-	"github.com/uber/cadence/common/cluster"
+	commonerrors "github.com/uber/cadence/common/errors"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
 	"github.com/uber/cadence/common/metrics"
@@ -39,7 +39,7 @@ import (
 func (h *apiHandler) handleErr(err error, scope metrics.Scope, logger log.Logger) error {
 
 	// attempt to extract hostname if possible
-	hostname, err := cluster.ExtractPeerHostname(err)
+	hostname, err := commonerrors.ExtractPeerHostname(err)
 	if hostname != "" {
 		logger = logger.WithTags(tag.PeerHostname(hostname))
 	}

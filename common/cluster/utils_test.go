@@ -21,112 +21,79 @@
 package cluster
 
 import (
-	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/uber/cadence/common/types"
+	"github.com/uber/cadence/common/persistence"
 )
 
-func TestWrapPeerHostname(t *testing.T) {
+func TestGetOrUseDefaultActiveCluster(t *testing.T) {
 	tests := []struct {
-		name     string
-		err      error
-		peer     string
-		wantErr  bool
-		wantPeer string
+		name            string
+		currentCluster  string
+		activeCluster   string
+		expectedCluster string
 	}{
 		{
-			name:     "nil error returns nil",
-			err:      nil,
-			peer:     "host1",
-			wantErr:  false,
-			wantPeer: "",
+			name:            "empty active cluster",
+			currentCluster:  "cluster1",
+			activeCluster:   "",
+			expectedCluster: "cluster1",
 		},
 		{
-			name:     "empty peer returns original error",
-			err:      errors.New("original error"),
-			peer:     "",
-			wantErr:  true,
-			wantPeer: "",
-		},
-		{
-			name:     "wraps error with peer",
-			err:      errors.New("original error"),
-			peer:     "host1",
-			wantErr:  true,
-			wantPeer: "host1",
+			name:            "non-empty active cluster",
+			currentCluster:  "cluster1",
+			activeCluster:   "cluster2",
+			expectedCluster: "cluster2",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := WrapPeerHostname(tt.err, tt.peer)
-			if !tt.wantErr {
-				assert.Nil(t, got)
-				return
-			}
-
-			assert.NotNil(t, got)
-			if tt.wantPeer == "" {
-				assert.Equal(t, tt.err, got)
-			} else {
-				var peerErr *types.PeerHostnameError
-				assert.True(t, errors.As(got, &peerErr))
-				assert.Equal(t, tt.wantPeer, peerErr.PeerHostname)
-				assert.Equal(t, tt.err, peerErr.WrappedError)
-			}
+			got := GetOrUseDefaultActiveCluster(tt.currentCluster, tt.activeCluster)
+			assert.Equal(t, tt.expectedCluster, got)
 		})
 	}
 }
 
-func TestExtractPeerHostname(t *testing.T) {
-	originalErr := errors.New("original error")
+func TestGetOrUseDefaultClusters(t *testing.T) {
 	tests := []struct {
-		name          string
-		err           error
-		wantHostname  string
-		wantOrigError error
+		name             string
+		currentCluster   string
+		clusters         []*persistence.ClusterReplicationConfig
+		expectedClusters []*persistence.ClusterReplicationConfig
 	}{
 		{
-			name:          "nil error returns empty strings",
-			err:           nil,
-			wantHostname:  "",
-			wantOrigError: nil,
-		},
-		{
-			name:          "non-wrapped error returns empty hostname",
-			err:           originalErr,
-			wantHostname:  "",
-			wantOrigError: originalErr,
-		},
-		{
-			name: "wrapped error returns hostname and original error",
-			err: &types.PeerHostnameError{
-				PeerHostname: "host1",
-				WrappedError: originalErr,
+			name:           "empty clusters",
+			currentCluster: "cluster1",
+			clusters:       []*persistence.ClusterReplicationConfig{},
+			expectedClusters: []*persistence.ClusterReplicationConfig{
+				&persistence.ClusterReplicationConfig{
+					ClusterName: "cluster1",
+				},
 			},
-			wantHostname:  "host1",
-			wantOrigError: originalErr,
 		},
 		{
-			name: "deeply wrapped error returns hostname and original error",
-			err: fmt.Errorf("outer error: %w", &types.PeerHostnameError{
-				PeerHostname: "host1",
-				WrappedError: originalErr,
-			}),
-			wantHostname:  "host1",
-			wantOrigError: originalErr,
+			name:           "non-empty clusters",
+			currentCluster: "cluster1",
+			clusters: []*persistence.ClusterReplicationConfig{
+				&persistence.ClusterReplicationConfig{
+					ClusterName: "cluster2",
+				},
+			},
+			expectedClusters: []*persistence.ClusterReplicationConfig{
+				&persistence.ClusterReplicationConfig{
+					ClusterName: "cluster2",
+				},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotHostname, gotErr := ExtractPeerHostname(tt.err)
-			assert.Equal(t, tt.wantHostname, gotHostname)
-			assert.Equal(t, tt.wantOrigError, gotErr)
+			got := GetOrUseDefaultClusters(tt.currentCluster, tt.clusters)
+			assert.Equal(t, tt.expectedClusters, got)
 		})
 	}
 }

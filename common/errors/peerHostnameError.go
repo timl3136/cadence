@@ -18,28 +18,56 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package cluster
+package errors
 
 import (
-	"github.com/uber/cadence/common/persistence"
+	"errors"
+	"fmt"
 )
 
-// GetOrUseDefaultActiveCluster return the current cluster name or use the input if valid
-func GetOrUseDefaultActiveCluster(currentClusterName string, activeClusterName string) string {
-	if len(activeClusterName) == 0 {
-		return currentClusterName
-	}
-	return activeClusterName
+// PeerHostnameError wraps an error with peer hostname information
+type PeerHostnameError struct {
+	PeerHostname string
+	WrappedError error
 }
 
-// GetOrUseDefaultClusters return the current cluster or use the input if valid
-func GetOrUseDefaultClusters(currentClusterName string, clusters []*persistence.ClusterReplicationConfig) []*persistence.ClusterReplicationConfig {
-	if len(clusters) == 0 {
-		return []*persistence.ClusterReplicationConfig{
-			&persistence.ClusterReplicationConfig{
-				ClusterName: currentClusterName,
-			},
-		}
+// Error implements the error interface
+func (e *PeerHostnameError) Error() string {
+	return fmt.Sprintf("peer hostname: %s, error: %v", e.PeerHostname, e.WrappedError)
+}
+
+// Unwrap implements the error unwrapping interface
+func (e *PeerHostnameError) Unwrap() error {
+	return e.WrappedError
+}
+
+// NewPeerHostnameError creates a new PeerHostnameError
+func NewPeerHostnameError(err error, peer string) error {
+	if err == nil {
+		return nil
 	}
-	return clusters
+	if peer == "" {
+		return err
+	}
+	return &PeerHostnameError{
+		PeerHostname: peer,
+		WrappedError: err,
+	}
+}
+
+// ExtractPeerHostname extracts the peer hostname from a wrapped error
+// Returns the hostname and the original unwrapped error
+func ExtractPeerHostname(err error) (string, error) {
+	if err == nil {
+		return "", nil
+	}
+	var peerErr *PeerHostnameError
+	current := err
+	for current != nil {
+		if errors.As(current, &peerErr) {
+			return peerErr.PeerHostname, peerErr.WrappedError
+		}
+		current = errors.Unwrap(current)
+	}
+	return "", err
 }
