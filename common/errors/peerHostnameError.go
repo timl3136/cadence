@@ -63,11 +63,8 @@ func ExtractPeerHostname(err error) (string, error) {
 	}
 	var peerErr *PeerHostnameError
 	current := err
-	for current != nil {
-		if errors.As(current, &peerErr) {
-			return peerErr.PeerHostname, peerErr.WrappedError
-		}
-		current = errors.Unwrap(current)
+	if errors.As(current, &peerErr) {
+		return peerErr.PeerHostname, peerErr.WrappedError
 	}
 	return "", err
 }
