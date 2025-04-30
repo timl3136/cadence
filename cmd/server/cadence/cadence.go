@@ -22,19 +22,24 @@ package cadence
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	stdLog "log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/fx"
+	"go.uber.org/multierr"
 
 	"github.com/uber/cadence/common/client"
+	"github.com/uber/cadence/common/clock/clockfx"
 	"github.com/uber/cadence/common/config"
 	"github.com/uber/cadence/common/dynamicconfig/dynamicconfigfx"
 	"github.com/uber/cadence/common/log/logfx"
+	"github.com/uber/cadence/common/metrics/metricsfx"
 	"github.com/uber/cadence/common/service"
 
 	_ "go.uber.org/automaxprocs" // defines automaxpocs for dockerized usage.
@@ -111,34 +116,43 @@ func BuildCLI(releaseVersion string, gitRevision string) *cli.App {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				fxApp := fx.New(
-					config.Module,
-					logfx.Module,
-					dynamicconfigfx.Module,
-					fx.Provide(func() appContext {
-						return appContext{
-							CfgContext: config.Context{
-								Environment: getEnvironment(c),
-								Zone:        getZone(c),
-							},
-							ConfigDir: getConfigDir(c),
-							RootDir:   getRootDir(c),
-							Services:  getServices(c),
-						}
-					}),
-					Module,
-				)
-
-				ctx := context.Background()
-				if err := fxApp.Start(ctx); err != nil {
-					return err
+				host, err := os.Hostname()
+				if err != nil {
+					return fmt.Errorf("get hostname: %w", err)
 				}
 
-				// Block until FX receives a shutdown signal
-				<-fxApp.Done()
+				appCtx := appContext{
+					CfgContext: config.Context{
+						Environment: getEnvironment(c),
+						Zone:        getZone(c),
+					},
+					ConfigDir: getConfigDir(c),
+					RootDir:   getRootDir(c),
+					HostName:  host,
+				}
 
-				// Stop the application
-				return fxApp.Stop(ctx)
+				services := getServices(c)
+
+				return runServices(
+					services,
+					func(serviceName string) fxAppInterface {
+						return fx.New(
+							fx.Module(serviceName,
+								config.Module,
+								dynamicconfigfx.Module,
+								logfx.Module,
+								metricsfx.Module,
+								clockfx.Module,
+								fx.Provide(
+									func() appContext {
+										return appCtx
+									},
+								),
+								Module(serviceName),
+							),
+						)
+					},
+				)
 			},
 		},
 	}
@@ -147,13 +161,66 @@ func BuildCLI(releaseVersion string, gitRevision string) *cli.App {
 
 }
 
+func runServices(services []string, appBuilder func(serviceName string) fxAppInterface) error {
+	stoppedWg := &sync.WaitGroup{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errChan := make(chan error, len(services))
+
+	for _, serv := range services {
+		stoppedWg.Add(1)
+		go func(s string) {
+			defer stoppedWg.Done()
+			fxApp := appBuilder(s)
+
+			//  If any of the start hooks return an error, Start short-circuits, calls Stop, and returns the inciting error.
+			if err := fxApp.Start(ctx); err != nil {
+				// If any of the apps fails to start, immediately cancel the context so others will also stop.
+				cancel()
+				errChan <- fmt.Errorf("service %s start: %w", s, err)
+				return
+			}
+
+			select {
+			// Block until FX receives a shutdown signal
+			case <-fxApp.Done():
+			}
+
+			// Stop the application
+			err := fxApp.Stop(ctx)
+			if err != nil {
+				errChan <- fmt.Errorf("service %s stop: %w", s, err)
+			}
+		}(serv)
+	}
+	go func() {
+		stoppedWg.Wait()
+		// After stoppedWg unblocked all services are stopped to we no longer wait for errors.
+		close(errChan)
+	}()
+
+	var resErrors error
+	for err := range errChan {
+		// skip canceled errors, since they are caused by context cancelation and only focus on actual errors.
+		if err != nil && !errors.Is(err, context.Canceled) {
+			resErrors = multierr.Append(resErrors, err)
+		}
+	}
+	if resErrors != nil {
+		return resErrors
+	}
+	return nil
+}
+
 type appContext struct {
 	fx.Out
 
 	CfgContext config.Context
-	ConfigDir  string   `name:"config-dir"`
-	RootDir    string   `name:"root-dir"`
-	Services   []string `name:"services"`
+	ConfigDir  string `name:"config-dir"`
+	RootDir    string `name:"root-dir"`
+	HostName   string `name:"hostname"`
 }
 
 func getEnvironment(c *cli.Context) string {
@@ -206,4 +273,10 @@ func constructPathIfNeed(dir string, file string) string {
 		return dir + "/" + file
 	}
 	return file
+}
+
+type fxAppInterface interface {
+	Start(context.Context) error
+	Stop(context.Context) error
+	Done() <-chan os.Signal
 }

@@ -20,31 +20,46 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package cadence
+package ringpopfx
 
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxtest"
+	"go.uber.org/mock/gomock"
 
 	"github.com/uber/cadence/common/config"
-	"github.com/uber/cadence/common/dynamicconfig/dynamicconfigfx"
-	"github.com/uber/cadence/common/log/logfx"
+	"github.com/uber/cadence/common/log"
+	"github.com/uber/cadence/common/log/testlogger"
+	"github.com/uber/cadence/common/rpc"
 )
 
-func TestFxDependencies(t *testing.T) {
-	err := fx.ValidateApp(config.Module,
-		logfx.Module,
-		dynamicconfigfx.Module,
-		fx.Supply(appContext{
-			CfgContext: config.Context{
-				Environment: "",
-				Zone:        "",
-			},
-			ConfigDir: "",
-			RootDir:   "",
-		}),
-		Module(""))
-	require.NoError(t, err)
+func TestFxApp(t *testing.T) {
+	app := fxtest.New(t,
+		fx.Provide(
+			func() testSetupParams {
+				ctrl := gomock.NewController(t)
+				factory := rpc.NewMockFactory(ctrl)
+				factory.EXPECT().GetTChannel().Return(nil)
+
+				return testSetupParams{
+					Service:    "test",
+					Logger:     testlogger.New(t),
+					RPCFactory: factory,
+				}
+			}),
+		Module,
+	)
+	app.RequireStart().RequireStop()
+}
+
+type testSetupParams struct {
+	fx.Out
+
+	Service       string `name:"service"`
+	Config        config.Config
+	ServiceConfig config.Service
+	Logger        log.Logger
+	RPCFactory    rpc.Factory
 }

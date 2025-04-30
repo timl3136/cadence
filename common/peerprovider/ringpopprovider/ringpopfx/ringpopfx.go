@@ -20,31 +20,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package cadence
+package ringpopfx
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
 
 	"github.com/uber/cadence/common/config"
-	"github.com/uber/cadence/common/dynamicconfig/dynamicconfigfx"
-	"github.com/uber/cadence/common/log/logfx"
+	"github.com/uber/cadence/common/log"
+	"github.com/uber/cadence/common/membership"
+	"github.com/uber/cadence/common/peerprovider/ringpopprovider"
+	"github.com/uber/cadence/common/rpc"
 )
 
-func TestFxDependencies(t *testing.T) {
-	err := fx.ValidateApp(config.Module,
-		logfx.Module,
-		dynamicconfigfx.Module,
-		fx.Supply(appContext{
-			CfgContext: config.Context{
-				Environment: "",
-				Zone:        "",
-			},
-			ConfigDir: "",
-			RootDir:   "",
-		}),
-		Module(""))
-	require.NoError(t, err)
+// Module provides a peer resolver based on ringpop for fx app.
+var Module = fx.Module("ringpop", fx.Provide(buildRingpopProvider))
+
+type Params struct {
+	fx.In
+
+	Service       string `name:"service"`
+	Config        config.Config
+	ServiceConfig config.Service
+	Logger        log.Logger
+	RPCFactory    rpc.Factory
+	Lifecycle     fx.Lifecycle
+}
+
+func buildRingpopProvider(params Params) (membership.PeerProvider, error) {
+	provider, err := ringpopprovider.New(params.Service, &params.Config.Ringpop, params.RPCFactory.GetTChannel(), membership.PortMap{
+		membership.PortGRPC:     params.ServiceConfig.RPC.GRPCPort,
+		membership.PortTchannel: params.ServiceConfig.RPC.Port,
+	}, params.Logger)
+	if err != nil {
+		return nil, err
+	}
+	params.Lifecycle.Append(fx.StartStopHook(provider.Start, provider.Stop))
+	return provider, nil
 }

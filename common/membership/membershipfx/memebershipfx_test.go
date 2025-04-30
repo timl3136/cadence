@@ -20,31 +20,41 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package cadence
+package membershipfx
 
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxtest"
+	"go.uber.org/mock/gomock"
 
-	"github.com/uber/cadence/common/config"
-	"github.com/uber/cadence/common/dynamicconfig/dynamicconfigfx"
-	"github.com/uber/cadence/common/log/logfx"
+	"github.com/uber/cadence/common/clock"
+	"github.com/uber/cadence/common/log"
+	"github.com/uber/cadence/common/log/testlogger"
+	"github.com/uber/cadence/common/membership"
+	"github.com/uber/cadence/common/metrics"
 )
 
-func TestFxDependencies(t *testing.T) {
-	err := fx.ValidateApp(config.Module,
-		logfx.Module,
-		dynamicconfigfx.Module,
-		fx.Supply(appContext{
-			CfgContext: config.Context{
-				Environment: "",
-				Zone:        "",
-			},
-			ConfigDir: "",
-			RootDir:   "",
-		}),
-		Module(""))
-	require.NoError(t, err)
+func TestFxStartStop(t *testing.T) {
+	app := fxtest.New(t, fx.Provide(func() appParams {
+		ctrl := gomock.NewController(t)
+		provider := membership.NewMockPeerProvider(ctrl)
+		return appParams{
+			Clock:         clock.NewMockedTimeSource(),
+			PeerProvider:  provider,
+			Logger:        testlogger.New(t),
+			MetricsClient: metrics.NewNoopMetricsClient(),
+		}
+	}), Module)
+	app.RequireStart().RequireStop()
+}
+
+type appParams struct {
+	fx.Out
+
+	Clock         clock.TimeSource
+	PeerProvider  membership.PeerProvider
+	Logger        log.Logger
+	MetricsClient metrics.Client
 }

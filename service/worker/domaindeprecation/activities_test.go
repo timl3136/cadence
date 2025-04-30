@@ -194,3 +194,69 @@ func TestDeprecateDomainActivity(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckOpenWorkflowsActivity(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := frontend.NewMockClient(ctrl)
+	mockClientBean := client.NewMockBean(ctrl)
+	mockClientBean.EXPECT().GetFrontendClient().Return(mockClient).AnyTimes()
+
+	deprecator := &domainDeprecator{
+		cfg: Config{
+			AdminOperationToken: dynamicproperties.GetStringPropertyFn(""),
+		},
+		clientBean: mockClientBean,
+		logger:     testlogger.New(t),
+	}
+
+	testDomain := "test-domain"
+
+	tests := []struct {
+		name           string
+		setupMocks     func()
+		expectedResult bool
+		expectedError  error
+	}{
+		{
+			name: "Success - no open workflows",
+			setupMocks: func() {
+				mockClient.EXPECT().CountWorkflowExecutions(gomock.Any(), gomock.Any()).Return(&types.CountWorkflowExecutionsResponse{Count: 0}, nil)
+			},
+			expectedResult: false,
+			expectedError:  nil,
+		},
+		{
+			name: "Success - has open workflows",
+			setupMocks: func() {
+				mockClient.EXPECT().CountWorkflowExecutions(gomock.Any(), gomock.Any()).Return(&types.CountWorkflowExecutionsResponse{Count: 100}, nil)
+			},
+			expectedResult: true,
+			expectedError:  nil,
+		},
+		{
+			name: "Error",
+			setupMocks: func() {
+				mockClient.EXPECT().CountWorkflowExecutions(gomock.Any(), gomock.Any()).Return(&types.CountWorkflowExecutionsResponse{Count: 0}, assert.AnError)
+			},
+			expectedResult: false,
+			expectedError:  assert.AnError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMocks()
+			hasOpenWorkflows, err := deprecator.CheckOpenWorkflowsActivity(context.Background(), DomainActivityParams{
+				DomainName: testDomain,
+			})
+			if tt.expectedError != nil {
+				assert.Error(t, err)
+			} else {
+				assert.Equal(t, tt.expectedResult, hasOpenWorkflows)
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

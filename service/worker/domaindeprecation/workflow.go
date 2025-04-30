@@ -38,11 +38,18 @@ const (
 	domainDeprecationTaskListName     = "domain-deprecation-tasklist"
 	domainDeprecationBatchPrefix      = "domain-deprecation-batch"
 
-	disableArchivalActivity = "disableArchival"
-	deprecateDomainActivity = "deprecateDomain"
+	disableArchivalActivity    = "disableArchival"
+	deprecateDomainActivity    = "deprecateDomain"
+	checkOpenWorkflowsActivity = "checkOpenWorkflows"
 
 	workflowStartToCloseTimeout     = time.Hour * 24 * 30
 	workflowTaskStartToCloseTimeout = 5 * time.Minute
+
+	// MaxBatchWorkflowAttempts is the maximum number of attempts to terminate open workflows
+	MaxBatchWorkflowAttempts = 3
+
+	// VisibilityRefreshWaitTime is the time to wait for visibility storage to refresh after workflow termination
+	VisibilityRefreshWaitTime = 3 * time.Minute
 )
 
 var (
@@ -115,17 +122,53 @@ func (w *domainDeprecator) DomainDeprecationWorkflow(ctx workflow.Context, domai
 		},
 	}
 
-	workflowID := uuid.New()
-	childWorkflowOptions := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		WorkflowID:                   fmt.Sprintf("%s-%s-%s", domainDeprecationBatchPrefix, domainName, workflowID),
-		ExecutionStartToCloseTimeout: workflowStartToCloseTimeout,
-		TaskStartToCloseTimeout:      workflowTaskStartToCloseTimeout,
-	})
+	for attempt := 1; attempt <= MaxBatchWorkflowAttempts; attempt++ {
+		logger.Info("Starting batch workflow",
+			zap.String("domain", domainName),
+			zap.Int("attempt", attempt),
+			zap.Int("max_attempts", MaxBatchWorkflowAttempts))
 
-	var result batcher.HeartBeatDetails
-	err = workflow.ExecuteChildWorkflow(childWorkflowOptions, batcher.BatchWorkflow, batchParams).Get(ctx, &result)
-	if err != nil {
-		return fmt.Errorf("batch workflow failed: %v", err)
+		workflowID := uuid.New()
+		childWorkflowOptions := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+			WorkflowID:                   fmt.Sprintf("%s-%s-%s-%d", domainDeprecationBatchPrefix, domainName, workflowID, attempt),
+			ExecutionStartToCloseTimeout: workflowStartToCloseTimeout,
+			TaskStartToCloseTimeout:      workflowTaskStartToCloseTimeout,
+		})
+
+		var result batcher.HeartBeatDetails
+		err = workflow.ExecuteChildWorkflow(childWorkflowOptions, batcher.BatchWorkflow, batchParams).Get(ctx, &result)
+		if err != nil {
+			return fmt.Errorf("batch workflow failed on attempt %d: %v", attempt, err)
+		}
+
+		// Wait for visibility storage to refresh
+		workflow.Sleep(ctx, VisibilityRefreshWaitTime)
+
+		// Check if there are still open workflows
+		var hasOpenWorkflows bool
+		err = workflow.ExecuteActivity(
+			workflow.WithActivityOptions(ctx, activityOptions),
+			w.CheckOpenWorkflowsActivity,
+			domainParams,
+		).Get(ctx, &hasOpenWorkflows)
+		if err != nil {
+			return fmt.Errorf("failed to check open workflows on attempt %d: %v", attempt, err)
+		}
+
+		if !hasOpenWorkflows {
+			logger.Info("No open workflows found after batch workflow",
+				zap.String("domain", domainName),
+				zap.Int("attempt", attempt))
+			break
+		}
+
+		if attempt == MaxBatchWorkflowAttempts {
+			return fmt.Errorf("failed to terminate all workflows after %d attempts", MaxBatchWorkflowAttempts)
+		}
+
+		logger.Info("Found open workflows after batch workflow, will retry",
+			zap.String("domain", domainName),
+			zap.Int("attempt", attempt))
 	}
 
 	logger.Info("Domain deprecation workflow completed successfully", zap.String("domain", domainName))

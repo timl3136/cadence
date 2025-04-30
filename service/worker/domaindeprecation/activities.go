@@ -89,3 +89,30 @@ func (w *domainDeprecator) DeprecateDomainActivity(ctx context.Context, params D
 
 	return nil
 }
+
+// CheckOpenWorkflowsActivity checks if there are any open workflows in the domain
+func (w *domainDeprecator) CheckOpenWorkflowsActivity(ctx context.Context, params DomainActivityParams) (bool, error) {
+	client := w.clientBean.GetFrontendClient()
+
+	countRequest := &types.CountWorkflowExecutionsRequest{
+		Domain: params.DomainName,
+		Query:  "CloseTime = missing",
+	}
+
+	countResp, err := client.CountWorkflowExecutions(ctx, countRequest)
+	if err != nil {
+		return false, fmt.Errorf("failed to count open workflows: %v", err)
+	}
+
+	hasOpenWorkflows := countResp.Count > 0
+	if hasOpenWorkflows {
+		w.logger.Info("Found open workflows in domain",
+			tag.WorkflowDomainName(params.DomainName),
+			tag.Number(countResp.Count))
+	} else {
+		w.logger.Info("No open workflows found in domain",
+			tag.WorkflowDomainName(params.DomainName))
+	}
+
+	return hasOpenWorkflows, nil
+}
