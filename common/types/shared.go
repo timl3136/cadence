@@ -8609,11 +8609,6 @@ type StickyWorkerUnavailableError struct {
 	Message string `json:"message,required"`
 }
 
-type PeerHostnameError struct {
-	WrappedError error  `json:"wrappedError,required"`
-	PeerHostname string `json:"peerHostname,required"`
-}
-
 // Any is an internal mirror of google.protobuf.Any, serving the same purposes, but
 // intentionally breaking direct compatibility because it may hold data that is not
 // actually protobuf encoded.
