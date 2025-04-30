@@ -73,6 +73,7 @@ func NewTestContext(
 		rangeID:                   shardInfo.RangeID,
 		shardInfo:                 shardInfo,
 		executionManager:          resource.ExecutionMgr,
+		activeClusterManager:      resource.ActiveClusterMgr,
 		config:                    config,
 		logger:                    resource.GetLogger(),
 		throttledLogger:           resource.GetThrottledLogger(),
@@ -80,7 +81,7 @@ func NewTestContext(
 		transferMaxReadLevel:      0,
 		maxTransferSequenceNumber: 100000,
 		timerMaxReadLevelMap:      make(map[string]time.Time),
-		transferFailoverLevels:    make(map[string]TransferFailoverLevel),
+		failoverLevels:            make(map[persistence.HistoryTaskCategory]map[string]persistence.FailoverLevel),
 		remoteClusterCurrentTime:  make(map[string]time.Time),
 		eventsCache:               eventsCache,
 	}

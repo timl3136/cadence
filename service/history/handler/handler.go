@@ -82,7 +82,6 @@ type (
 		queueTaskProcessor      task.Processor
 		failoverCoordinator     failover.Coordinator
 		workflowIDCache         workflowcache.WFCache
-		queueProcessorFactory   queue.ProcessorFactory
 		ratelimitAggregator     algorithm.RequestWeighted
 	}
 )

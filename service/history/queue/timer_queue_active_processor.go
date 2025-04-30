@@ -58,7 +58,7 @@ func newTimerQueueActiveProcessor(
 			return false, nil
 		}
 
-		return taskAllocator.VerifyActiveTask(timer.GetDomainID(), timer)
+		return taskAllocator.VerifyActiveTask(timer.GetDomainID(), timer.GetWorkflowID(), timer.GetRunID(), timer)
 	}
 
 	updateMaxReadLevel := func() task.Key {
@@ -66,7 +66,9 @@ func newTimerQueueActiveProcessor(
 	}
 
 	updateClusterAckLevel := func(ackLevel task.Key) error {
-		return shard.UpdateTimerClusterAckLevel(clusterName, ackLevel.(timerTaskKey).visibilityTimestamp)
+		return shard.UpdateQueueClusterAckLevel(persistence.HistoryTaskCategoryTimer, clusterName, persistence.HistoryTaskKey{
+			ScheduledTime: ackLevel.(timerTaskKey).visibilityTimestamp,
+		})
 	}
 
 	updateProcessingQueueStates := func(states []ProcessingQueueState) error {

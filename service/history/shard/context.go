@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/uber/cadence/common"
+	"github.com/uber/cadence/common/activecluster"
 	"github.com/uber/cadence/common/backoff"
 	"github.com/uber/cadence/common/cache"
 	"github.com/uber/cadence/common/clock"
@@ -56,6 +57,7 @@ type (
 		GetExecutionManager() persistence.ExecutionManager
 		GetHistoryManager() persistence.HistoryManager
 		GetDomainCache() cache.DomainCache
+		GetActiveClusterManager() activecluster.Manager
 		GetClusterMetadata() cluster.Metadata
 		GetConfig() *config.Config
 		GetEventsCache() events.Cache
@@ -68,41 +70,31 @@ type (
 		GetEngine() engine.Engine
 		SetEngine(engine.Engine)
 
-		GenerateTransferTaskID() (int64, error)
-		GenerateTransferTaskIDs(number int) ([]int64, error)
+		GenerateTaskID() (int64, error)
+		GenerateTaskIDs(number int) ([]int64, error)
 
 		GetTransferMaxReadLevel() int64
+		GetTimerMaxReadLevel(cluster string) time.Time
 		UpdateTimerMaxReadLevel(cluster string) time.Time
 
 		SetCurrentTime(cluster string, currentTime time.Time)
 		GetCurrentTime(cluster string) time.Time
 		GetLastUpdatedTime() time.Time
-		GetTimerMaxReadLevel(cluster string) time.Time
 
-		GetTransferAckLevel() int64
-		UpdateTransferAckLevel(ackLevel int64) error
-		GetTransferClusterAckLevel(cluster string) int64
-		UpdateTransferClusterAckLevel(cluster string, ackLevel int64) error
+		GetQueueAckLevel(category persistence.HistoryTaskCategory) persistence.HistoryTaskKey
+		UpdateQueueAckLevel(category persistence.HistoryTaskCategory, ackLevel persistence.HistoryTaskKey) error
+		GetQueueClusterAckLevel(category persistence.HistoryTaskCategory, cluster string) persistence.HistoryTaskKey
+		UpdateQueueClusterAckLevel(category persistence.HistoryTaskCategory, cluster string, ackLevel persistence.HistoryTaskKey) error
+
 		GetTransferProcessingQueueStates(cluster string) []*types.ProcessingQueueState
 		UpdateTransferProcessingQueueStates(cluster string, states []*types.ProcessingQueueState) error
 
-		GetClusterReplicationLevel(cluster string) int64
-		UpdateClusterReplicationLevel(cluster string, lastTaskID int64) error
-
-		GetTimerAckLevel() time.Time
-		UpdateTimerAckLevel(ackLevel time.Time) error
-		GetTimerClusterAckLevel(cluster string) time.Time
-		UpdateTimerClusterAckLevel(cluster string, ackLevel time.Time) error
 		GetTimerProcessingQueueStates(cluster string) []*types.ProcessingQueueState
 		UpdateTimerProcessingQueueStates(cluster string, states []*types.ProcessingQueueState) error
 
-		UpdateTransferFailoverLevel(failoverID string, level TransferFailoverLevel) error
-		DeleteTransferFailoverLevel(failoverID string) error
-		GetAllTransferFailoverLevels() map[string]TransferFailoverLevel
-
-		UpdateTimerFailoverLevel(failoverID string, level TimerFailoverLevel) error
-		DeleteTimerFailoverLevel(failoverID string) error
-		GetAllTimerFailoverLevels() map[string]TimerFailoverLevel
+		UpdateFailoverLevel(category persistence.HistoryTaskCategory, failoverID string, level persistence.FailoverLevel) error
+		DeleteFailoverLevel(category persistence.HistoryTaskCategory, failoverID string) error
+		GetAllFailoverLevels(category persistence.HistoryTaskCategory) map[string]persistence.FailoverLevel
 
 		GetDomainNotificationVersion() int64
 		UpdateDomainNotificationVersion(domainNotificationVersion int64) error
@@ -118,38 +110,21 @@ type (
 		ValidateAndUpdateFailoverMarkers() ([]*types.FailoverMarkerAttributes, error)
 	}
 
-	// TransferFailoverLevel contains corresponding start / end level
-	TransferFailoverLevel struct {
-		StartTime    time.Time
-		MinLevel     int64
-		CurrentLevel int64
-		MaxLevel     int64
-		DomainIDs    map[string]struct{}
-	}
-
-	// TimerFailoverLevel contains domain IDs and corresponding start / end level
-	TimerFailoverLevel struct {
-		StartTime    time.Time
-		MinLevel     time.Time
-		CurrentLevel time.Time
-		MaxLevel     time.Time
-		DomainIDs    map[string]struct{}
-	}
-
 	contextImpl struct {
 		resource.Resource
 
-		shardItem        *historyShardsItem
-		shardID          int
-		rangeID          int64
-		executionManager persistence.ExecutionManager
-		eventsCache      events.Cache
-		closeCallback    func(int, *historyShardsItem)
-		closedAt         atomic.Pointer[time.Time]
-		config           *config.Config
-		logger           log.Logger
-		throttledLogger  log.Logger
-		engine           engine.Engine
+		shardItem            *historyShardsItem
+		shardID              int
+		rangeID              int64
+		executionManager     persistence.ExecutionManager
+		activeClusterManager activecluster.Manager
+		eventsCache          events.Cache
+		closeCallback        func(int, *historyShardsItem)
+		closedAt             atomic.Pointer[time.Time]
+		config               *config.Config
+		logger               log.Logger
+		throttledLogger      log.Logger
+		engine               engine.Engine
 
 		sync.RWMutex
 		lastUpdated               time.Time
@@ -157,9 +132,8 @@ type (
 		transferSequenceNumber    int64
 		maxTransferSequenceNumber int64
 		transferMaxReadLevel      int64
-		timerMaxReadLevelMap      map[string]time.Time             // cluster -> timerMaxReadLevel
-		transferFailoverLevels    map[string]TransferFailoverLevel // uuid -> TransferFailoverLevel
-		timerFailoverLevels       map[string]TimerFailoverLevel    // uuid -> TimerFailoverLevel
+		timerMaxReadLevelMap      map[string]time.Time                                                     // cluster -> timerMaxReadLevel
+		failoverLevels            map[persistence.HistoryTaskCategory]map[string]persistence.FailoverLevel // category -> uuid -> FailoverLevel
 
 		// exist only in memory
 		remoteClusterCurrentTime map[string]time.Time
@@ -216,20 +190,24 @@ func (s *contextImpl) SetEngine(engine engine.Engine) {
 	s.engine = engine
 }
 
-func (s *contextImpl) GenerateTransferTaskID() (int64, error) {
+func (s *contextImpl) GetActiveClusterManager() activecluster.Manager {
+	return s.activeClusterManager
+}
+
+func (s *contextImpl) GenerateTaskID() (int64, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	return s.generateTransferTaskIDLocked()
+	return s.generateTaskIDLocked()
 }
 
-func (s *contextImpl) GenerateTransferTaskIDs(number int) ([]int64, error) {
+func (s *contextImpl) GenerateTaskIDs(number int) ([]int64, error) {
 	s.Lock()
 	defer s.Unlock()
 
 	result := []int64{}
 	for i := 0; i < number; i++ {
-		id, err := s.generateTransferTaskIDLocked()
+		id, err := s.generateTaskIDLocked()
 		if err != nil {
 			return nil, err
 		}
@@ -244,40 +222,109 @@ func (s *contextImpl) GetTransferMaxReadLevel() int64 {
 	return s.transferMaxReadLevel
 }
 
-func (s *contextImpl) GetTransferAckLevel() int64 {
+func (s *contextImpl) GetQueueAckLevel(category persistence.HistoryTaskCategory) persistence.HistoryTaskKey {
 	s.RLock()
 	defer s.RUnlock()
 
-	return s.shardInfo.TransferAckLevel
+	return s.getQueueAckLevelLocked(category)
 }
 
-func (s *contextImpl) UpdateTransferAckLevel(ackLevel int64) error {
+func (s *contextImpl) getQueueAckLevelLocked(category persistence.HistoryTaskCategory) persistence.HistoryTaskKey {
+	switch category {
+	case persistence.HistoryTaskCategoryTransfer:
+		return persistence.HistoryTaskKey{
+			TaskID: s.shardInfo.TransferAckLevel,
+		}
+	case persistence.HistoryTaskCategoryTimer:
+		return persistence.HistoryTaskKey{
+			ScheduledTime: s.shardInfo.TimerAckLevel,
+		}
+	case persistence.HistoryTaskCategoryReplication:
+		return persistence.HistoryTaskKey{
+			TaskID: s.shardInfo.ReplicationAckLevel,
+		}
+	default:
+		return persistence.HistoryTaskKey{}
+	}
+}
+
+func (s *contextImpl) UpdateQueueAckLevel(category persistence.HistoryTaskCategory, ackLevel persistence.HistoryTaskKey) error {
 	s.Lock()
 	defer s.Unlock()
 
-	s.shardInfo.TransferAckLevel = ackLevel
+	switch category {
+	case persistence.HistoryTaskCategoryTransfer:
+		s.shardInfo.TransferAckLevel = ackLevel.TaskID
+	case persistence.HistoryTaskCategoryTimer:
+		s.shardInfo.TimerAckLevel = ackLevel.ScheduledTime
+	case persistence.HistoryTaskCategoryReplication:
+		s.shardInfo.ReplicationAckLevel = ackLevel.TaskID
+	default:
+		return fmt.Errorf("unknown history task category: %v", category)
+	}
 	s.shardInfo.StolenSinceRenew = 0
 	return s.updateShardInfoLocked()
 }
 
-func (s *contextImpl) GetTransferClusterAckLevel(cluster string) int64 {
+func (s *contextImpl) GetQueueClusterAckLevel(category persistence.HistoryTaskCategory, cluster string) persistence.HistoryTaskKey {
 	s.RLock()
 	defer s.RUnlock()
 
-	// if we can find corresponding ack level
-	if ackLevel, ok := s.shardInfo.ClusterTransferAckLevel[cluster]; ok {
-		return ackLevel
+	switch category {
+	case persistence.HistoryTaskCategoryTransfer:
+		// if we can find corresponding ack level
+		if ackLevel, ok := s.shardInfo.ClusterTransferAckLevel[cluster]; ok {
+			return persistence.HistoryTaskKey{
+				TaskID: ackLevel,
+			}
+		}
+		// otherwise, default to existing ack level, which belongs to local cluster
+		// this can happen if you add more cluster
+		return persistence.HistoryTaskKey{
+			TaskID: s.shardInfo.TransferAckLevel,
+		}
+	case persistence.HistoryTaskCategoryTimer:
+		// if we can find corresponding ack level
+		if ackLevel, ok := s.shardInfo.ClusterTimerAckLevel[cluster]; ok {
+			return persistence.HistoryTaskKey{
+				ScheduledTime: ackLevel,
+			}
+		}
+		// otherwise, default to existing ack level, which belongs to local cluster
+		// this can happen if you add more cluster
+		return persistence.HistoryTaskKey{
+			ScheduledTime: s.shardInfo.TimerAckLevel,
+		}
+	case persistence.HistoryTaskCategoryReplication:
+		// if we can find corresponding replication level
+		if replicationLevel, ok := s.shardInfo.ClusterReplicationLevel[cluster]; ok {
+			return persistence.HistoryTaskKey{
+				TaskID: replicationLevel,
+			}
+		}
+		// New cluster always starts from -1
+		return persistence.HistoryTaskKey{
+			TaskID: -1,
+		}
+	default:
+		return persistence.HistoryTaskKey{}
 	}
-	// otherwise, default to existing ack level, which belongs to local cluster
-	// this can happen if you add more cluster
-	return s.shardInfo.TransferAckLevel
 }
 
-func (s *contextImpl) UpdateTransferClusterAckLevel(cluster string, ackLevel int64) error {
+func (s *contextImpl) UpdateQueueClusterAckLevel(category persistence.HistoryTaskCategory, cluster string, ackLevel persistence.HistoryTaskKey) error {
 	s.Lock()
 	defer s.Unlock()
 
-	s.shardInfo.ClusterTransferAckLevel[cluster] = ackLevel
+	switch category {
+	case persistence.HistoryTaskCategoryTransfer:
+		s.shardInfo.ClusterTransferAckLevel[cluster] = ackLevel.TaskID
+	case persistence.HistoryTaskCategoryTimer:
+		s.shardInfo.ClusterTimerAckLevel[cluster] = ackLevel.ScheduledTime
+	case persistence.HistoryTaskCategoryReplication:
+		s.shardInfo.ClusterReplicationLevel[cluster] = ackLevel.TaskID
+	default:
+		return fmt.Errorf("unknown history task category: %v", category)
+	}
 	s.shardInfo.StolenSinceRenew = 0
 	return s.updateShardInfoLocked()
 }
@@ -338,66 +385,6 @@ func (s *contextImpl) UpdateTransferProcessingQueueStates(cluster string, states
 	return s.updateShardInfoLocked()
 }
 
-func (s *contextImpl) GetClusterReplicationLevel(cluster string) int64 {
-	s.RLock()
-	defer s.RUnlock()
-
-	// if we can find corresponding replication level
-	if replicationLevel, ok := s.shardInfo.ClusterReplicationLevel[cluster]; ok {
-		return replicationLevel
-	}
-
-	// New cluster always starts from -1
-	return -1
-}
-
-func (s *contextImpl) UpdateClusterReplicationLevel(cluster string, lastTaskID int64) error {
-	s.Lock()
-	defer s.Unlock()
-
-	s.shardInfo.ClusterReplicationLevel[cluster] = lastTaskID
-	s.shardInfo.StolenSinceRenew = 0
-	return s.updateShardInfoLocked()
-}
-
-func (s *contextImpl) GetTimerAckLevel() time.Time {
-	s.RLock()
-	defer s.RUnlock()
-
-	return s.shardInfo.TimerAckLevel
-}
-
-func (s *contextImpl) UpdateTimerAckLevel(ackLevel time.Time) error {
-	s.Lock()
-	defer s.Unlock()
-
-	s.shardInfo.TimerAckLevel = ackLevel
-	s.shardInfo.StolenSinceRenew = 0
-	return s.updateShardInfoLocked()
-}
-
-func (s *contextImpl) GetTimerClusterAckLevel(cluster string) time.Time {
-	s.RLock()
-	defer s.RUnlock()
-
-	// if we can find corresponding ack level
-	if ackLevel, ok := s.shardInfo.ClusterTimerAckLevel[cluster]; ok {
-		return ackLevel
-	}
-	// otherwise, default to existing ack level, which belongs to local cluster
-	// this can happen if you add more cluster
-	return s.shardInfo.TimerAckLevel
-}
-
-func (s *contextImpl) UpdateTimerClusterAckLevel(cluster string, ackLevel time.Time) error {
-	s.Lock()
-	defer s.Unlock()
-
-	s.shardInfo.ClusterTimerAckLevel[cluster] = ackLevel
-	s.shardInfo.StolenSinceRenew = 0
-	return s.updateShardInfoLocked()
-}
-
 func (s *contextImpl) GetTimerProcessingQueueStates(cluster string) []*types.ProcessingQueueState {
 	s.RLock()
 	defer s.RUnlock()
@@ -454,61 +441,42 @@ func (s *contextImpl) UpdateTimerProcessingQueueStates(cluster string, states []
 	return s.updateShardInfoLocked()
 }
 
-func (s *contextImpl) UpdateTransferFailoverLevel(failoverID string, level TransferFailoverLevel) error {
+func (s *contextImpl) UpdateFailoverLevel(category persistence.HistoryTaskCategory, failoverID string, level persistence.FailoverLevel) error {
 	s.Lock()
 	defer s.Unlock()
 
-	s.transferFailoverLevels[failoverID] = level
+	if _, ok := s.failoverLevels[category]; !ok {
+		s.failoverLevels[category] = make(map[string]persistence.FailoverLevel)
+	}
+	s.failoverLevels[category][failoverID] = level
 	return nil
 }
 
-func (s *contextImpl) DeleteTransferFailoverLevel(failoverID string) error {
+func (s *contextImpl) DeleteFailoverLevel(category persistence.HistoryTaskCategory, failoverID string) error {
 	s.Lock()
 	defer s.Unlock()
 
-	if level, ok := s.transferFailoverLevels[failoverID]; ok {
-		s.GetMetricsClient().RecordTimer(metrics.ShardInfoScope, metrics.ShardInfoTransferFailoverLatencyTimer, time.Since(level.StartTime))
-		delete(s.transferFailoverLevels, failoverID)
+	if levels, ok := s.failoverLevels[category]; ok {
+		if level, ok := levels[failoverID]; ok {
+			delete(levels, failoverID)
+			switch category {
+			case persistence.HistoryTaskCategoryTransfer:
+				s.GetMetricsClient().RecordTimer(metrics.ShardInfoScope, metrics.ShardInfoTransferFailoverLatencyTimer, time.Since(level.StartTime))
+			case persistence.HistoryTaskCategoryTimer:
+				s.GetMetricsClient().RecordTimer(metrics.ShardInfoScope, metrics.ShardInfoTimerFailoverLatencyTimer, time.Since(level.StartTime))
+			}
+			return nil
+		}
 	}
 	return nil
 }
 
-func (s *contextImpl) GetAllTransferFailoverLevels() map[string]TransferFailoverLevel {
+func (s *contextImpl) GetAllFailoverLevels(category persistence.HistoryTaskCategory) map[string]persistence.FailoverLevel {
 	s.RLock()
 	defer s.RUnlock()
 
-	ret := map[string]TransferFailoverLevel{}
-	for k, v := range s.transferFailoverLevels {
-		ret[k] = v
-	}
-	return ret
-}
-
-func (s *contextImpl) UpdateTimerFailoverLevel(failoverID string, level TimerFailoverLevel) error {
-	s.Lock()
-	defer s.Unlock()
-
-	s.timerFailoverLevels[failoverID] = level
-	return nil
-}
-
-func (s *contextImpl) DeleteTimerFailoverLevel(failoverID string) error {
-	s.Lock()
-	defer s.Unlock()
-
-	if level, ok := s.timerFailoverLevels[failoverID]; ok {
-		s.GetMetricsClient().RecordTimer(metrics.ShardInfoScope, metrics.ShardInfoTimerFailoverLatencyTimer, time.Since(level.StartTime))
-		delete(s.timerFailoverLevels, failoverID)
-	}
-	return nil
-}
-
-func (s *contextImpl) GetAllTimerFailoverLevels() map[string]TimerFailoverLevel {
-	s.RLock()
-	defer s.RUnlock()
-
-	ret := map[string]TimerFailoverLevel{}
-	for k, v := range s.timerFailoverLevels {
+	ret := map[string]persistence.FailoverLevel{}
+	for k, v := range s.failoverLevels[category] {
 		ret[k] = v
 	}
 	return ret
@@ -894,7 +862,7 @@ func (s *contextImpl) AppendHistoryV2Events(
 
 	// NOTE: do not use generateNextTransferTaskIDLocked since
 	// generateNextTransferTaskIDLocked is not guarded by lock
-	transactionID, err := s.GenerateTransferTaskID()
+	transactionID, err := s.GenerateTaskID()
 	if err != nil {
 		return nil, err
 	}
@@ -977,7 +945,7 @@ func (s *contextImpl) closeShard() {
 	atomic.StoreInt64(&s.rangeID, s.shardInfo.RangeID)
 }
 
-func (s *contextImpl) generateTransferTaskIDLocked() (int64, error) {
+func (s *contextImpl) generateTaskIDLocked() (int64, error) {
 	if err := s.updateRangeIfNeededLocked(); err != nil {
 		return -1, err
 	}
@@ -1141,8 +1109,8 @@ func (s *contextImpl) emitShardInfoMetricsLogsLocked() {
 	transferLag := s.transferMaxReadLevel - s.shardInfo.TransferAckLevel
 	timerLag := time.Since(s.shardInfo.TimerAckLevel)
 
-	transferFailoverInProgress := len(s.transferFailoverLevels)
-	timerFailoverInProgress := len(s.timerFailoverLevels)
+	transferFailoverInProgress := len(s.failoverLevels[persistence.HistoryTaskCategoryTransfer])
+	timerFailoverInProgress := len(s.failoverLevels[persistence.HistoryTaskCategoryTimer])
 
 	if s.config.EmitShardDiffLog() &&
 		(logWarnTransferLevelDiff < diffTransferLevel ||
@@ -1211,7 +1179,7 @@ func (s *contextImpl) allocateTransferIDsLocked(
 	now := s.GetTimeSource().Now()
 
 	for _, task := range tasks {
-		id, err := s.generateTransferTaskIDLocked()
+		id, err := s.generateTaskIDLocked()
 		if err != nil {
 			return err
 		}
@@ -1229,6 +1197,7 @@ func (s *contextImpl) allocateTransferIDsLocked(
 // NOTE: allocateTimerIDsLocked should always been called after assigning taskID for transferTasks when assigning taskID together,
 // because Cadence Indexer assume timer taskID of deleteWorkflowExecution is larger than transfer taskID of closeWorkflowExecution
 // for a given workflow.
+// TODO(active-active): Write unit tests for this. It's missing tests for both active-active and active-passive.
 func (s *contextImpl) allocateTimerIDsLocked(
 	domainEntry *cache.DomainCacheEntry,
 	workflowID string,
@@ -1236,16 +1205,26 @@ func (s *contextImpl) allocateTimerIDsLocked(
 ) error {
 
 	// assign IDs for the timer tasks. They need to be assigned under shard lock.
-	currentCluster := s.GetClusterMetadata().GetCurrentClusterName()
+	cluster := s.GetClusterMetadata().GetCurrentClusterName()
 	for _, task := range timerTasks {
 		ts := task.GetVisibilityTimestamp()
 		if task.GetVersion() != constants.EmptyVersion {
 			// cannot use version to determine the corresponding cluster for timer task
 			// this is because during failover, timer task should be created as active
 			// or otherwise, failover + active processing logic may not pick up the task.
-			currentCluster = domainEntry.GetReplicationConfig().ActiveClusterName
+			cluster = domainEntry.GetReplicationConfig().ActiveClusterName
+
+			// if domain is active-active, lookup the workflow to determine the corresponding cluster
+			if domainEntry.GetReplicationConfig().IsActiveActive() {
+				lookupRes, err := s.GetActiveClusterManager().LookupWorkflow(context.Background(), task.GetDomainID(), task.GetWorkflowID(), task.GetRunID())
+				if err != nil {
+					return err
+				}
+				cluster = lookupRes.ClusterName
+			}
 		}
-		readCursorTS := s.timerMaxReadLevelMap[currentCluster]
+
+		readCursorTS := s.timerMaxReadLevelMap[cluster]
 		if ts.Before(readCursorTS) {
 			// This can happen if shard move and new host have a time SKU, or there is db write delay.
 			// We generate a new timer ID using timerMaxReadLevel.
@@ -1254,11 +1233,12 @@ func (s *contextImpl) allocateTimerIDsLocked(
 				tag.WorkflowID(workflowID),
 				tag.Timestamp(ts),
 				tag.CursorTimestamp(readCursorTS),
+				tag.ClusterName(cluster),
 				tag.ValueShardAllocateTimerBeforeRead)
-			task.SetVisibilityTimestamp(s.timerMaxReadLevelMap[currentCluster].Add(time.Millisecond))
+			task.SetVisibilityTimestamp(s.timerMaxReadLevelMap[cluster].Add(time.Millisecond))
 		}
 
-		seqNum, err := s.generateTransferTaskIDLocked()
+		seqNum, err := s.generateTaskIDLocked()
 		if err != nil {
 			return err
 		}
@@ -1509,13 +1489,13 @@ func acquireShard(
 		shardItem:                      shardItem,
 		shardID:                        shardItem.shardID,
 		executionManager:               executionMgr,
+		activeClusterManager:           shardItem.GetActiveClusterManager(),
 		shardInfo:                      updatedShardInfo,
 		closeCallback:                  closeCallback,
 		config:                         shardItem.config,
 		remoteClusterCurrentTime:       remoteClusterCurrentTime,
 		timerMaxReadLevelMap:           timerMaxReadLevelMap, // use ack to init read level
-		transferFailoverLevels:         make(map[string]TransferFailoverLevel),
-		timerFailoverLevels:            make(map[string]TimerFailoverLevel),
+		failoverLevels:                 make(map[persistence.HistoryTaskCategory]map[string]persistence.FailoverLevel),
 		logger:                         shardItem.logger,
 		throttledLogger:                shardItem.throttledLogger,
 		previousShardOwnerWasDifferent: ownershipChanged,
