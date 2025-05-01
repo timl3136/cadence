@@ -30,6 +30,7 @@ import (
 	"go.uber.org/yarpc/yarpcerrors"
 
 	commonerrors "github.com/uber/cadence/common/errors"
+	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
 	"github.com/uber/cadence/common/metrics"
@@ -88,12 +89,18 @@ func (h *apiHandler) handleErr(err error, scope metrics.Scope, logger log.Logger
 			scope.IncCounter(metrics.CadenceErrContextTimeoutCounter)
 			return err
 		}
+		if err.Code() == yarpcerrors.CodeCancelled {
+			scope.IncCounter(metrics.CadenceErrGRPCConnectionClosingCounter)
+			logger.Warn(constants.GRPCConnectionClosingError, tag.Error(err))
+			return err
+		}
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		logger.Error("Frontend request timedout", tag.Error(err))
 		scope.IncCounter(metrics.CadenceErrContextTimeoutCounter)
 		return err
 	}
+
 	logger.Error("Uncategorized error", tag.Error(err))
 	scope.IncCounter(metrics.CadenceFailures)
 	return frontendInternalServiceError("cadence internal uncategorized error, msg: %v", err.Error())
