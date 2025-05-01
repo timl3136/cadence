@@ -681,14 +681,10 @@ func (s *HistoryV2PersistenceSuite) TestConcurrentlyForkAndAppendBranches() {
 	s.Nil(err)
 
 	// Add retry logic for branch cleanup verification
-	for i := 0; i < 3; i++ {
+	s.Eventually(func() bool {
 		branches = s.descTree(ctx, treeID)
-		if len(branches) == 0 {
-			break
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	s.Equal(0, len(branches))
+		return len(branches) == 0
+	}, 100*time.Millisecond, 20*time.Millisecond)
 }
 
 func (s *HistoryV2PersistenceSuite) getBranchByKey(m *sync.Map, k int) []byte {
