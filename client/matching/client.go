@@ -72,7 +72,7 @@ func (c *clientImpl) AddActivityTask(
 	}
 	resp, err := c.client.AddActivityTask(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return nil, errors.NewPeerHostnameError(err, peer)
+		return nil, err
 	}
 	request.TaskList.Name = originalTaskListName
 	c.provider.UpdatePartitionConfig(
@@ -101,7 +101,7 @@ func (c *clientImpl) AddDecisionTask(
 	}
 	resp, err := c.client.AddDecisionTask(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return nil, errors.NewPeerHostnameError(err, peer)
+		return nil, err
 	}
 	request.TaskList.Name = originalTaskListName
 	c.provider.UpdatePartitionConfig(
@@ -208,7 +208,7 @@ func (c *clientImpl) QueryWorkflow(
 	}
 	resp, err := c.client.QueryWorkflow(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return nil, errors.NewPeerHostnameError(err, peer)
+		return nil, err
 	}
 	request.TaskList.Name = originalTaskListName
 	c.provider.UpdatePartitionConfig(
@@ -231,7 +231,7 @@ func (c *clientImpl) RespondQueryTaskCompleted(
 	}
 	err = c.client.RespondQueryTaskCompleted(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return errors.NewPeerHostnameError(err, peer)
+		return err
 	}
 	return nil
 }
@@ -247,7 +247,7 @@ func (c *clientImpl) CancelOutstandingPoll(
 	}
 	err = c.client.CancelOutstandingPoll(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return errors.NewPeerHostnameError(err, peer)
+		return err
 	}
 	return nil
 }
@@ -263,7 +263,7 @@ func (c *clientImpl) DescribeTaskList(
 	}
 	resp, err := c.client.DescribeTaskList(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return nil, errors.NewPeerHostnameError(err, peer)
+		return nil, err
 	}
 	return resp, nil
 }
@@ -279,7 +279,7 @@ func (c *clientImpl) ListTaskListPartitions(
 	}
 	resp, err := c.client.ListTaskListPartitions(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return nil, errors.NewPeerHostnameError(err, peer)
+		return nil, err
 	}
 	return resp, nil
 }
@@ -341,7 +341,7 @@ func (c *clientImpl) UpdateTaskListPartitionConfig(
 	}
 	resp, err := c.client.UpdateTaskListPartitionConfig(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return nil, errors.NewPeerHostnameError(err, peer)
+		return nil, err
 	}
 	return resp, nil
 }
@@ -357,7 +357,7 @@ func (c *clientImpl) RefreshTaskListPartitionConfig(
 	}
 	resp, err := c.client.RefreshTaskListPartitionConfig(ctx, request, append(opts, yarpc.WithShardKey(peer))...)
 	if err != nil {
-		return nil, errors.NewPeerHostnameError(err, peer)
+		return nil, err
 	}
 	return resp, nil
 }
