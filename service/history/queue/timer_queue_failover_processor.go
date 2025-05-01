@@ -68,7 +68,7 @@ func newTimerQueueFailoverProcessor(
 			logger.Info("Domain is not in registered status, skip task in failover timer queue.", tag.WorkflowDomainID(timer.GetDomainID()), tag.Value(timer))
 			return false, nil
 		}
-		return taskAllocator.VerifyFailoverActiveTask(domainIDs, timer.GetDomainID(), timer)
+		return taskAllocator.VerifyFailoverActiveTask(domainIDs, timer.GetDomainID(), timer.GetWorkflowID(), timer.GetRunID(), timer)
 	}
 
 	maxReadLevelTaskKey := newTimerTaskKey(maxLevel, 0)
@@ -77,20 +77,30 @@ func newTimerQueueFailoverProcessor(
 	}
 
 	updateClusterAckLevel := func(ackLevel task.Key) error {
-		return shardContext.UpdateTimerFailoverLevel(
+		return shardContext.UpdateFailoverLevel(
+			persistence.HistoryTaskCategoryTimer,
 			failoverUUID,
-			shard.TimerFailoverLevel{
-				StartTime:    failoverStartTime,
-				MinLevel:     minLevel,
-				CurrentLevel: ackLevel.(timerTaskKey).visibilityTimestamp,
-				MaxLevel:     maxLevel,
-				DomainIDs:    domainIDs,
+			persistence.FailoverLevel{
+				StartTime: failoverStartTime,
+				MinLevel: persistence.HistoryTaskKey{
+					ScheduledTime: minLevel,
+				},
+				CurrentLevel: persistence.HistoryTaskKey{
+					ScheduledTime: ackLevel.(timerTaskKey).visibilityTimestamp,
+				},
+				MaxLevel: persistence.HistoryTaskKey{
+					ScheduledTime: maxLevel,
+				},
+				DomainIDs: domainIDs,
 			},
 		)
 	}
 
 	queueShutdown := func() error {
-		return shardContext.DeleteTimerFailoverLevel(failoverUUID)
+		return shardContext.DeleteFailoverLevel(
+			persistence.HistoryTaskCategoryTimer,
+			failoverUUID,
+		)
 	}
 
 	processingQueueStates := []ProcessingQueueState{

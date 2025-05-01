@@ -2085,6 +2085,7 @@ const (
 	CadenceErrQueryFailedCounter
 	CadenceErrLimitExceededCounter
 	CadenceErrContextTimeoutCounter
+	CadenceErrGRPCConnectionClosingCounter
 	CadenceErrRetryTaskCounter
 	CadenceErrBadBinaryCounter
 	CadenceErrClientVersionNotSupportedCounter
@@ -2814,6 +2815,7 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		CadenceErrQueryFailedCounter:                                 {metricName: "cadence_errors_query_failed", metricType: Counter},
 		CadenceErrLimitExceededCounter:                               {metricName: "cadence_errors_limit_exceeded", metricType: Counter},
 		CadenceErrContextTimeoutCounter:                              {metricName: "cadence_errors_context_timeout", metricType: Counter},
+		CadenceErrGRPCConnectionClosingCounter:                       {metricName: "cadence_errors_grpc_connection_closing", metricType: Counter},
 		CadenceErrRetryTaskCounter:                                   {metricName: "cadence_errors_retry_task", metricType: Counter},
 		CadenceErrBadBinaryCounter:                                   {metricName: "cadence_errors_bad_binary", metricType: Counter},
 		CadenceErrClientVersionNotSupportedCounter:                   {metricName: "cadence_errors_client_version_not_supported", metricType: Counter},

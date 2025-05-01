@@ -483,6 +483,7 @@ func (s *Service) startDomainDeprecation() {
 		},
 		ServiceClient: s.params.PublicClient,
 		ClientBean:    s.GetClientBean(),
+		MetricsClient: s.GetMetricsClient(),
 		Tally:         s.params.MetricScope,
 		Logger:        s.GetLogger(),
 	}

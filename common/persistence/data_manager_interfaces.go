@@ -438,6 +438,15 @@ type (
 		CurrentRunID string
 	}
 
+	// FailoverLevel contains corresponding start / end level
+	FailoverLevel struct {
+		StartTime    time.Time
+		MinLevel     HistoryTaskKey
+		CurrentLevel HistoryTaskKey
+		MaxLevel     HistoryTaskKey
+		DomainIDs    map[string]struct{}
+	}
+
 	// TransferTaskInfo describes a transfer task
 	TransferTaskInfo struct {
 		DomainID                string
@@ -2207,6 +2216,7 @@ func (p *TaskListPartition) ToInternalType() *types.TaskListPartition {
 	return &types.TaskListPartition{IsolationGroups: p.IsolationGroups}
 }
 
+// TODO(active-active): Update unit tests of all components that use this function to cover active-active case
 func (d *DomainReplicationConfig) IsActiveActive() bool {
 	return d != nil && d.ActiveClusters != nil
 }
