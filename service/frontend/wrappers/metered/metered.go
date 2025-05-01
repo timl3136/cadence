@@ -29,8 +29,8 @@ import (
 
 	"go.uber.org/yarpc/yarpcerrors"
 
-	commonerrors "github.com/uber/cadence/common/errors"
 	"github.com/uber/cadence/common/constants"
+	commonerrors "github.com/uber/cadence/common/errors"
 	"github.com/uber/cadence/common/log"
 	"github.com/uber/cadence/common/log/tag"
 	"github.com/uber/cadence/common/metrics"
