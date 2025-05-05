@@ -2320,6 +2320,8 @@ const (
 	BaseCacheByteSizeLimitGauge
 	BaseCacheHit
 	BaseCacheMiss
+	BaseCacheCount
+	BaseCacheCountLimitGauge
 
 	NumCommonMetrics // Needs to be last on this list for iota numbering
 )
@@ -3064,6 +3066,8 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		BaseCacheByteSizeLimitGauge: {metricName: "cache_byte_size_limit", metricType: Gauge},
 		BaseCacheHit:                {metricName: "cache_hit", metricType: Counter},
 		BaseCacheMiss:               {metricName: "cache_miss", metricType: Counter},
+		BaseCacheCount:              {metricName: "cache_count", metricType: Counter},
+		BaseCacheCountLimitGauge:    {metricName: "cache_count_limit", metricType: Gauge},
 	},
 	History: {
 		TaskRequests:             {metricName: "task_requests", metricType: Counter},

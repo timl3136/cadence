@@ -488,5 +488,6 @@ func (c *lru) updateSizeOnDelete(key interface{}) {
 func (c *lru) emitSizeOnUpdate() {
 	c.metricsScope.UpdateGauge(metrics.BaseCacheByteSize, float64(c.currSize))
 	c.metricsScope.UpdateGauge(metrics.BaseCacheByteSizeLimitGauge, float64(c.maxSize()))
-
+	c.metricsScope.UpdateGauge(metrics.BaseCacheCount, float64(len(c.byKey)))
+	c.metricsScope.UpdateGauge(metrics.BaseCacheCountLimitGauge, float64(c.maxCount))
 }
