@@ -343,6 +343,9 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 			// replace the value
 			existing := entry.value
 			if allowUpdate {
+				if c.isCacheFull() {
+					c.metricsScope.IncCounter(metrics.BaseCacheFullCounter)
+				}
 				for c.isCacheFull() {
 					// Find the oldest unpinned item to evict
 					oldest := c.byAccess.Back()
@@ -400,6 +403,9 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 		}
 		c.byKey[key] = c.byAccess.PushFront(entry)
 		c.updateSizeOnAdd(key, valueSize)
+		if c.isCacheFull() {
+			c.metricsScope.IncCounter(metrics.BaseCacheFullCounter)
+		}
 		for c.isCacheFull() {
 			// Find the oldest unpinned item to evict
 			oldest := c.byAccess.Back()
@@ -421,7 +427,9 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 	} else {
 		c.byKey[key] = c.byAccess.PushFront(entry)
 		c.updateSizeOnAdd(key, valueSize)
-
+		if c.isCacheFull() {
+			c.metricsScope.IncCounter(metrics.BaseCacheFullCounter)
+		}
 		for c.isCacheFull() {
 			// Find the oldest unpinned item to evict
 			oldest := c.byAccess.Back()
