@@ -24,6 +24,7 @@ package execution
 
 import (
 	"context"
+	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
 	"sync/atomic"
 	"time"
 
@@ -118,7 +119,7 @@ func NewCache(shard shard.Context) Cache {
 	opts.MaxCount = config.HistoryCacheMaxSize()
 	opts.MetricsScope = shard.GetMetricsClient().Scope(metrics.HistoryExecutionCacheScope).Tagged(metrics.ShardIDTag(shard.GetShardID()))
 	opts.Logger = shard.GetLogger().WithTags(tag.ComponentHistoryCache)
-	opts.IsSizeBased = config.EnableSizeBasedHistoryExecutionCache
+	opts.IsSizeBased = dynamicproperties.GetBoolPropertyFn(true)
 	opts.MaxSize = config.ExecutionCacheMaxByteSize
 
 	return &cacheImpl{
