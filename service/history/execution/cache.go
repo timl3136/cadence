@@ -119,6 +119,7 @@ func NewCache(shard shard.Context) Cache {
 	opts.MetricsScope = shard.GetMetricsClient().Scope(metrics.HistoryExecutionCacheScope).Tagged(metrics.ShardIDTag(shard.GetShardID()))
 	opts.Logger = shard.GetLogger().WithTags(tag.ComponentHistoryCache)
 	opts.IsSizeBased = config.EnableSizeBasedHistoryExecutionCache
+	opts.MaxSize = config.ExecutionCacheMaxByteSize
 
 	return &cacheImpl{
 		Cache:            cache.New(opts),
