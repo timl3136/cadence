@@ -354,6 +354,7 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 						if entry.refCount == 0 {
 							// Found an unpinned item, evict it
 							c.deleteInternal(oldest)
+							c.metricsScope.IncCounter(metrics.BaseCacheEvictCounter)
 							break
 						}
 						oldest = oldest.Prev()
@@ -414,6 +415,7 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 				if entry.refCount == 0 {
 					// Found an unpinned item, evict it
 					c.deleteInternal(oldest)
+					c.metricsScope.IncCounter(metrics.BaseCacheEvictCounter)
 					break
 				}
 				oldest = oldest.Prev()
@@ -438,6 +440,7 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 				if entry.refCount <= 0 {
 					// Found an unpinned item, evict it
 					c.deleteInternal(oldest)
+					c.metricsScope.IncCounter(metrics.BaseCacheEvictCounter)
 					break
 				}
 				oldest = oldest.Prev()
