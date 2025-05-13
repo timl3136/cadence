@@ -68,6 +68,8 @@ type (
 		timeSource   clock.TimeSource
 		logger       log.Logger
 		metricsScope metrics.Scope
+		warnOnce     sync.Once
+		errorOnce    sync.Once
 	}
 
 	iteratorImpl struct {
@@ -174,6 +176,8 @@ func New(opts *Options) Cache {
 		logger:        opts.Logger,
 		isSizeBased:   opts.IsSizeBased,
 		metricsScope:  opts.MetricsScope,
+		warnOnce:      sync.Once{},
+		errorOnce:     sync.Once{},
 	}
 
 	if cache.logger == nil {
@@ -326,7 +330,9 @@ func (c *lru) putInternal(key interface{}, value interface{}, allowUpdate bool) 
 	defer c.mut.Unlock()
 
 	if !ok {
-		c.logger.Warn(fmt.Sprintf("Cache is strictly count-based because value %T does not implement sizable", value))
+		c.warnOnce.Do(func() {
+			c.logger.Warn(fmt.Sprintf("Cache is strictly count-based because value %T does not implement sizable", value))
+		})
 	} else {
 		valueSize = sizeableValue.ByteSize()
 	}
@@ -474,7 +480,9 @@ func (c *lru) isCacheFull() bool {
 		if c.maxSize() == 0 {
 			// we don't want to stop caching if maxSize is misconfigured to 0, we will use cacheDefaultSizeLimit instead
 			// BUT we need to warn users for this config
-			c.logger.Error(fmt.Sprintf("Cache size is misconfigured to 0 for value type %T, please fix config", c.byKey[0].Value.(*entryImpl).value))
+			c.errorOnce.Do(func() {
+				c.logger.Error(fmt.Sprintf("Cache size is misconfigured to 0 for value type %T, please fix config", c.byKey[0].Value.(*entryImpl).value))
+			})
 			return c.currSize > uint64(cacheDefaultSizeLimit) || count > cacheCountLimit
 		}
 		return c.currSize > uint64(c.maxSize()) || count > cacheCountLimit
