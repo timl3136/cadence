@@ -176,8 +176,6 @@ func New(opts *Options) Cache {
 		logger:        opts.Logger,
 		isSizeBased:   opts.IsSizeBased,
 		metricsScope:  opts.MetricsScope,
-		warnOnce:      sync.Once{},
-		errorOnce:     sync.Once{},
 	}
 
 	if cache.logger == nil {
