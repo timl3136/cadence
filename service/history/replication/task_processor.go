@@ -470,7 +470,7 @@ func (p *taskProcessorImpl) processTaskOnce(replicationTask *types.ReplicationTa
 		p.updateFailureMetric(scope, err)
 	} else {
 		now := ts.Now()
-		mScope := p.metricsClient.Scope(scope, metrics.TargetClusterTag(p.sourceCluster))
+		mScope := p.metricsClient.Scope(scope, metrics.TargetClusterTag(p.sourceCluster), metrics.InstanceTag(strconv.Itoa(p.shard.GetShardID())))
 		domainID := replicationTask.HistoryTaskV2Attributes.GetDomainID()
 		if domainID != "" {
 			domainName, errorDomainName := p.shard.GetDomainCache().GetDomainName(domainID)
