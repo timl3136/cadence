@@ -425,7 +425,7 @@ func (c *DefaultDomainCache) refreshDomains() error {
 
 // this function only refresh the domains in the v2 table
 // the domains in the v1 table will be refreshed if cache is stale
-func (c *DefaultDomainCache) refreshDomainsLocked() error {
+func (c *DefaultDomainCache) refreshDomainsLocked(ctx context.Context) error {
 	now := c.timeSource.Now()
 	if now.Sub(c.lastRefreshTime) < domainCacheMinRefreshInterval {
 		return nil
@@ -433,7 +433,7 @@ func (c *DefaultDomainCache) refreshDomainsLocked() error {
 
 	// first load the metadata record, then load domains
 	// this can guarantee that domains in the cache are not updated more than metadata record
-	ctx, cancel := context.WithTimeout(context.Background(), domainCachePersistenceTimeout)
+	ctx, cancel := context.WithTimeout(ctx, domainCachePersistenceTimeout)
 	defer cancel()
 	metadata, err := c.domainManager.GetMetadata(ctx)
 	if err != nil {
@@ -446,7 +446,7 @@ func (c *DefaultDomainCache) refreshDomainsLocked() error {
 	continuePage := true
 
 	for continuePage {
-		ctx, cancel := context.WithTimeout(context.Background(), domainCachePersistenceTimeout)
+		ctx, cancel := context.WithTimeout(ctx, domainCachePersistenceTimeout)
 		request.NextPageToken = token
 		response, err := c.domainManager.ListDomains(ctx, request)
 		cancel()
@@ -597,7 +597,7 @@ func (c *DefaultDomainCache) getDomain(
 	if cacheHit {
 		return c.getDomainByID(id, true)
 	}
-	if err := c.refreshDomainsLocked(); err != nil {
+	if err := c.refreshDomainsLocked(context.Background()); err != nil {
 		return nil, err
 	}
 	id, cacheHit = c.cacheNameToID.Load().(Cache).Get(name).(string)
@@ -648,7 +648,7 @@ func (c *DefaultDomainCache) getDomainByID(
 		entry.mu.RUnlock()
 		return result, nil
 	}
-	if err := c.refreshDomainsLocked(); err != nil {
+	if err := c.refreshDomainsLocked(context.Background()); err != nil {
 		return nil, err
 	}
 	entry, cacheHit = c.cacheByID.Load().(Cache).Get(id).(*DomainCacheEntry)

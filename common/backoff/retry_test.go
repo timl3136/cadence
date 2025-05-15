@@ -49,7 +49,7 @@ func (s *RetrySuite) SetupTest() {
 
 func (s *RetrySuite) TestRetrySuccess() {
 	i := 0
-	op := func() error {
+	op := func(ctx context.Context) error {
 		i++
 
 		if i == 5 {
@@ -75,7 +75,7 @@ func (s *RetrySuite) TestRetrySuccess() {
 
 func (s *RetrySuite) TestRetryFailed() {
 	i := 0
-	op := func() error {
+	op := func(ctx context.Context) error {
 		i++
 
 		if i == 7 {
@@ -102,7 +102,7 @@ func (s *RetrySuite) TestRetryFailedReturnPreviousError() {
 	i := 0
 
 	the5thError := fmt.Errorf("this is the error of the 5th attempt(4th retry attempt)")
-	op := func() error {
+	op := func(ctx context.Context) error {
 		i++
 		if i == 5 {
 			return the5thError
@@ -133,7 +133,7 @@ func (s *RetrySuite) TestRetryFailedReturnPreviousError() {
 
 func (s *RetrySuite) TestIsRetryableSuccess() {
 	i := 0
-	op := func() error {
+	op := func(ctx context.Context) error {
 		i++
 
 		if i == 5 {
@@ -167,7 +167,7 @@ func (s *RetrySuite) TestIsRetryableSuccess() {
 
 func (s *RetrySuite) TestIsRetryableFailure() {
 	i := 0
-	op := func() error {
+	op := func(ctx context.Context) error {
 		i++
 
 		if i == 5 {
@@ -193,7 +193,7 @@ func (s *RetrySuite) TestIsRetryableFailure() {
 
 func (s *RetrySuite) TestRetryExpired() {
 	i := 0
-	op := func() error {
+	op := func(ctx context.Context) error {
 		i++
 		time.Sleep(time.Second)
 		return &someError{}
@@ -217,7 +217,7 @@ func (s *RetrySuite) TestRetryExpired() {
 func (s *RetrySuite) TestRetryExpiredReturnPreviousError() {
 	i := 0
 	prevErr := fmt.Errorf("previousError")
-	op := func() error {
+	op := func(ctx context.Context) error {
 		i++
 		if i == 1 {
 			return prevErr
@@ -244,7 +244,7 @@ func (s *RetrySuite) TestRetryExpiredReturnPreviousError() {
 func (s *RetrySuite) TestRetryThrottled() {
 	i := 0
 	throttleErr := fmt.Errorf("throttled")
-	op := func() error {
+	op := func(ctx context.Context) error {
 		i++
 		if i == 1 {
 			return throttleErr

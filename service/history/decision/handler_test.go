@@ -645,7 +645,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 					WorkflowID: constants.TestWorkflowID,
 					RunID:      constants.TestRunID,
 				}).Return(&persistence.AppendHistoryNodesResponse{}, nil)
-				decisionHandler.shard.(*shard.MockContext).EXPECT().UpdateWorkflowExecution(context.Background(), gomock.Any()).Return(&persistence.UpdateWorkflowExecutionResponse{}, nil)
+				decisionHandler.shard.(*shard.MockContext).EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.UpdateWorkflowExecutionResponse{}, nil)
 
 				engine := engine.NewMockEngine(ctrl)
 				decisionHandler.shard.(*shard.MockContext).EXPECT().GetEngine().Return(engine).Times(3)
@@ -774,7 +774,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 					WorkflowID: constants.TestWorkflowID,
 					RunID:      constants.TestRunID,
 				}).Return(&persistence.AppendHistoryNodesResponse{}, nil)
-				decisionHandler.shard.(*shard.MockContext).EXPECT().UpdateWorkflowExecution(context.Background(), gomock.Any()).Return(&persistence.UpdateWorkflowExecutionResponse{}, nil)
+				decisionHandler.shard.(*shard.MockContext).EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.UpdateWorkflowExecutionResponse{}, nil)
 
 				engine := engine.NewMockEngine(ctrl)
 				decisionHandler.shard.(*shard.MockContext).EXPECT().GetEngine().Return(engine).Times(3)
@@ -907,7 +907,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 				decisionHandler.shard.(*shard.MockContext).EXPECT().GenerateTaskIDs(2).Times(1).Return([]int64{0, 1}, nil)
 				decisionHandler.shard.(*shard.MockContext).EXPECT().AppendHistoryV2Events(gomock.Any(), gomock.Any(), constants.TestDomainID, gomock.Any()).Return(nil, &persistence.TransactionSizeLimitError{Msg: fmt.Sprintf("transaction size exceeds limit")})
 				decisionHandler.shard.(*shard.MockContext).EXPECT().GetExecutionManager().Times(1)
-				firstGetWfExecutionCall := decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(context.Background(), gomock.Any()).
+				firstGetWfExecutionCall := decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).
 					Return(&persistence.GetWorkflowExecutionResponse{
 						State: &persistence.WorkflowMutableState{
 							ExecutionInfo: &persistence.WorkflowExecutionInfo{
@@ -920,7 +920,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 						},
 						MutableStateStats: &persistence.MutableStateStats{},
 					}, nil)
-				lastGetWfExecutionCall := decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(context.Background(), gomock.Any()).Return(nil, errors.New("some error occurred when loading workflow execution"))
+				lastGetWfExecutionCall := decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, errors.New("some error occurred when loading workflow execution"))
 				gomock.InOrder(firstGetWfExecutionCall, lastGetWfExecutionCall)
 			},
 		},
@@ -960,7 +960,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 				decisionHandler.shard.(*shard.MockContext).EXPECT().AppendHistoryV2Events(gomock.Any(), gomock.Any(), constants.TestDomainID, gomock.Any()).Return(nil, &persistence.TransactionSizeLimitError{Msg: fmt.Sprintf("transaction size exceeds limit")})
 				decisionHandler.shard.(*shard.MockContext).EXPECT().AppendHistoryV2Events(gomock.Any(), gomock.Any(), constants.TestDomainID, gomock.Any()).Return(&persistence.AppendHistoryNodesResponse{}, nil)
 				decisionHandler.shard.(*shard.MockContext).EXPECT().GetExecutionManager().Times(1)
-				decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(context.Background(), gomock.Any()).
+				decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).
 					DoAndReturn(func(ctx interface{}, request interface{}) (*persistence.GetWorkflowExecutionResponse, error) {
 						return &persistence.GetWorkflowExecutionResponse{
 							State: &persistence.WorkflowMutableState{
@@ -975,7 +975,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 							MutableStateStats: &persistence.MutableStateStats{},
 						}, nil
 					}).Times(2)
-				decisionHandler.shard.(*shard.MockContext).EXPECT().UpdateWorkflowExecution(context.Background(), gomock.Any()).Return(nil, errors.New("some error updating workflow execution"))
+				decisionHandler.shard.(*shard.MockContext).EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, errors.New("some error updating workflow execution"))
 				engine := engine.NewMockEngine(ctrl)
 				decisionHandler.shard.(*shard.MockContext).EXPECT().GetEngine().Return(engine).Times(2)
 				engine.EXPECT().NotifyNewTransferTasks(gomock.Any())
@@ -1010,7 +1010,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 					cluster.TestCurrentClusterName)
 				decisionHandler.domainCache.(*cache.MockDomainCache).EXPECT().GetDomainByID(constants.TestDomainID).AnyTimes().Return(domainEntry, nil)
 
-				decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(context.Background(), gomock.Any()).
+				decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).
 					Return(&persistence.GetWorkflowExecutionResponse{
 						State: &persistence.WorkflowMutableState{
 							ExecutionInfo:  &persistence.WorkflowExecutionInfo{DomainID: constants.TestDomainID, WorkflowID: constants.TestWorkflowID, RunID: constants.TestRunID, DecisionScheduleID: 1},
@@ -1018,7 +1018,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 						},
 						MutableStateStats: &persistence.MutableStateStats{},
 					}, nil).Times(1)
-				decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(context.Background(), gomock.Any()).
+				decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).
 					Return(&persistence.GetWorkflowExecutionResponse{
 						State: &persistence.WorkflowMutableState{
 							ExecutionInfo:  &persistence.WorkflowExecutionInfo{DomainID: constants.TestDomainID, WorkflowID: constants.TestWorkflowID, RunID: constants.TestRunID},
@@ -1026,7 +1026,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 						},
 						MutableStateStats: &persistence.MutableStateStats{},
 					}, nil).Times(1)
-				decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(context.Background(), gomock.Any()).
+				decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).
 					Return(&persistence.GetWorkflowExecutionResponse{
 						State: &persistence.WorkflowMutableState{
 							ExecutionInfo:  &persistence.WorkflowExecutionInfo{DomainID: constants.TestDomainID, WorkflowID: constants.TestWorkflowID, RunID: constants.TestRunID, DecisionAttempt: 2},
@@ -1056,7 +1056,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 					RunID:      constants.TestRunID,
 				}
 				decisionHandler.tokenSerializer.(*common.MockTaskTokenSerializer).EXPECT().Deserialize(serializedTestToken).Return(deserializedTestToken, nil)
-				decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(context.Background(), gomock.Any()).Times(1).Return(nil, errors.New("some random error"))
+				decisionHandler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("some random error"))
 			},
 		},
 		{
@@ -1151,7 +1151,7 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 					WorkflowID: constants.TestWorkflowID,
 					RunID:      constants.TestRunID,
 				}).Return(&persistence.AppendHistoryNodesResponse{}, nil)
-				decisionHandler.shard.(*shard.MockContext).EXPECT().UpdateWorkflowExecution(context.Background(), gomock.Any()).Return(&persistence.UpdateWorkflowExecutionResponse{}, nil)
+				decisionHandler.shard.(*shard.MockContext).EXPECT().UpdateWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.UpdateWorkflowExecutionResponse{}, nil)
 				engine := engine.NewMockEngine(ctrl)
 				decisionHandler.shard.(*shard.MockContext).EXPECT().GetEngine().Return(engine).Times(3)
 				engine.EXPECT().NotifyNewHistoryEvent(events.NewNotification(constants.TestDomainID, &types.WorkflowExecution{WorkflowID: constants.TestWorkflowID, RunID: constants.TestRunID},
@@ -1477,7 +1477,7 @@ func expectGetWorkflowExecution(handler *handlerImpl, domainID string, state *pe
 	workflowExecutionResponse.State.ExecutionInfo.WorkflowID = constants.TestWorkflowID
 	workflowExecutionResponse.State.ExecutionInfo.RunID = constants.TestRunID
 
-	handler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(context.Background(), &persistence.GetWorkflowExecutionRequest{
+	handler.shard.(*shard.MockContext).EXPECT().GetWorkflowExecution(gomock.Any(), &persistence.GetWorkflowExecutionRequest{
 		DomainID:   domainID,
 		DomainName: constants.TestDomainName,
 		Execution: types.WorkflowExecution{

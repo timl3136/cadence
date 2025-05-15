@@ -1150,7 +1150,7 @@ func appendHistoryV2EventsWithRetry(
 ) (*persistence.AppendHistoryNodesResponse, error) {
 
 	var resp *persistence.AppendHistoryNodesResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = shardContext.AppendHistoryV2Events(ctx, request, domainID, execution)
 		return err
@@ -1172,7 +1172,7 @@ func createWorkflowExecutionWithRetry(
 ) (*persistence.CreateWorkflowExecutionResponse, error) {
 
 	var resp *persistence.CreateWorkflowExecutionResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = shardContext.CreateWorkflowExecution(ctx, request)
 		return err
@@ -1217,7 +1217,7 @@ func getWorkflowExecutionWithRetry(
 	request *persistence.GetWorkflowExecutionRequest,
 ) (*persistence.GetWorkflowExecutionResponse, error) {
 	var resp *persistence.GetWorkflowExecutionResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = shardContext.GetWorkflowExecution(ctx, request)
 		return err
@@ -1255,7 +1255,7 @@ func updateWorkflowExecutionWithRetry(
 ) (*persistence.UpdateWorkflowExecutionResponse, error) {
 
 	var resp *persistence.UpdateWorkflowExecutionResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = shardContext.UpdateWorkflowExecution(ctx, request)
 		return err

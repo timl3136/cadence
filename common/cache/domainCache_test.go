@@ -21,6 +21,7 @@
 package cache
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -903,8 +904,9 @@ func (s *domainCacheSuite) Test_refreshDomainsLocked_IntervalTooShort() {
 	s.domainCache.timeSource = mockedTimeSource
 
 	s.domainCache.lastRefreshTime = mockedTimeSource.Now()
+	ctx := context.Background()
 
-	err := s.domainCache.refreshDomainsLocked()
+	err := s.domainCache.refreshDomainsLocked(ctx)
 	s.NoError(err)
 }
 

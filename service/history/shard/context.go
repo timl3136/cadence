@@ -1522,8 +1522,8 @@ func acquireShard(
 		return ok
 	}
 
-	getShard := func() error {
-		resp, err := shardItem.GetShardManager().GetShard(context.Background(), &persistence.GetShardRequest{
+	getShard := func(ctx context.Context) error {
+		resp, err := shardItem.GetShardManager().GetShard(ctx, &persistence.GetShardRequest{
 			ShardID: shardItem.shardID,
 		})
 		if err == nil {
@@ -1540,7 +1540,7 @@ func acquireShard(
 			RangeID:          0,
 			TransferAckLevel: 0,
 		}
-		return shardItem.GetShardManager().CreateShard(context.Background(), &persistence.CreateShardRequest{ShardInfo: shardInfo})
+		return shardItem.GetShardManager().CreateShard(ctx, &persistence.CreateShardRequest{ShardInfo: shardInfo})
 	}
 
 	throttleRetry := backoff.NewThrottleRetry(

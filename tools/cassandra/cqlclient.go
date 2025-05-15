@@ -132,7 +132,7 @@ func NewCQLClientWithRetry(cfg *CQLClientConfig, expectedConsistency gocql.Consi
 	cqlClient.cfg = cfg
 	cqlClient.nReplicas = cfg.NumReplicas
 
-	err := retrier.Do(context.Background(), func() error {
+	err := retrier.Do(context.Background(), func(ctx1 context.Context) error {
 		var err error
 		cqlClient.session, err = cassClient.CreateSession(gocql.ClusterConfig{
 			Hosts:                 cfg.Hosts,

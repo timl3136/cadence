@@ -25,6 +25,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -274,7 +275,7 @@ func (cl *dbLoadCloser) Load() ([]*persistence.TimerTaskInfo, error) {
 
 		resp := &persistence.GetHistoryTasksResponse{}
 
-		op := func() error {
+		op := func(ctx context.Context) error {
 			ctx, cancel, err := newContext(cl.ctx)
 			defer cancel()
 			if err != nil {

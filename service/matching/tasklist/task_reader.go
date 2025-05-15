@@ -257,7 +257,7 @@ getTasksPumpLoop:
 
 func (tr *taskReader) getTaskBatchWithRange(readLevel int64, maxReadLevel int64) ([]*persistence.TaskInfo, error) {
 	var response *persistence.GetTasksResponse
-	op := func() (err error) {
+	op := func(ctx context.Context) (err error) {
 		response, err = tr.db.GetTasks(readLevel, maxReadLevel, tr.config.GetTasksBatchSize())
 		return
 	}
@@ -359,7 +359,7 @@ func (tr *taskReader) completeTask(task *persistence.TaskInfo, err error) {
 		// again the underlying reason for failing to start will be resolved.
 		// Note that RecordTaskStarted only fails after retrying for a long time, so a single task will not be
 		// re-written to persistence frequently.
-		op := func() error {
+		op := func(ctx1 context.Context) error {
 			_, err := tr.taskWriter.appendTask(task)
 			return err
 		}

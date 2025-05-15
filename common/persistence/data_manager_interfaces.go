@@ -758,8 +758,9 @@ type (
 
 	// ListConcreteExecutionsRequest is request to ListConcreteExecutions
 	ListConcreteExecutionsRequest struct {
-		PageSize  int
-		PageToken []byte
+		PageSize   int
+		PageToken  []byte
+		RetryCount int
 	}
 
 	// ListConcreteExecutionsResponse is response to ListConcreteExecutions

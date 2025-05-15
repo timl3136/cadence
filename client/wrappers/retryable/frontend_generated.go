@@ -33,7 +33,7 @@ func NewFrontendClient(client frontend.Client, policy backoff.RetryPolicy, isRet
 
 func (c *frontendClient) CountWorkflowExecutions(ctx context.Context, cp1 *types.CountWorkflowExecutionsRequest, p1 ...yarpc.CallOption) (cp2 *types.CountWorkflowExecutionsResponse, err error) {
 	var resp *types.CountWorkflowExecutionsResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.CountWorkflowExecutions(ctx, cp1, p1...)
 		return err
@@ -43,14 +43,14 @@ func (c *frontendClient) CountWorkflowExecutions(ctx context.Context, cp1 *types
 }
 
 func (c *frontendClient) DeleteDomain(ctx context.Context, dp1 *types.DeleteDomainRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.DeleteDomain(ctx, dp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
 }
 
 func (c *frontendClient) DeprecateDomain(ctx context.Context, dp1 *types.DeprecateDomainRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.DeprecateDomain(ctx, dp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
@@ -58,7 +58,7 @@ func (c *frontendClient) DeprecateDomain(ctx context.Context, dp1 *types.Depreca
 
 func (c *frontendClient) DescribeDomain(ctx context.Context, dp1 *types.DescribeDomainRequest, p1 ...yarpc.CallOption) (dp2 *types.DescribeDomainResponse, err error) {
 	var resp *types.DescribeDomainResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.DescribeDomain(ctx, dp1, p1...)
 		return err
@@ -69,7 +69,7 @@ func (c *frontendClient) DescribeDomain(ctx context.Context, dp1 *types.Describe
 
 func (c *frontendClient) DescribeTaskList(ctx context.Context, dp1 *types.DescribeTaskListRequest, p1 ...yarpc.CallOption) (dp2 *types.DescribeTaskListResponse, err error) {
 	var resp *types.DescribeTaskListResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.DescribeTaskList(ctx, dp1, p1...)
 		return err
@@ -80,7 +80,7 @@ func (c *frontendClient) DescribeTaskList(ctx context.Context, dp1 *types.Descri
 
 func (c *frontendClient) DescribeWorkflowExecution(ctx context.Context, dp1 *types.DescribeWorkflowExecutionRequest, p1 ...yarpc.CallOption) (dp2 *types.DescribeWorkflowExecutionResponse, err error) {
 	var resp *types.DescribeWorkflowExecutionResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.DescribeWorkflowExecution(ctx, dp1, p1...)
 		return err
@@ -91,7 +91,7 @@ func (c *frontendClient) DescribeWorkflowExecution(ctx context.Context, dp1 *typ
 
 func (c *frontendClient) DiagnoseWorkflowExecution(ctx context.Context, dp1 *types.DiagnoseWorkflowExecutionRequest, p1 ...yarpc.CallOption) (dp2 *types.DiagnoseWorkflowExecutionResponse, err error) {
 	var resp *types.DiagnoseWorkflowExecutionResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.DiagnoseWorkflowExecution(ctx, dp1, p1...)
 		return err
@@ -102,7 +102,7 @@ func (c *frontendClient) DiagnoseWorkflowExecution(ctx context.Context, dp1 *typ
 
 func (c *frontendClient) GetClusterInfo(ctx context.Context, p1 ...yarpc.CallOption) (cp1 *types.ClusterInfo, err error) {
 	var resp *types.ClusterInfo
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.GetClusterInfo(ctx, p1...)
 		return err
@@ -113,7 +113,7 @@ func (c *frontendClient) GetClusterInfo(ctx context.Context, p1 ...yarpc.CallOpt
 
 func (c *frontendClient) GetSearchAttributes(ctx context.Context, p1 ...yarpc.CallOption) (gp1 *types.GetSearchAttributesResponse, err error) {
 	var resp *types.GetSearchAttributesResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.GetSearchAttributes(ctx, p1...)
 		return err
@@ -124,7 +124,7 @@ func (c *frontendClient) GetSearchAttributes(ctx context.Context, p1 ...yarpc.Ca
 
 func (c *frontendClient) GetTaskListsByDomain(ctx context.Context, gp1 *types.GetTaskListsByDomainRequest, p1 ...yarpc.CallOption) (gp2 *types.GetTaskListsByDomainResponse, err error) {
 	var resp *types.GetTaskListsByDomainResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.GetTaskListsByDomain(ctx, gp1, p1...)
 		return err
@@ -135,7 +135,7 @@ func (c *frontendClient) GetTaskListsByDomain(ctx context.Context, gp1 *types.Ge
 
 func (c *frontendClient) GetWorkflowExecutionHistory(ctx context.Context, gp1 *types.GetWorkflowExecutionHistoryRequest, p1 ...yarpc.CallOption) (gp2 *types.GetWorkflowExecutionHistoryResponse, err error) {
 	var resp *types.GetWorkflowExecutionHistoryResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.GetWorkflowExecutionHistory(ctx, gp1, p1...)
 		return err
@@ -146,7 +146,7 @@ func (c *frontendClient) GetWorkflowExecutionHistory(ctx context.Context, gp1 *t
 
 func (c *frontendClient) ListArchivedWorkflowExecutions(ctx context.Context, lp1 *types.ListArchivedWorkflowExecutionsRequest, p1 ...yarpc.CallOption) (lp2 *types.ListArchivedWorkflowExecutionsResponse, err error) {
 	var resp *types.ListArchivedWorkflowExecutionsResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.ListArchivedWorkflowExecutions(ctx, lp1, p1...)
 		return err
@@ -157,7 +157,7 @@ func (c *frontendClient) ListArchivedWorkflowExecutions(ctx context.Context, lp1
 
 func (c *frontendClient) ListClosedWorkflowExecutions(ctx context.Context, lp1 *types.ListClosedWorkflowExecutionsRequest, p1 ...yarpc.CallOption) (lp2 *types.ListClosedWorkflowExecutionsResponse, err error) {
 	var resp *types.ListClosedWorkflowExecutionsResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.ListClosedWorkflowExecutions(ctx, lp1, p1...)
 		return err
@@ -168,7 +168,7 @@ func (c *frontendClient) ListClosedWorkflowExecutions(ctx context.Context, lp1 *
 
 func (c *frontendClient) ListDomains(ctx context.Context, lp1 *types.ListDomainsRequest, p1 ...yarpc.CallOption) (lp2 *types.ListDomainsResponse, err error) {
 	var resp *types.ListDomainsResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.ListDomains(ctx, lp1, p1...)
 		return err
@@ -179,7 +179,7 @@ func (c *frontendClient) ListDomains(ctx context.Context, lp1 *types.ListDomains
 
 func (c *frontendClient) ListOpenWorkflowExecutions(ctx context.Context, lp1 *types.ListOpenWorkflowExecutionsRequest, p1 ...yarpc.CallOption) (lp2 *types.ListOpenWorkflowExecutionsResponse, err error) {
 	var resp *types.ListOpenWorkflowExecutionsResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.ListOpenWorkflowExecutions(ctx, lp1, p1...)
 		return err
@@ -190,7 +190,7 @@ func (c *frontendClient) ListOpenWorkflowExecutions(ctx context.Context, lp1 *ty
 
 func (c *frontendClient) ListTaskListPartitions(ctx context.Context, lp1 *types.ListTaskListPartitionsRequest, p1 ...yarpc.CallOption) (lp2 *types.ListTaskListPartitionsResponse, err error) {
 	var resp *types.ListTaskListPartitionsResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.ListTaskListPartitions(ctx, lp1, p1...)
 		return err
@@ -201,7 +201,7 @@ func (c *frontendClient) ListTaskListPartitions(ctx context.Context, lp1 *types.
 
 func (c *frontendClient) ListWorkflowExecutions(ctx context.Context, lp1 *types.ListWorkflowExecutionsRequest, p1 ...yarpc.CallOption) (lp2 *types.ListWorkflowExecutionsResponse, err error) {
 	var resp *types.ListWorkflowExecutionsResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.ListWorkflowExecutions(ctx, lp1, p1...)
 		return err
@@ -212,7 +212,7 @@ func (c *frontendClient) ListWorkflowExecutions(ctx context.Context, lp1 *types.
 
 func (c *frontendClient) PollForActivityTask(ctx context.Context, pp1 *types.PollForActivityTaskRequest, p1 ...yarpc.CallOption) (pp2 *types.PollForActivityTaskResponse, err error) {
 	var resp *types.PollForActivityTaskResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.PollForActivityTask(ctx, pp1, p1...)
 		return err
@@ -223,7 +223,7 @@ func (c *frontendClient) PollForActivityTask(ctx context.Context, pp1 *types.Pol
 
 func (c *frontendClient) PollForDecisionTask(ctx context.Context, pp1 *types.PollForDecisionTaskRequest, p1 ...yarpc.CallOption) (pp2 *types.PollForDecisionTaskResponse, err error) {
 	var resp *types.PollForDecisionTaskResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.PollForDecisionTask(ctx, pp1, p1...)
 		return err
@@ -234,7 +234,7 @@ func (c *frontendClient) PollForDecisionTask(ctx context.Context, pp1 *types.Pol
 
 func (c *frontendClient) QueryWorkflow(ctx context.Context, qp1 *types.QueryWorkflowRequest, p1 ...yarpc.CallOption) (qp2 *types.QueryWorkflowResponse, err error) {
 	var resp *types.QueryWorkflowResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.QueryWorkflow(ctx, qp1, p1...)
 		return err
@@ -245,7 +245,7 @@ func (c *frontendClient) QueryWorkflow(ctx context.Context, qp1 *types.QueryWork
 
 func (c *frontendClient) RecordActivityTaskHeartbeat(ctx context.Context, rp1 *types.RecordActivityTaskHeartbeatRequest, p1 ...yarpc.CallOption) (rp2 *types.RecordActivityTaskHeartbeatResponse, err error) {
 	var resp *types.RecordActivityTaskHeartbeatResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.RecordActivityTaskHeartbeat(ctx, rp1, p1...)
 		return err
@@ -256,7 +256,7 @@ func (c *frontendClient) RecordActivityTaskHeartbeat(ctx context.Context, rp1 *t
 
 func (c *frontendClient) RecordActivityTaskHeartbeatByID(ctx context.Context, rp1 *types.RecordActivityTaskHeartbeatByIDRequest, p1 ...yarpc.CallOption) (rp2 *types.RecordActivityTaskHeartbeatResponse, err error) {
 	var resp *types.RecordActivityTaskHeartbeatResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.RecordActivityTaskHeartbeatByID(ctx, rp1, p1...)
 		return err
@@ -266,21 +266,21 @@ func (c *frontendClient) RecordActivityTaskHeartbeatByID(ctx context.Context, rp
 }
 
 func (c *frontendClient) RefreshWorkflowTasks(ctx context.Context, rp1 *types.RefreshWorkflowTasksRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RefreshWorkflowTasks(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
 }
 
 func (c *frontendClient) RegisterDomain(ctx context.Context, rp1 *types.RegisterDomainRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RegisterDomain(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
 }
 
 func (c *frontendClient) RequestCancelWorkflowExecution(ctx context.Context, rp1 *types.RequestCancelWorkflowExecutionRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RequestCancelWorkflowExecution(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
@@ -288,7 +288,7 @@ func (c *frontendClient) RequestCancelWorkflowExecution(ctx context.Context, rp1
 
 func (c *frontendClient) ResetStickyTaskList(ctx context.Context, rp1 *types.ResetStickyTaskListRequest, p1 ...yarpc.CallOption) (rp2 *types.ResetStickyTaskListResponse, err error) {
 	var resp *types.ResetStickyTaskListResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.ResetStickyTaskList(ctx, rp1, p1...)
 		return err
@@ -299,7 +299,7 @@ func (c *frontendClient) ResetStickyTaskList(ctx context.Context, rp1 *types.Res
 
 func (c *frontendClient) ResetWorkflowExecution(ctx context.Context, rp1 *types.ResetWorkflowExecutionRequest, p1 ...yarpc.CallOption) (rp2 *types.ResetWorkflowExecutionResponse, err error) {
 	var resp *types.ResetWorkflowExecutionResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.ResetWorkflowExecution(ctx, rp1, p1...)
 		return err
@@ -309,42 +309,42 @@ func (c *frontendClient) ResetWorkflowExecution(ctx context.Context, rp1 *types.
 }
 
 func (c *frontendClient) RespondActivityTaskCanceled(ctx context.Context, rp1 *types.RespondActivityTaskCanceledRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RespondActivityTaskCanceled(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
 }
 
 func (c *frontendClient) RespondActivityTaskCanceledByID(ctx context.Context, rp1 *types.RespondActivityTaskCanceledByIDRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RespondActivityTaskCanceledByID(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
 }
 
 func (c *frontendClient) RespondActivityTaskCompleted(ctx context.Context, rp1 *types.RespondActivityTaskCompletedRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RespondActivityTaskCompleted(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
 }
 
 func (c *frontendClient) RespondActivityTaskCompletedByID(ctx context.Context, rp1 *types.RespondActivityTaskCompletedByIDRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RespondActivityTaskCompletedByID(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
 }
 
 func (c *frontendClient) RespondActivityTaskFailed(ctx context.Context, rp1 *types.RespondActivityTaskFailedRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RespondActivityTaskFailed(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
 }
 
 func (c *frontendClient) RespondActivityTaskFailedByID(ctx context.Context, rp1 *types.RespondActivityTaskFailedByIDRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RespondActivityTaskFailedByID(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
@@ -352,7 +352,7 @@ func (c *frontendClient) RespondActivityTaskFailedByID(ctx context.Context, rp1 
 
 func (c *frontendClient) RespondDecisionTaskCompleted(ctx context.Context, rp1 *types.RespondDecisionTaskCompletedRequest, p1 ...yarpc.CallOption) (rp2 *types.RespondDecisionTaskCompletedResponse, err error) {
 	var resp *types.RespondDecisionTaskCompletedResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.RespondDecisionTaskCompleted(ctx, rp1, p1...)
 		return err
@@ -362,14 +362,14 @@ func (c *frontendClient) RespondDecisionTaskCompleted(ctx context.Context, rp1 *
 }
 
 func (c *frontendClient) RespondDecisionTaskFailed(ctx context.Context, rp1 *types.RespondDecisionTaskFailedRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RespondDecisionTaskFailed(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
 }
 
 func (c *frontendClient) RespondQueryTaskCompleted(ctx context.Context, rp1 *types.RespondQueryTaskCompletedRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.RespondQueryTaskCompleted(ctx, rp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
@@ -377,7 +377,7 @@ func (c *frontendClient) RespondQueryTaskCompleted(ctx context.Context, rp1 *typ
 
 func (c *frontendClient) RestartWorkflowExecution(ctx context.Context, rp1 *types.RestartWorkflowExecutionRequest, p1 ...yarpc.CallOption) (rp2 *types.RestartWorkflowExecutionResponse, err error) {
 	var resp *types.RestartWorkflowExecutionResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.RestartWorkflowExecution(ctx, rp1, p1...)
 		return err
@@ -388,7 +388,7 @@ func (c *frontendClient) RestartWorkflowExecution(ctx context.Context, rp1 *type
 
 func (c *frontendClient) ScanWorkflowExecutions(ctx context.Context, lp1 *types.ListWorkflowExecutionsRequest, p1 ...yarpc.CallOption) (lp2 *types.ListWorkflowExecutionsResponse, err error) {
 	var resp *types.ListWorkflowExecutionsResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.ScanWorkflowExecutions(ctx, lp1, p1...)
 		return err
@@ -399,7 +399,7 @@ func (c *frontendClient) ScanWorkflowExecutions(ctx context.Context, lp1 *types.
 
 func (c *frontendClient) SignalWithStartWorkflowExecution(ctx context.Context, sp1 *types.SignalWithStartWorkflowExecutionRequest, p1 ...yarpc.CallOption) (sp2 *types.StartWorkflowExecutionResponse, err error) {
 	var resp *types.StartWorkflowExecutionResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.SignalWithStartWorkflowExecution(ctx, sp1, p1...)
 		return err
@@ -410,7 +410,7 @@ func (c *frontendClient) SignalWithStartWorkflowExecution(ctx context.Context, s
 
 func (c *frontendClient) SignalWithStartWorkflowExecutionAsync(ctx context.Context, sp1 *types.SignalWithStartWorkflowExecutionAsyncRequest, p1 ...yarpc.CallOption) (sp2 *types.SignalWithStartWorkflowExecutionAsyncResponse, err error) {
 	var resp *types.SignalWithStartWorkflowExecutionAsyncResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.SignalWithStartWorkflowExecutionAsync(ctx, sp1, p1...)
 		return err
@@ -420,7 +420,7 @@ func (c *frontendClient) SignalWithStartWorkflowExecutionAsync(ctx context.Conte
 }
 
 func (c *frontendClient) SignalWorkflowExecution(ctx context.Context, sp1 *types.SignalWorkflowExecutionRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.SignalWorkflowExecution(ctx, sp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
@@ -428,7 +428,7 @@ func (c *frontendClient) SignalWorkflowExecution(ctx context.Context, sp1 *types
 
 func (c *frontendClient) StartWorkflowExecution(ctx context.Context, sp1 *types.StartWorkflowExecutionRequest, p1 ...yarpc.CallOption) (sp2 *types.StartWorkflowExecutionResponse, err error) {
 	var resp *types.StartWorkflowExecutionResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.StartWorkflowExecution(ctx, sp1, p1...)
 		return err
@@ -439,7 +439,7 @@ func (c *frontendClient) StartWorkflowExecution(ctx context.Context, sp1 *types.
 
 func (c *frontendClient) StartWorkflowExecutionAsync(ctx context.Context, sp1 *types.StartWorkflowExecutionAsyncRequest, p1 ...yarpc.CallOption) (sp2 *types.StartWorkflowExecutionAsyncResponse, err error) {
 	var resp *types.StartWorkflowExecutionAsyncResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.StartWorkflowExecutionAsync(ctx, sp1, p1...)
 		return err
@@ -449,7 +449,7 @@ func (c *frontendClient) StartWorkflowExecutionAsync(ctx context.Context, sp1 *t
 }
 
 func (c *frontendClient) TerminateWorkflowExecution(ctx context.Context, tp1 *types.TerminateWorkflowExecutionRequest, p1 ...yarpc.CallOption) (err error) {
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return c.client.TerminateWorkflowExecution(ctx, tp1, p1...)
 	}
 	return c.throttleRetry.Do(ctx, op)
@@ -457,7 +457,7 @@ func (c *frontendClient) TerminateWorkflowExecution(ctx context.Context, tp1 *ty
 
 func (c *frontendClient) UpdateDomain(ctx context.Context, up1 *types.UpdateDomainRequest, p1 ...yarpc.CallOption) (up2 *types.UpdateDomainResponse, err error) {
 	var resp *types.UpdateDomainResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.UpdateDomain(ctx, up1, p1...)
 		return err

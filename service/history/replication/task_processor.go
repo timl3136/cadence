@@ -393,12 +393,12 @@ func (p *taskProcessorImpl) handleSyncShardStatus(status *types.SyncShardStatus)
 }
 
 func (p *taskProcessorImpl) processSingleTask(replicationTask *types.ReplicationTask) error {
-	retryTransientError := func() error {
+	retryTransientError := func(ctx context.Context) error {
 		throttleRetry := backoff.NewThrottleRetry(
 			backoff.WithRetryPolicy(p.taskRetryPolicy),
 			backoff.WithRetryableError(isTransientRetryableError),
 		)
-		return throttleRetry.Do(context.Background(), func() error {
+		return throttleRetry.Do(context.Background(), func(ctx context.Context) error {
 			select {
 			case <-p.done:
 				// if the processor is stopping, skip the task
@@ -505,7 +505,7 @@ func (p *taskProcessorImpl) putReplicationTaskToDLQ(request *persistence.PutRepl
 		backoff.WithRetryableError(p.shouldRetryDLQ),
 	)
 	// The following is guaranteed to success or retry forever until processor is shutdown.
-	return throttleRetry.Do(context.Background(), func() error {
+	return throttleRetry.Do(context.Background(), func(ctx context.Context) error {
 		err := p.shard.GetExecutionManager().PutReplicationTaskToDLQ(context.Background(), request)
 		if err != nil {
 			p.logger.Error("Failed to put replication task to DLQ.", tag.Error(err))

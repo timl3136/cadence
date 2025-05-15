@@ -526,7 +526,7 @@ func (t *transferQueueProcessorBase) readTasks(
 ) ([]persistence.Task, bool, error) {
 
 	var response *persistence.GetHistoryTasksResponse
-	op := func() error {
+	op := func(ctx1 context.Context) error {
 		var err error
 		response, err = t.shard.GetExecutionManager().GetHistoryTasks(context.Background(), &persistence.GetHistoryTasksRequest{
 			TaskCategory:        persistence.HistoryTaskCategoryTransfer,
