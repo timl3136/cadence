@@ -129,8 +129,8 @@ func getBlobstoreWriteFn(
 			},
 		}
 
-		operation := func(ctx1 context.Context) error {
-			ctx, cancel := context.WithTimeout(ctx1, Timeout)
+		operation := func(ctx context.Context) error {
+			ctx, cancel := context.WithTimeout(ctx, Timeout)
 			defer cancel()
 			_, err := client.Put(ctx, req)
 			return err

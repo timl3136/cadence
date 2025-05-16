@@ -755,8 +755,8 @@ func (s *HistoryV2PersistenceSuite) deleteHistoryBranch(ctx context.Context, bra
 		}
 
 		domainName := s.DomainManager.GetName()
-		op := func(ctx1 context.Context) error {
-			err := s.HistoryV2Mgr.DeleteHistoryBranch(ctx1, &p.DeleteHistoryBranchRequest{
+		op := func(ctx context.Context) error {
+			err := s.HistoryV2Mgr.DeleteHistoryBranch(ctx, &p.DeleteHistoryBranchRequest{
 				BranchToken: branchToken,
 				ShardID:     common.IntPtr(s.ShardInfo.ShardID),
 				DomainName:  domainName,
@@ -875,9 +875,9 @@ func (s *HistoryV2PersistenceSuite) append(ctx context.Context, branch []byte, e
 
 	var resp *p.AppendHistoryNodesResponse
 	domainName := s.DomainManager.GetName()
-	op := func(ctx1 context.Context) error {
+	op := func(ctx context.Context) error {
 		var err error
-		resp, err = s.HistoryV2Mgr.AppendHistoryNodes(ctx1, &p.AppendHistoryNodesRequest{
+		resp, err = s.HistoryV2Mgr.AppendHistoryNodes(ctx, &p.AppendHistoryNodesRequest{
 			IsNewBranch:   isNewBranch,
 			Info:          branchInfo,
 			BranchToken:   branch,
@@ -903,9 +903,9 @@ func (s *HistoryV2PersistenceSuite) fork(ctx context.Context, forkBranch []byte,
 
 	bi := []byte{}
 	domainName := s.DomainManager.GetName()
-	op := func(ctx1 context.Context) error {
+	op := func(ctx context.Context) error {
 		var err error
-		resp, err := s.HistoryV2Mgr.ForkHistoryBranch(ctx1, &p.ForkHistoryBranchRequest{
+		resp, err := s.HistoryV2Mgr.ForkHistoryBranch(ctx, &p.ForkHistoryBranchRequest{
 			ForkBranchToken: forkBranch,
 			ForkNodeID:      forkNodeID,
 			Info:            testForkRunID,

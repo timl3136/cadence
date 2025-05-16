@@ -1481,8 +1481,8 @@ func requestCancelExternalExecutionWithRetry(
 
 	requestCancelCtx, cancel := context.WithTimeout(ctx, taskRPCCallTimeout)
 	defer cancel()
-	op := func(ctx1 context.Context) error {
-		return historyClient.RequestCancelWorkflowExecution(ctx1, request)
+	op := func(ctx context.Context) error {
+		return historyClient.RequestCancelWorkflowExecution(ctx, request)
 	}
 
 	throttleRetry := backoff.NewThrottleRetry(
@@ -1532,8 +1532,8 @@ func signalExternalExecutionWithRetry(
 
 	signalCtx, cancel := context.WithTimeout(ctx, taskRPCCallTimeout)
 	defer cancel()
-	op := func(ctx1 context.Context) error {
-		return historyClient.SignalWorkflowExecution(ctx1, request)
+	op := func(ctx context.Context) error {
+		return historyClient.SignalWorkflowExecution(ctx, request)
 	}
 
 	throttleRetry := backoff.NewThrottleRetry(
@@ -1561,8 +1561,8 @@ func removeSignalMutableStateWithRetry(
 		RequestID: signalRequestID,
 	}
 
-	op := func(ctx1 context.Context) error {
-		return historyClient.RemoveSignalMutableState(ctx1, removeSignalRequest)
+	op := func(ctx context.Context) error {
+		return historyClient.RemoveSignalMutableState(ctx, removeSignalRequest)
 	}
 
 	throttleRetry := backoff.NewThrottleRetry(
@@ -1639,8 +1639,8 @@ func startWorkflowWithRetry(
 	startWorkflowCtx, cancel := context.WithTimeout(ctx, taskRPCCallTimeout)
 	defer cancel()
 	var response *types.StartWorkflowExecutionResponse
-	op := func(ctx1 context.Context) error {
-		response, err = historyClient.StartWorkflowExecution(ctx1, historyStartReq)
+	op := func(ctx context.Context) error {
+		response, err = historyClient.StartWorkflowExecution(ctx, historyStartReq)
 		return err
 	}
 

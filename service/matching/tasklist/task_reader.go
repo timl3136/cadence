@@ -359,7 +359,7 @@ func (tr *taskReader) completeTask(task *persistence.TaskInfo, err error) {
 		// again the underlying reason for failing to start will be resolved.
 		// Note that RecordTaskStarted only fails after retrying for a long time, so a single task will not be
 		// re-written to persistence frequently.
-		op := func(ctx1 context.Context) error {
+		op := func(ctx context.Context) error {
 			_, err := tr.taskWriter.appendTask(task)
 			return err
 		}

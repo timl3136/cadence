@@ -315,6 +315,31 @@ func (s *RetrySuite) TestConcurrentRetrier() {
 	}
 }
 
+func (s *RetrySuite) TestRetryCountInContext() {
+	retryCounts := make([]int, 0)
+	op := func(ctx context.Context) error {
+		retryCount := ctx.Value(retryCountKey).(int)
+		retryCounts = append(retryCounts, retryCount)
+		if retryCount == 2 {
+			return nil
+		}
+		return &someError{}
+	}
+
+	policy := NewExponentialRetryPolicy(1 * time.Millisecond)
+	policy.SetMaximumInterval(5 * time.Millisecond)
+	policy.SetMaximumAttempts(10)
+
+	throttleRetry := NewThrottleRetry(
+		WithRetryPolicy(policy),
+		WithRetryableError(func(_ error) bool { return true }),
+	)
+
+	err := throttleRetry.Do(context.Background(), op)
+	s.NoError(err)
+	s.Equal([]int{0, 1, 2}, retryCounts)
+}
+
 func (e *someError) Error() string {
 	return "Some Error"
 }

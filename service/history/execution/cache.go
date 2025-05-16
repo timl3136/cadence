@@ -361,9 +361,9 @@ func (c *cacheImpl) getCurrentExecutionWithRetry(
 	defer sw.Stop()
 
 	var response *persistence.GetCurrentExecutionResponse
-	op := func(ctx1 context.Context) error {
+	op := func(ctx context.Context) error {
 		var err error
-		response, err = c.executionManager.GetCurrentExecution(ctx1, request)
+		response, err = c.executionManager.GetCurrentExecution(ctx, request)
 
 		return err
 	}

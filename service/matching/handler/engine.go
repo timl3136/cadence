@@ -1280,9 +1280,9 @@ func (e *matchingEngineImpl) recordDecisionTaskStarted(
 		PollRequest:       pollReq,
 	}
 	var resp *types.RecordDecisionTaskStartedResponse
-	op := func(ctx1 context.Context) error {
+	op := func(ctx context.Context) error {
 		var err error
-		resp, err = e.historyService.RecordDecisionTaskStarted(ctx1, request)
+		resp, err = e.historyService.RecordDecisionTaskStarted(ctx, request)
 		return err
 	}
 	throttleRetry := backoff.NewThrottleRetry(
@@ -1307,9 +1307,9 @@ func (e *matchingEngineImpl) recordActivityTaskStarted(
 		PollRequest:       pollReq,
 	}
 	var resp *types.RecordActivityTaskStartedResponse
-	op := func(ctx1 context.Context) error {
+	op := func(ctx context.Context) error {
 		var err error
-		resp, err = e.historyService.RecordActivityTaskStarted(ctx1, request)
+		resp, err = e.historyService.RecordActivityTaskStarted(ctx, request)
 		return err
 	}
 	throttleRetry := backoff.NewThrottleRetry(

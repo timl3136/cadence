@@ -1936,8 +1936,8 @@ func (s *TestBase) Publish(
 			return persistence.IsTransientError(e) || isMessageIDConflictError(e)
 		}),
 	)
-	return throttleRetry.Do(ctx, func(ctx1 context.Context) error {
-		return s.DomainReplicationQueueMgr.EnqueueMessage(ctx1, messagePayload)
+	return throttleRetry.Do(ctx, func(ctx context.Context) error {
+		return s.DomainReplicationQueueMgr.EnqueueMessage(ctx, messagePayload)
 	})
 }
 
@@ -1989,8 +1989,8 @@ func (s *TestBase) PublishToDomainDLQ(
 			return persistence.IsTransientError(e) || isMessageIDConflictError(e)
 		}),
 	)
-	return throttleRetry.Do(ctx, func(ctx1 context.Context) error {
-		return s.DomainReplicationQueueMgr.EnqueueMessageToDLQ(ctx1, messagePayload)
+	return throttleRetry.Do(ctx, func(ctx context.Context) error {
+		return s.DomainReplicationQueueMgr.EnqueueMessageToDLQ(ctx, messagePayload)
 	})
 }
 

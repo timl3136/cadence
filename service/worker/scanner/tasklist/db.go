@@ -123,8 +123,8 @@ func (s *Scavenger) deleteTaskList(info *p.TaskListInfo) error {
 	if errorDomain != nil {
 		return errorDomain
 	}
-	op := func(ctx1 context.Context) error {
-		return s.db.DeleteTaskList(ctx1, &p.DeleteTaskListRequest{
+	op := func(ctx context.Context) error {
+		return s.db.DeleteTaskList(ctx, &p.DeleteTaskListRequest{
 			DomainID:     info.DomainID,
 			TaskListName: info.Name,
 			TaskListType: info.TaskType,

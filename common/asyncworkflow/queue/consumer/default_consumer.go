@@ -198,7 +198,7 @@ func (c *DefaultConsumer) processRequest(logger log.Logger, request *sqlblobs.As
 
 		var resp *types.StartWorkflowExecutionResponse
 		op := func(ctx1 context.Context) error {
-			ctx, cancel := context.WithTimeout(c.ctx, c.startWFTimeout)
+			ctx, cancel := context.WithTimeout(ctx1, c.startWFTimeout)
 			defer cancel()
 			resp, err = c.frontendClient.StartWorkflowExecution(ctx, startWFReq, yarpcCallOpts...)
 
@@ -228,7 +228,7 @@ func (c *DefaultConsumer) processRequest(logger log.Logger, request *sqlblobs.As
 		scope := c.scope.Tagged(metrics.DomainTag(startWFReq.GetDomain()))
 		var resp *types.StartWorkflowExecutionResponse
 		op := func(ctx1 context.Context) error {
-			ctx, cancel := context.WithTimeout(c.ctx, c.startWFTimeout)
+			ctx, cancel := context.WithTimeout(ctx1, c.startWFTimeout)
 			defer cancel()
 			resp, err = c.frontendClient.SignalWithStartWorkflowExecution(ctx, startWFReq, yarpcCallOpts...)
 

@@ -143,9 +143,9 @@ func (m *TaskStore) Get(ctx context.Context, cluster string, info persistence.Ta
 	// Rate limit to not kill the database
 	m.rateLimiter.Wait(ctx)
 
-	op := func(ctx1 context.Context) error {
+	op := func(ctx context.Context) error {
 		var err error
-		task, err = m.hydrator.Hydrate(ctx1, info)
+		task, err = m.hydrator.Hydrate(ctx, info)
 		return err
 	}
 
