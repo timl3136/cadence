@@ -106,6 +106,7 @@ func TestNewConfig(t *testing.T) {
 		"GlobalRatelimiterKeyMode":                    {dynamicproperties.FrontendGlobalRatelimiterMode, "disabled"},
 		"GlobalRatelimiterUpdateInterval":             {dynamicproperties.GlobalRatelimiterUpdateInterval, 3 * time.Second},
 		"PinotOptimizedQueryColumns":                  {dynamicproperties.PinotOptimizedQueryColumns, map[string]interface{}{"foo": "bar"}},
+		"EnableDomainDeletion":                        {dynamicproperties.EnableDomainDeletion, false},
 	}
 	domainFields := map[string]configTestCase{
 		"MaxBadBinaryCount":      {dynamicproperties.FrontendMaxBadBinaries, 40},

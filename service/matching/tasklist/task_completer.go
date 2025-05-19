@@ -90,7 +90,7 @@ func newTaskCompleter(tlMgr *taskListManagerImpl, retryPolicy backoff.RetryPolic
 }
 
 func (tc *taskCompleterImpl) CompleteTaskIfStarted(ctx context.Context, task *InternalTask) error {
-	op := func() (err error) {
+	op := func(ctx context.Context) (err error) {
 		domainEntry, err := tc.domainCache.GetDomainByID(task.Event.TaskInfo.DomainID)
 		if err != nil {
 			return fmt.Errorf("unable to fetch domain from cache: %w", err)

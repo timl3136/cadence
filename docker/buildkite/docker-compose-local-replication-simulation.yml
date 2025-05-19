@@ -4,8 +4,8 @@ services:
     environment:
       - "MAX_HEAP_SIZE=256M"
       - "HEAP_NEWSIZE=128M"
-    expose:
-      - "9042"
+    ports:
+      - "9042:9042"
     networks:
       services-network:
         aliases:

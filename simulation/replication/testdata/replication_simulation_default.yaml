@@ -11,27 +11,32 @@ clusters:
 primaryCluster: "cluster0"
 
 
-domain:
-  name: test-domain
-  activeClusters:
-  - cluster0
+domains:
+  test-domain:
+    name: test-domain
+    activeClusters:
+    - cluster0
 
 operations:
   - op: start_workflow
     at: 0s
     workflowID: wf1
     cluster: cluster0
+    domain: test-domain
+    workflowExecutionStartToCloseTimeout: 65s
     workflowDuration: 35s
 
   - op: change_active_clusters # failover from cluster0 to cluster1
     at: 20s
+    domain: test-domain
     newActiveClusters: ["cluster1"]
     # failoverTimeoutSec: 5 # unset means force failover. setting it means graceful failover request
 
   - op: validate
-    at: 120s # todo: this should work at 40s mark
+    at: 41s # with the current workflow implementation, it's possible that the workflow may finish right after the 40s mark
     workflowID: wf1
     cluster: cluster1
+    domain: test-domain
     want:
       status: completed
       startedByWorkersInCluster: cluster0

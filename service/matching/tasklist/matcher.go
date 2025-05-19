@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"go.uber.org/atomic"
@@ -67,6 +68,7 @@ type taskMatcherImpl struct {
 
 	cancelCtx  context.Context // used to cancel long polling
 	cancelFunc context.CancelFunc
+	cancelLock sync.Mutex
 
 	tasklist     *Identifier
 	tasklistKind types.TaskListKind
@@ -464,10 +466,14 @@ func (tm *taskMatcherImpl) PollForQuery(ctx context.Context) (*InternalTask, err
 		tm.scope.RecordTimer(metrics.PollLocalMatchLatencyPerTaskList, time.Since(startT))
 		return task, nil
 	}
+
+	ctxWithCancelPropagation, stopFn := ctxutils.WithPropagatedContextCancel(ctx, tm.cancelCtx)
+	defer stopFn()
+
 	// there is no local poller available to pickup this task. Now block waiting
 	// either for a local poller or a forwarding token to be available. When a
 	// forwarding token becomes available, send this poll to a parent partition
-	return tm.pollOrForward(ctx, startT, "", nil, nil, tm.queryTaskC)
+	return tm.pollOrForward(ctxWithCancelPropagation, startT, "", nil, nil, tm.queryTaskC)
 }
 
 // UpdateRatelimit updates the task dispatch rate
@@ -486,6 +492,12 @@ func (tm *taskMatcherImpl) Rate() float64 {
 		rate = rate / float64(nPartitions)
 	}
 	return rate
+}
+
+func (tm *taskMatcherImpl) RefreshCancelContext() {
+	tm.cancelLock.Lock()
+	defer tm.cancelLock.Unlock()
+	tm.cancelCtx, tm.cancelFunc = context.WithCancel(context.Background())
 }
 
 func (tm *taskMatcherImpl) pollOrForward(

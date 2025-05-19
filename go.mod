@@ -4,6 +4,11 @@ go 1.23
 
 toolchain go1.23.4
 
+replace (
+	github.com/uber/cadence/common/archiver/gcloud => ./common/archiver/gcloud
+	github.com/uber/cadence/service/sharddistributor/leader/leaderstore/etcd => ./service/sharddistributor/leader/leaderstore/etcd
+)
+
 require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0
 	github.com/Shopify/sarama v1.33.0
@@ -42,7 +47,7 @@ require (
 	github.com/startreedata/pinot-client-go v0.2.0 // latest release supports pinot v0.12.0 which is also internal version
 	github.com/stretchr/testify v1.9.0
 	github.com/uber-go/tally v3.3.15+incompatible
-	github.com/uber/cadence-idl v0.0.0-20250511103706-e5b4197e2aef
+	github.com/uber/cadence-idl v0.0.0-20250513140852-97f83aeb4caa
 	github.com/uber/ringpop-go v0.8.5
 	github.com/uber/tchannel-go v1.22.2
 	github.com/urfave/cli/v2 v2.27.4

@@ -79,24 +79,25 @@ type (
 	}
 
 	matchingEngineImpl struct {
-		shutdownCompletion   *sync.WaitGroup
-		shutdown             chan struct{}
-		taskManager          persistence.TaskManager
-		clusterMetadata      cluster.Metadata
-		historyService       history.Client
-		matchingClient       matching.Client
-		tokenSerializer      common.TaskTokenSerializer
-		logger               log.Logger
-		metricsClient        metrics.Client
-		taskListsLock        sync.RWMutex                             // locks mutation of taskLists
-		taskLists            map[tasklist.Identifier]tasklist.Manager // Convert to LRU cache
-		config               *config.Config
-		lockableQueryTaskMap lockableQueryTaskMap
-		domainCache          cache.DomainCache
-		versionChecker       client.VersionChecker
-		membershipResolver   membership.Resolver
-		isolationState       isolationgroup.State
-		timeSource           clock.TimeSource
+		shutdownCompletion          *sync.WaitGroup
+		shutdown                    chan struct{}
+		taskManager                 persistence.TaskManager
+		clusterMetadata             cluster.Metadata
+		historyService              history.Client
+		matchingClient              matching.Client
+		tokenSerializer             common.TaskTokenSerializer
+		logger                      log.Logger
+		metricsClient               metrics.Client
+		taskListsLock               sync.RWMutex                             // locks mutation of taskLists
+		taskLists                   map[tasklist.Identifier]tasklist.Manager // Convert to LRU cache
+		config                      *config.Config
+		lockableQueryTaskMap        lockableQueryTaskMap
+		domainCache                 cache.DomainCache
+		versionChecker              client.VersionChecker
+		membershipResolver          membership.Resolver
+		isolationState              isolationgroup.State
+		timeSource                  clock.TimeSource
+		failoverNotificationVersion int64
 	}
 
 	// HistoryInfo consists of two integer regarding the history size and history count
@@ -162,6 +163,7 @@ func NewEngine(
 }
 
 func (e *matchingEngineImpl) Start() {
+	e.registerDomainFailoverCallback()
 }
 
 func (e *matchingEngineImpl) Stop() {
@@ -170,6 +172,7 @@ func (e *matchingEngineImpl) Stop() {
 	for _, l := range e.getTaskLists(math.MaxInt32) {
 		l.Stop()
 	}
+	e.unregisterDomainFailoverCallback()
 	e.shutdownCompletion.Wait()
 }
 
@@ -535,7 +538,7 @@ pollLoop:
 		pollerCtx = tasklist.ContextWithIsolationGroup(pollerCtx, req.GetIsolationGroup())
 		tlMgr, err := e.getTaskListManager(taskListID, taskListKind)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't load tasklist namanger: %w", err)
+			return nil, fmt.Errorf("couldn't load tasklist manager: %w", err)
 		}
 		startT := time.Now() // Record the start time
 		task, err := tlMgr.GetTask(pollerCtx, nil)
@@ -724,7 +727,7 @@ pollLoop:
 		taskListKind := request.TaskList.Kind
 		tlMgr, err := e.getTaskListManager(taskListID, taskListKind)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't load tasklist namanger: %w", err)
+			return nil, fmt.Errorf("couldn't load tasklist manager: %w", err)
 		}
 		startT := time.Now() // Record the start time
 		task, err := tlMgr.GetTask(pollerCtx, maxDispatch)
@@ -1280,7 +1283,7 @@ func (e *matchingEngineImpl) recordDecisionTaskStarted(
 		PollRequest:       pollReq,
 	}
 	var resp *types.RecordDecisionTaskStartedResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = e.historyService.RecordDecisionTaskStarted(ctx, request)
 		return err
@@ -1307,7 +1310,7 @@ func (e *matchingEngineImpl) recordActivityTaskStarted(
 		PollRequest:       pollReq,
 	}
 	var resp *types.RecordActivityTaskStartedResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = e.historyService.RecordActivityTaskStarted(ctx, request)
 		return err
@@ -1425,6 +1428,82 @@ func (e *matchingEngineImpl) isShuttingDown() bool {
 	}
 }
 
+func (e *matchingEngineImpl) domainChangeCallback(nextDomains []*cache.DomainCacheEntry) {
+	newFailoverNotificationVersion := e.failoverNotificationVersion
+
+	for _, domain := range nextDomains {
+		if domain.GetFailoverNotificationVersion() > newFailoverNotificationVersion {
+			newFailoverNotificationVersion = domain.GetFailoverNotificationVersion()
+		}
+
+		if !isDomainEligibleToDisconnectPollers(domain, e.failoverNotificationVersion) {
+			continue
+		}
+
+		req := &types.GetTaskListsByDomainRequest{
+			Domain: domain.GetInfo().Name,
+		}
+
+		resp, err := e.GetTaskListsByDomain(nil, req)
+		if err != nil {
+			continue
+		}
+
+		for taskListName := range resp.DecisionTaskListMap {
+			e.disconnectTaskListPollersAfterDomainFailover(taskListName, domain, persistence.TaskListTypeDecision)
+		}
+
+		for taskListName := range resp.ActivityTaskListMap {
+			e.disconnectTaskListPollersAfterDomainFailover(taskListName, domain, persistence.TaskListTypeActivity)
+		}
+	}
+	e.failoverNotificationVersion = newFailoverNotificationVersion
+}
+
+func (e *matchingEngineImpl) registerDomainFailoverCallback() {
+	catchUpFn := func(domainCache cache.DomainCache, _ cache.PrepareCallbackFn, _ cache.CallbackFn) {
+		for _, domain := range domainCache.GetAllDomain() {
+			if domain.GetFailoverNotificationVersion() > e.failoverNotificationVersion {
+				e.failoverNotificationVersion = domain.GetFailoverNotificationVersion()
+			}
+		}
+	}
+
+	e.domainCache.RegisterDomainChangeCallback(
+		service.Matching,
+		catchUpFn,
+		func() {},
+		e.domainChangeCallback)
+}
+
+func (e *matchingEngineImpl) unregisterDomainFailoverCallback() {
+	e.domainCache.UnregisterDomainChangeCallback(service.Matching)
+}
+
+func (e *matchingEngineImpl) disconnectTaskListPollersAfterDomainFailover(taskListName string, domain *cache.DomainCacheEntry, taskType int) {
+	taskList, err := tasklist.NewIdentifier(domain.GetInfo().ID, taskListName, taskType)
+	if err != nil {
+		return
+	}
+	tlMgr, err := e.getTaskListManager(taskList, types.TaskListKindNormal.Ptr())
+	if err != nil {
+		e.logger.Error("Couldn't load tasklist manager", tag.Error(err))
+		return
+	}
+
+	err = tlMgr.ReleaseBlockedPollers()
+	if err != nil {
+		e.logger.Error("Couldn't disconnect tasklist pollers after domain failover",
+			tag.Error(err),
+			tag.WorkflowDomainID(domain.GetInfo().ID),
+			tag.WorkflowDomainName(domain.GetInfo().Name),
+			tag.WorkflowTaskListName(taskListName),
+			tag.WorkflowTaskListType(taskType),
+		)
+		return
+	}
+}
+
 func (m *lockableQueryTaskMap) put(key string, value chan *queryResult) {
 	m.Lock()
 	defer m.Unlock()
@@ -1450,4 +1529,11 @@ func isMatchingRetryableError(err error) bool {
 		return false
 	}
 	return true
+}
+
+func isDomainEligibleToDisconnectPollers(domain *cache.DomainCacheEntry, currentVersion int64) bool {
+	return domain.IsGlobalDomain() &&
+		domain.GetReplicationConfig() != nil &&
+		!domain.GetReplicationConfig().IsActiveActive() &&
+		domain.GetFailoverNotificationVersion() > currentVersion
 }

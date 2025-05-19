@@ -1640,6 +1640,12 @@ const (
 	// Default value: true
 	// Allowed filters: N/A
 	EnableQueryAttributeValidation
+	// EnableDomainDeletion is a feature flag to enable deletion of the domains.
+	// This feature flag will be removed after the change is rolled out in all the waves.
+	// KeyName: system.enableDomainDeletion
+	// Value type: bool
+	// Default value: false
+	EnableDomainDeletion
 
 	// key for matching
 
@@ -4125,6 +4131,11 @@ var BoolKeys = map[BoolKey]DynamicBool{
 		KeyName:      "frontend.enableQueryAttributeValidation",
 		Description:  "EnableQueryAttributeValidation enables validation of queries' search attributes against the dynamic config whitelist",
 		DefaultValue: true,
+	},
+	EnableDomainDeletion: {
+		KeyName:      "frontend.enableDomainDeletion",
+		Description:  "EnableDomainDeletion enables Delete Domain API to remove domain records from the persistence layer.",
+		DefaultValue: false,
 	},
 	MatchingEnableSyncMatch: {
 		KeyName:      "matching.enableSyncMatch",

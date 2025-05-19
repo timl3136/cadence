@@ -29,9 +29,13 @@ import (
 	"github.com/uber/cadence/common/types"
 )
 
+type retryCountKeyType string
+
+const retryCountKey = retryCountKeyType("retryCount")
+
 type (
 	// Operation to retry
-	Operation func() error
+	Operation func(ctx context.Context) error
 
 	// IsRetryable handler can be used to exclude certain errors during retry
 	IsRetryable func(error) bool
@@ -171,14 +175,18 @@ func (tr *ThrottleRetry) Do(ctx context.Context, op Operation) error {
 
 	r := NewRetrier(tr.policy, tr.clock)
 	t := NewRetrier(tr.throttlePolicy, tr.clock)
+	retryCount := 0
 	for {
 		// record the previous error before an operation
 		prevErr = err
 
+		// update context with retry count
+		ctx = context.WithValue(ctx, retryCountKey, retryCount)
 		// operation completed successfully. No need to retry.
-		if err = op(); err == nil {
+		if err = op(ctx); err == nil {
 			return nil
 		}
+		retryCount++
 
 		// Check if the error is retryable
 		if !tr.isRetryable(err) {

@@ -198,6 +198,20 @@ func (mr *MockManagerMockRecorder) RefreshTaskListPartitionConfig(arg0, arg1 any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshTaskListPartitionConfig", reflect.TypeOf((*MockManager)(nil).RefreshTaskListPartitionConfig), arg0, arg1)
 }
 
+// ReleaseBlockedPollers mocks base method.
+func (m *MockManager) ReleaseBlockedPollers() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReleaseBlockedPollers")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReleaseBlockedPollers indicates an expected call of ReleaseBlockedPollers.
+func (mr *MockManagerMockRecorder) ReleaseBlockedPollers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReleaseBlockedPollers", reflect.TypeOf((*MockManager)(nil).ReleaseBlockedPollers))
+}
+
 // Start mocks base method.
 func (m *MockManager) Start() error {
 	m.ctrl.T.Helper()
@@ -417,6 +431,18 @@ func (m *MockTaskMatcher) Rate() float64 {
 func (mr *MockTaskMatcherMockRecorder) Rate() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rate", reflect.TypeOf((*MockTaskMatcher)(nil).Rate))
+}
+
+// RefreshCancelContext mocks base method.
+func (m *MockTaskMatcher) RefreshCancelContext() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RefreshCancelContext")
+}
+
+// RefreshCancelContext indicates an expected call of RefreshCancelContext.
+func (mr *MockTaskMatcherMockRecorder) RefreshCancelContext() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshCancelContext", reflect.TypeOf((*MockTaskMatcher)(nil).RefreshCancelContext))
 }
 
 // UpdateRatelimit mocks base method.

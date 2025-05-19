@@ -64,6 +64,7 @@ type (
 		UpdateTaskListPartitionConfig(context.Context, *types.TaskListPartitionConfig) error
 		RefreshTaskListPartitionConfig(context.Context, *types.TaskListPartitionConfig) error
 		LoadBalancerHints() *types.LoadBalancerHints
+		ReleaseBlockedPollers() error
 	}
 
 	TaskMatcher interface {
@@ -76,6 +77,7 @@ type (
 		PollForQuery(ctx context.Context) (*InternalTask, error)
 		UpdateRatelimit(rps *float64)
 		Rate() float64
+		RefreshCancelContext()
 	}
 
 	Forwarder interface {

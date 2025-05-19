@@ -267,7 +267,7 @@ func (p *taskProcessorImpl) cleanupReplicationTaskLoop() {
 func (p *taskProcessorImpl) cleanupAckedReplicationTasks() error {
 	minAckLevel := int64(math.MaxInt64)
 	for clusterName := range p.shard.GetClusterMetadata().GetRemoteClusterInfo() {
-		ackLevel := p.shard.GetQueueClusterAckLevel(persistence.HistoryTaskCategoryReplication, clusterName).TaskID
+		ackLevel := p.shard.GetQueueClusterAckLevel(persistence.HistoryTaskCategoryReplication, clusterName).GetTaskID()
 		if ackLevel < minAckLevel {
 			minAckLevel = ackLevel
 		}
@@ -278,18 +278,16 @@ func (p *taskProcessorImpl) cleanupAckedReplicationTasks() error {
 		metrics.TargetClusterTag(p.currentCluster),
 	).RecordTimer(
 		metrics.ReplicationTasksLag,
-		time.Duration(p.shard.UpdateIfNeededAndGetQueueMaxReadLevel(persistence.HistoryTaskCategoryReplication, p.currentCluster).TaskID-minAckLevel),
+		time.Duration(p.shard.UpdateIfNeededAndGetQueueMaxReadLevel(persistence.HistoryTaskCategoryReplication, p.currentCluster).GetTaskID()-minAckLevel),
 	)
 	for {
 		pageSize := p.config.ReplicatorTaskDeleteBatchSize()
 		resp, err := p.shard.GetExecutionManager().RangeCompleteHistoryTask(
 			context.Background(),
 			&persistence.RangeCompleteHistoryTaskRequest{
-				TaskCategory: persistence.HistoryTaskCategoryReplication,
-				ExclusiveMaxTaskKey: persistence.HistoryTaskKey{
-					TaskID: minAckLevel + 1,
-				},
-				PageSize: pageSize,
+				TaskCategory:        persistence.HistoryTaskCategoryReplication,
+				ExclusiveMaxTaskKey: persistence.NewImmediateTaskKey(minAckLevel + 1),
+				PageSize:            pageSize,
 			},
 		)
 		if err != nil {
@@ -395,12 +393,12 @@ func (p *taskProcessorImpl) handleSyncShardStatus(status *types.SyncShardStatus)
 }
 
 func (p *taskProcessorImpl) processSingleTask(replicationTask *types.ReplicationTask) error {
-	retryTransientError := func() error {
+	retryTransientError := func(ctx context.Context) error {
 		throttleRetry := backoff.NewThrottleRetry(
 			backoff.WithRetryPolicy(p.taskRetryPolicy),
 			backoff.WithRetryableError(isTransientRetryableError),
 		)
-		return throttleRetry.Do(context.Background(), func() error {
+		return throttleRetry.Do(ctx, func(ctx context.Context) error {
 			select {
 			case <-p.done:
 				// if the processor is stopping, skip the task
@@ -507,8 +505,8 @@ func (p *taskProcessorImpl) putReplicationTaskToDLQ(request *persistence.PutRepl
 		backoff.WithRetryableError(p.shouldRetryDLQ),
 	)
 	// The following is guaranteed to success or retry forever until processor is shutdown.
-	return throttleRetry.Do(context.Background(), func() error {
-		err := p.shard.GetExecutionManager().PutReplicationTaskToDLQ(context.Background(), request)
+	return throttleRetry.Do(context.Background(), func(ctx context.Context) error {
+		err := p.shard.GetExecutionManager().PutReplicationTaskToDLQ(ctx, request)
 		if err != nil {
 			p.logger.Error("Failed to put replication task to DLQ.", tag.Error(err))
 			p.metricsClient.IncCounter(metrics.ReplicationTaskFetcherScope, metrics.ReplicationDLQFailed)

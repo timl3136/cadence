@@ -57,7 +57,7 @@ type ReplicationSimulationConfig struct {
 	// PrimaryCluster is used for domain registration
 	PrimaryCluster string `yaml:"primaryCluster"`
 
-	Domain ReplicationDomainConfig `yaml:"domain"`
+	Domains map[string]ReplicationDomainConfig `yaml:"domains"`
 
 	Operations []*Operation `yaml:"operations"`
 }
@@ -76,9 +76,11 @@ type Operation struct {
 	At      time.Duration                  `yaml:"at"`
 	Cluster string                         `yaml:"cluster"`
 
-	WorkflowID       string        `yaml:"workflowID"`
-	WorkflowDuration time.Duration `yaml:"workflowDuration"`
+	WorkflowID                           string        `yaml:"workflowID"`
+	WorkflowExecutionStartToCloseTimeout time.Duration `yaml:"workflowExecutionStartToCloseTimeout"`
+	WorkflowDuration                     time.Duration `yaml:"workflowDuration"`
 
+	Domain            string   `yaml:"domain"`
 	NewActiveClusters []string `yaml:"newActiveClusters"`
 	FailoverTimeout   *int32   `yaml:"failoverTimeoutSec"`
 
@@ -155,12 +157,12 @@ func (s *ReplicationSimulationConfig) MustInitClientsFor(t *testing.T, clusterNa
 	Logf(t, "Initialized clients for cluster %s", clusterName)
 }
 
-func (s *ReplicationSimulationConfig) IsActiveActiveDomain() bool {
-	return len(s.Domain.ActiveClusters) > 1
+func (s *ReplicationSimulationConfig) IsActiveActiveDomain(domainName string) bool {
+	return len(s.Domains[domainName].ActiveClusters) > 1
 }
 
-func (s *ReplicationSimulationConfig) MustRegisterDomain(t *testing.T) {
-	Logf(t, "Registering domain: %s", s.Domain.Name)
+func (s *ReplicationSimulationConfig) MustRegisterDomain(t *testing.T, domainName string) {
+	Logf(t, "Registering domain: %s", domainName)
 	var clusters []*types.ClusterReplicationConfiguration
 	for name := range s.Clusters {
 		clusters = append(clusters, &types.ClusterReplicationConfiguration{
@@ -170,7 +172,7 @@ func (s *ReplicationSimulationConfig) MustRegisterDomain(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	err := s.MustGetFrontendClient(t, s.PrimaryCluster).RegisterDomain(ctx, &types.RegisterDomainRequest{
-		Name:                                   s.Domain.Name,
+		Name:                                   domainName,
 		Clusters:                               clusters,
 		WorkflowExecutionRetentionPeriodInDays: 1,
 		IsGlobalDomain:                         true,
@@ -183,10 +185,10 @@ func (s *ReplicationSimulationConfig) MustRegisterDomain(t *testing.T) {
 		if _, ok := err.(*shared.DomainAlreadyExistsError); !ok {
 			require.NoError(t, err, "failed to register domain")
 		} else {
-			Logf(t, "Domain already exists: %s", s.Domain.Name)
+			Logf(t, "Domains already exists: %s", domainName)
 		}
 		return
 	}
 
-	Logf(t, "Registered domain: %s", s.Domain.Name)
+	Logf(t, "Registered domain: %s", domainName)
 }

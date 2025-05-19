@@ -1481,15 +1481,15 @@ func requestCancelExternalExecutionWithRetry(
 
 	requestCancelCtx, cancel := context.WithTimeout(ctx, taskRPCCallTimeout)
 	defer cancel()
-	op := func() error {
-		return historyClient.RequestCancelWorkflowExecution(requestCancelCtx, request)
+	op := func(ctx context.Context) error {
+		return historyClient.RequestCancelWorkflowExecution(ctx, request)
 	}
 
 	throttleRetry := backoff.NewThrottleRetry(
 		backoff.WithRetryPolicy(taskRetryPolicy),
 		backoff.WithRetryableError(common.IsServiceTransientError),
 	)
-	err := throttleRetry.Do(context.Background(), op)
+	err := throttleRetry.Do(requestCancelCtx, op)
 	switch err.(type) {
 	case *types.CancellationAlreadyRequestedError:
 		// err is CancellationAlreadyRequestedError
@@ -1532,15 +1532,15 @@ func signalExternalExecutionWithRetry(
 
 	signalCtx, cancel := context.WithTimeout(ctx, taskRPCCallTimeout)
 	defer cancel()
-	op := func() error {
-		return historyClient.SignalWorkflowExecution(signalCtx, request)
+	op := func(ctx context.Context) error {
+		return historyClient.SignalWorkflowExecution(ctx, request)
 	}
 
 	throttleRetry := backoff.NewThrottleRetry(
 		backoff.WithRetryPolicy(taskRetryPolicy),
 		backoff.WithRetryableError(common.IsServiceTransientError),
 	)
-	return throttleRetry.Do(context.Background(), op)
+	return throttleRetry.Do(signalCtx, op)
 }
 
 func removeSignalMutableStateWithRetry(
@@ -1561,7 +1561,7 @@ func removeSignalMutableStateWithRetry(
 		RequestID: signalRequestID,
 	}
 
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return historyClient.RemoveSignalMutableState(ctx, removeSignalRequest)
 	}
 
@@ -1569,7 +1569,7 @@ func removeSignalMutableStateWithRetry(
 		backoff.WithRetryPolicy(taskRetryPolicy),
 		backoff.WithRetryableError(common.IsServiceTransientError),
 	)
-	err := throttleRetry.Do(context.Background(), op)
+	err := throttleRetry.Do(ctx, op)
 	switch err.(type) {
 	case *types.EntityNotExistsError:
 		// it's safe to discard entity not exists error here
@@ -1639,8 +1639,8 @@ func startWorkflowWithRetry(
 	startWorkflowCtx, cancel := context.WithTimeout(ctx, taskRPCCallTimeout)
 	defer cancel()
 	var response *types.StartWorkflowExecutionResponse
-	op := func() error {
-		response, err = historyClient.StartWorkflowExecution(startWorkflowCtx, historyStartReq)
+	op := func(ctx context.Context) error {
+		response, err = historyClient.StartWorkflowExecution(ctx, historyStartReq)
 		return err
 	}
 
@@ -1648,7 +1648,7 @@ func startWorkflowWithRetry(
 		backoff.WithRetryPolicy(taskRetryPolicy),
 		backoff.WithRetryableError(common.IsServiceTransientError),
 	)
-	if err := throttleRetry.Do(context.Background(), op); err != nil {
+	if err := throttleRetry.Do(startWorkflowCtx, op); err != nil {
 		return "", err
 	}
 	return response.GetRunID(), nil

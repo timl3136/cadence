@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/mock/gomock"
 
+	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/types"
 )
@@ -401,11 +402,24 @@ func TestDeleteDomain(t *testing.T) {
 			expectError:   true,
 			expectedError: "delete domain error",
 		},
+		{
+			name: "failure_domain_deletion_feature_disabled",
+			req: &types.DeleteDomainRequest{
+				Name: domainName,
+			},
+			setupMocks: func(deps *mockDeps) {
+				assert.NoError(t, deps.dynamicClient.UpdateValue(dynamicproperties.EnableDomainDeletion, false))
+				deps.mockRequestValidator.EXPECT().ValidateDeleteDomainRequest(gomock.Any(), gomock.Any()).Return(nil)
+			},
+			expectError:   true,
+			expectedError: "Domain deletion feature is not enabled.",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wh, deps := setupMocksForWorkflowHandler(t)
+			assert.NoError(t, deps.dynamicClient.UpdateValue(dynamicproperties.EnableDomainDeletion, true))
 			tc.setupMocks(deps)
 
 			err := wh.DeleteDomain(context.Background(), tc.req)

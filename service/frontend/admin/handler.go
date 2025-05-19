@@ -1087,12 +1087,12 @@ func (adh *adminHandlerImpl) ReadDLQMessages(
 
 	var tasks []*types.ReplicationTask
 	var token []byte
-	var op func() error
+	var op func(ctx context.Context) error
 	switch request.GetType() {
 	case types.DLQTypeReplication:
 		return adh.GetHistoryClient().ReadDLQMessages(ctx, request)
 	case types.DLQTypeDomain:
-		op = func() error {
+		op = func(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -1142,12 +1142,12 @@ func (adh *adminHandlerImpl) PurgeDLQMessages(
 		request.InclusiveEndMessageID = common.Ptr(constants.InclusiveEndMessageID)
 	}
 
-	var op func() error
+	var op func(ctx context.Context) error
 	switch request.GetType() {
 	case types.DLQTypeReplication:
 		return adh.GetHistoryClient().PurgeDLQMessages(ctx, request)
 	case types.DLQTypeDomain:
-		op = func() error {
+		op = func(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -1217,13 +1217,13 @@ func (adh *adminHandlerImpl) MergeDLQMessages(
 	}
 
 	var token []byte
-	var op func() error
+	var op func(ctx context.Context) error
 	switch request.GetType() {
 	case types.DLQTypeReplication:
 		return adh.GetHistoryClient().MergeDLQMessages(ctx, request)
 	case types.DLQTypeDomain:
 
-		op = func() error {
+		op = func(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()

@@ -341,7 +341,7 @@ func (wh *WorkflowHandler) PollForActivityTask(
 	}
 	pollerID := uuid.New().String()
 	var matchingResp *types.MatchingPollForActivityTaskResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		matchingResp, err = wh.GetMatchingClient().PollForActivityTask(ctx, &types.MatchingPollForActivityTaskRequest{
 			DomainUUID:     domainID,
 			PollerID:       pollerID,
@@ -482,7 +482,7 @@ func (wh *WorkflowHandler) PollForDecisionTask(
 
 	pollerID := uuid.New().String()
 	var matchingResp *types.MatchingPollForDecisionTaskResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		matchingResp, err = wh.GetMatchingClient().PollForDecisionTask(ctx, &types.MatchingPollForDecisionTaskRequest{
 			DomainUUID:     domainID,
 			PollerID:       pollerID,

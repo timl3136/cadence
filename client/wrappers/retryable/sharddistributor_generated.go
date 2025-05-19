@@ -33,7 +33,7 @@ func NewShardDistributorClient(client sharddistributor.Client, policy backoff.Re
 
 func (c *sharddistributorClient) GetShardOwner(ctx context.Context, gp1 *types.GetShardOwnerRequest, p1 ...yarpc.CallOption) (gp2 *types.GetShardOwnerResponse, err error) {
 	var resp *types.GetShardOwnerResponse
-	op := func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		resp, err = c.client.GetShardOwner(ctx, gp1, p1...)
 		return err

@@ -43,8 +43,11 @@ type WorkflowOutput struct {
 	Count int
 }
 
-func WorkerIdentityFor(clusterName string) string {
-	return fmt.Sprintf("worker-%s", clusterName)
+func WorkerIdentityFor(clusterName string, domainName string) string {
+	if domainName == "" {
+		return fmt.Sprintf("worker-%s", clusterName)
+	}
+	return fmt.Sprintf("worker-%s-%s", domainName, clusterName)
 }
 
 func Logf(t *testing.T, msg string, args ...interface{}) {

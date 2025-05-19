@@ -1822,6 +1822,53 @@ func TestGetNumPartitions(t *testing.T) {
 	assert.NotPanics(t, func() { tlm.matcher.UpdateRatelimit(common.Ptr(float64(100))) })
 }
 
+func TestDisconnectBlockedPollers(t *testing.T) {
+	tests := []struct {
+		name                 string
+		newActiveClusterName *string
+		mockSetup            func(mockMatcher *MockTaskMatcher)
+		stopped              int32
+		expectedErr          error
+	}{
+		{
+			name:                 "disconnect blocked pollers and refresh cancel context",
+			newActiveClusterName: common.StringPtr("new-active-cluster"),
+			mockSetup: func(mockMatcher *MockTaskMatcher) {
+				mockMatcher.EXPECT().DisconnectBlockedPollers().Times(1)
+				mockMatcher.EXPECT().RefreshCancelContext().Times(1)
+			},
+			expectedErr: nil,
+		},
+		{
+			name:                 "tasklist manager is shutting down, noop",
+			newActiveClusterName: common.StringPtr("new-active-cluster"),
+			mockSetup:            func(mockMatcher *MockTaskMatcher) {},
+			stopped:              int32(1),
+			expectedErr:          errShutdown,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tlID, err := NewIdentifier("domain-id", "tl", persistence.TaskListTypeDecision)
+			require.NoError(t, err)
+
+			tlm, _ := setupMocksForTaskListManager(t, tlID, types.TaskListKindNormal)
+
+			mockMatcher := NewMockTaskMatcher(gomock.NewController(t))
+			tlm.matcher = mockMatcher
+
+			tc.mockSetup(mockMatcher)
+
+			tlm.stopped = tc.stopped
+
+			err = tlm.ReleaseBlockedPollers()
+
+			assert.Equal(t, tc.expectedErr, err)
+		})
+	}
+}
+
 func partitions(num int) map[int]*types.TaskListPartition {
 	result := make(map[int]*types.TaskListPartition, num)
 	for i := 0; i < num; i++ {

@@ -24,6 +24,7 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/uber/cadence/common/clock"
@@ -99,6 +100,8 @@ func (h *domainReplicationTaskExecutorImpl) Execute(task *types.DomainTaskAttrib
 		return h.handleDomainCreationReplicationTask(ctx, task)
 	case types.DomainOperationUpdate:
 		return h.handleDomainUpdateReplicationTask(ctx, task)
+	case types.DomainOperationDelete:
+		return h.handleDomainDeleteReplicationTask(ctx, task)
 	default:
 		return ErrInvalidDomainOperation
 	}
@@ -271,6 +274,26 @@ func (h *domainReplicationTaskExecutorImpl) handleDomainUpdateReplicationTask(ct
 	}
 
 	return h.domainManager.UpdateDomain(ctx, request)
+}
+
+// handleDomainDeleteReplicationTask handles the domain delete replication task
+func (h *domainReplicationTaskExecutorImpl) handleDomainDeleteReplicationTask(ctx context.Context, task *types.DomainTaskAttributes) error {
+	request := &persistence.DeleteDomainByNameRequest{
+		Name: task.Info.GetName(),
+	}
+
+	err := h.domainManager.DeleteDomainByName(ctx, request)
+	if err != nil {
+		_, err := h.domainManager.GetDomain(ctx, &persistence.GetDomainRequest{
+			Name: task.Info.GetName(),
+		})
+
+		var entityNotExistsError *types.EntityNotExistsError
+		if errors.As(err, &entityNotExistsError) {
+			return nil
+		}
+	}
+	return err
 }
 
 func (h *domainReplicationTaskExecutorImpl) validateDomainReplicationTask(task *types.DomainTaskAttributes) error {

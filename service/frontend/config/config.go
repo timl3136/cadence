@@ -70,6 +70,9 @@ type Config struct {
 	// isolation configuration
 	EnableTasklistIsolation dynamicproperties.BoolPropertyFnWithDomainFilter
 
+	// domain deletion api feature flag
+	EnableDomainDeletion dynamicproperties.BoolPropertyFn
+
 	// id length limits
 	MaxIDLengthWarnLimit  dynamicproperties.IntPropertyFn
 	DomainNameMaxLength   dynamicproperties.IntPropertyFnWithDomainFilter
@@ -184,6 +187,7 @@ func NewConfig(dc *dynamicconfig.Collection, numHistoryShards int, isAdvancedVis
 		EmitSignalNameMetricsTag:                    dc.GetBoolPropertyFilteredByDomain(dynamicproperties.FrontendEmitSignalNameMetricsTag),
 		Lockdown:                                    dc.GetBoolPropertyFilteredByDomain(dynamicproperties.Lockdown),
 		EnableTasklistIsolation:                     dc.GetBoolPropertyFilteredByDomain(dynamicproperties.EnableTasklistIsolation),
+		EnableDomainDeletion:                        dc.GetBoolProperty(dynamicproperties.EnableDomainDeletion),
 		DomainConfig: domain.Config{
 			MaxBadBinaryCount:      dc.GetIntPropertyFilteredByDomain(dynamicproperties.FrontendMaxBadBinaries),
 			MinRetentionDays:       dc.GetIntProperty(dynamicproperties.MinRetentionDays),

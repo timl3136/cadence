@@ -125,6 +125,10 @@ type (
 		callbacks        map[string]CallbackFn
 
 		throttleRetry *backoff.ThrottleRetry
+
+		// ctx and cancel are used to control the lifecycle of background operations
+		ctx    context.Context
+		cancel context.CancelFunc
 	}
 
 	// DomainCacheEntries is DomainCacheEntry slice
@@ -171,6 +175,7 @@ func NewDomainCache(
 		backoff.WithRetryableError(common.IsServiceTransientError),
 	)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	cache := &DefaultDomainCache{
 		status:           domainCacheInitialized,
 		shutdownChan:     make(chan struct{}),
@@ -185,6 +190,8 @@ func NewDomainCache(
 		prepareCallbacks: make(map[string]PrepareCallbackFn),
 		callbacks:        make(map[string]CallbackFn),
 		throttleRetry:    throttleRetry,
+		ctx:              ctx,
+		cancel:           cancel,
 	}
 	cache.cacheNameToID.Store(newDomainCache())
 	cache.cacheByID.Store(newDomainCache())
@@ -296,6 +303,7 @@ func (c *DefaultDomainCache) Stop() {
 	if !atomic.CompareAndSwapInt32(&c.status, domainCacheStarted, domainCacheStopped) {
 		return
 	}
+	c.cancel() // Cancel the context first
 	close(c.shutdownChan)
 }
 
@@ -420,12 +428,12 @@ func (c *DefaultDomainCache) refreshLoop() {
 func (c *DefaultDomainCache) refreshDomains() error {
 	c.refreshLock.Lock()
 	defer c.refreshLock.Unlock()
-	return c.throttleRetry.Do(context.Background(), c.refreshDomainsLocked)
+	return c.throttleRetry.Do(c.ctx, c.refreshDomainsLocked)
 }
 
 // this function only refresh the domains in the v2 table
 // the domains in the v1 table will be refreshed if cache is stale
-func (c *DefaultDomainCache) refreshDomainsLocked() error {
+func (c *DefaultDomainCache) refreshDomainsLocked(ctx context.Context) error {
 	now := c.timeSource.Now()
 	if now.Sub(c.lastRefreshTime) < domainCacheMinRefreshInterval {
 		return nil
@@ -433,7 +441,7 @@ func (c *DefaultDomainCache) refreshDomainsLocked() error {
 
 	// first load the metadata record, then load domains
 	// this can guarantee that domains in the cache are not updated more than metadata record
-	ctx, cancel := context.WithTimeout(context.Background(), domainCachePersistenceTimeout)
+	ctx, cancel := context.WithTimeout(ctx, domainCachePersistenceTimeout)
 	defer cancel()
 	metadata, err := c.domainManager.GetMetadata(ctx)
 	if err != nil {
@@ -446,7 +454,7 @@ func (c *DefaultDomainCache) refreshDomainsLocked() error {
 	continuePage := true
 
 	for continuePage {
-		ctx, cancel := context.WithTimeout(context.Background(), domainCachePersistenceTimeout)
+		ctx, cancel := context.WithTimeout(ctx, domainCachePersistenceTimeout)
 		request.NextPageToken = token
 		response, err := c.domainManager.ListDomains(ctx, request)
 		cancel()
@@ -597,7 +605,7 @@ func (c *DefaultDomainCache) getDomain(
 	if cacheHit {
 		return c.getDomainByID(id, true)
 	}
-	if err := c.refreshDomainsLocked(); err != nil {
+	if err := c.refreshDomainsLocked(context.Background()); err != nil {
 		return nil, err
 	}
 	id, cacheHit = c.cacheNameToID.Load().(Cache).Get(name).(string)
@@ -648,7 +656,7 @@ func (c *DefaultDomainCache) getDomainByID(
 		entry.mu.RUnlock()
 		return result, nil
 	}
-	if err := c.refreshDomainsLocked(); err != nil {
+	if err := c.refreshDomainsLocked(context.Background()); err != nil {
 		return nil, err
 	}
 	entry, cacheHit = c.cacheByID.Load().(Cache).Get(id).(*DomainCacheEntry)

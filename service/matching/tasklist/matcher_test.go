@@ -568,12 +568,28 @@ func (t *MatcherTestSuite) TestPollersDisconnectedAfterDisconnectBlockedPollers(
 	t.disableRemoteForwarding()
 	t.matcher.DisconnectBlockedPollers()
 
-	longPollingCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	longPollingCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	task, err := t.matcher.Poll(longPollingCtx, "")
 	t.ErrorIs(err, ErrNoTasks, "closed matcher should result in no tasks")
 	t.Nil(task)
+	t.NoError(longPollingCtx.Err(), "the parent context was not cancelled, the child context was cancelled")
+}
+
+func (t *MatcherTestSuite) TestPollersConnectedAfterDisconnectBlockedPollersSetCancelContext() {
+	defer goleak.VerifyNone(t.T())
+	t.disableRemoteForwarding()
+	t.matcher.DisconnectBlockedPollers()
+	t.matcher.RefreshCancelContext()
+
+	longPollingCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	task, err := t.matcher.Poll(longPollingCtx, "")
+	t.ErrorIs(err, ErrNoTasks, "no tasks to be matched to poller")
+	t.Nil(task)
+	t.ErrorIs(longPollingCtx.Err(), context.DeadlineExceeded, "the child context wasn't cancelled, the parent context timed out")
 }
 
 func (t *MatcherTestSuite) TestRemotePoll() {

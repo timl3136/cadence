@@ -143,11 +143,13 @@ func (m *TaskStore) Get(ctx context.Context, cluster string, info persistence.Ta
 	// Rate limit to not kill the database
 	m.rateLimiter.Wait(ctx)
 
-	err = m.throttleRetry.Do(ctx, func() error {
+	op := func(ctx context.Context) error {
 		var err error
 		task, err = m.hydrator.Hydrate(ctx, info)
 		return err
-	})
+	}
+
+	err = m.throttleRetry.Do(ctx, op)
 
 	if err != nil {
 		m.scope.IncCounter(metrics.CacheFailures)

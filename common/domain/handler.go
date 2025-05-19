@@ -600,13 +600,33 @@ func (d *handlerImpl) DeleteDomain(
 	if err != nil {
 		return err
 	}
+	isGlobalDomain := getResponse.IsGlobalDomain
+	if isGlobalDomain && !d.clusterMetadata.IsPrimaryCluster() {
+		return errNotPrimaryCluster
+	}
+
 	deleteReq := &persistence.DeleteDomainByNameRequest{
 		Name: getResponse.Info.Name,
 	}
-
 	err = d.domainManager.DeleteDomainByName(ctx, deleteReq)
 	if err != nil {
 		return err
+	}
+
+	if isGlobalDomain {
+		if err := d.domainReplicator.HandleTransmissionTask(
+			ctx,
+			types.DomainOperationDelete,
+			getResponse.Info,
+			getResponse.Config,
+			getResponse.ReplicationConfig,
+			getResponse.ConfigVersion,
+			getResponse.FailoverVersion,
+			getResponse.PreviousFailoverVersion,
+			isGlobalDomain,
+		); err != nil {
+			return fmt.Errorf("unable to delete a domain in replica cluster: %v", err)
+		}
 	}
 
 	d.logger.Info("Delete domain succeeded",

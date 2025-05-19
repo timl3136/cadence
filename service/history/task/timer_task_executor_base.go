@@ -253,7 +253,7 @@ func (t *timerTaskExecutorBase) deleteWorkflowExecution(
 	if err != nil {
 		return err
 	}
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return t.shard.GetExecutionManager().DeleteWorkflowExecution(ctx, &persistence.DeleteWorkflowExecutionRequest{
 			DomainID:   task.DomainID,
 			WorkflowID: task.WorkflowID,
@@ -272,7 +272,7 @@ func (t *timerTaskExecutorBase) deleteCurrentWorkflowExecution(
 	if err != nil {
 		return err
 	}
-	op := func() error {
+	op := func(ctx context.Context) error {
 		return t.shard.GetExecutionManager().DeleteCurrentWorkflowExecution(ctx, &persistence.DeleteCurrentWorkflowExecutionRequest{
 			DomainID:   task.DomainID,
 			WorkflowID: task.WorkflowID,
@@ -289,7 +289,7 @@ func (t *timerTaskExecutorBase) deleteWorkflowHistory(
 	msBuilder execution.MutableState,
 ) error {
 
-	op := func() error {
+	op := func(ctx context.Context) error {
 		branchToken, err := msBuilder.GetCurrentBranchToken()
 		if err != nil {
 			return err
@@ -317,7 +317,7 @@ func (t *timerTaskExecutorBase) deleteWorkflowVisibility(
 	if errorDomainName != nil {
 		return errorDomainName
 	}
-	op := func() error {
+	op := func(ctx context.Context) error {
 		request := &persistence.VisibilityDeleteWorkflowExecutionRequest{
 			DomainID:   task.DomainID,
 			Domain:     domain,

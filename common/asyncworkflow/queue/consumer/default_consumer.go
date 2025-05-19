@@ -197,8 +197,8 @@ func (c *DefaultConsumer) processRequest(logger log.Logger, request *sqlblobs.As
 		scope := scope.Tagged(metrics.DomainTag(startWFReq.GetDomain()))
 
 		var resp *types.StartWorkflowExecutionResponse
-		op := func() error {
-			ctx, cancel := context.WithTimeout(c.ctx, c.startWFTimeout)
+		op := func(ctx1 context.Context) error {
+			ctx, cancel := context.WithTimeout(ctx1, c.startWFTimeout)
 			defer cancel()
 			resp, err = c.frontendClient.StartWorkflowExecution(ctx, startWFReq, yarpcCallOpts...)
 
@@ -227,8 +227,8 @@ func (c *DefaultConsumer) processRequest(logger log.Logger, request *sqlblobs.As
 		yarpcCallOpts := getYARPCOptions(request.GetHeader())
 		scope := c.scope.Tagged(metrics.DomainTag(startWFReq.GetDomain()))
 		var resp *types.StartWorkflowExecutionResponse
-		op := func() error {
-			ctx, cancel := context.WithTimeout(c.ctx, c.startWFTimeout)
+		op := func(ctx1 context.Context) error {
+			ctx, cancel := context.WithTimeout(ctx1, c.startWFTimeout)
 			defer cancel()
 			resp, err = c.frontendClient.SignalWithStartWorkflowExecution(ctx, startWFReq, yarpcCallOpts...)
 
@@ -255,7 +255,7 @@ func (c *DefaultConsumer) processRequest(logger log.Logger, request *sqlblobs.As
 	return nil
 }
 
-func callFrontendWithRetries(ctx context.Context, op func() error) error {
+func callFrontendWithRetries(ctx context.Context, op func(ctx context.Context) error) error {
 	throttleRetry := backoff.NewThrottleRetry(
 		backoff.WithRetryPolicy(common.CreateFrontendServiceRetryPolicy()),
 		backoff.WithRetryableError(common.IsServiceTransientError),

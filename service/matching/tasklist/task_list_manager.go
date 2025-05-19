@@ -119,6 +119,7 @@ type (
 		startWG       sync.WaitGroup // ensures that background processes do not start until setup is ready
 		stopWG        sync.WaitGroup
 		stopped       int32
+		stoppedLock   sync.RWMutex
 		closeCallback func(Manager)
 		throttleRetry *backoff.ThrottleRetry
 
@@ -253,7 +254,7 @@ func (c *taskListManagerImpl) Start() error {
 
 	if !c.taskListID.IsRoot() && c.taskListKind == types.TaskListKindNormal {
 		var info *persistence.TaskListInfo
-		err := c.throttleRetry.Do(context.Background(), func() error {
+		err := c.throttleRetry.Do(context.Background(), func(ctx context.Context) error {
 			var err error
 			info, err = c.db.GetTaskListInfo(c.taskListID.GetRoot())
 			return err
@@ -302,6 +303,8 @@ func (c *taskListManagerImpl) Start() error {
 
 // Stop stops task list manager and calls Stop on all background child objects
 func (c *taskListManagerImpl) Stop() {
+	c.stoppedLock.Lock()
+	defer c.stoppedLock.Unlock()
 	if !atomic.CompareAndSwapInt32(&c.stopped, 0, 1) {
 		return
 	}
@@ -394,7 +397,7 @@ func (c *taskListManagerImpl) RefreshTaskListPartitionConfig(ctx context.Context
 	if config == nil {
 		// if config is nil, we'll reload it from database
 		var info *persistence.TaskListInfo
-		err := c.throttleRetry.Do(ctx, func() error {
+		err := c.throttleRetry.Do(ctx, func(ctx context.Context) error {
 			var err error
 			info, err = c.db.GetTaskListInfo(c.taskListID.GetRoot())
 			return err
@@ -450,7 +453,7 @@ func (c *taskListManagerImpl) updatePartitionConfig(ctx context.Context, newConf
 			return nil, nil, nil
 		}
 	}
-	err = c.throttleRetry.Do(ctx, func() error {
+	err = c.throttleRetry.Do(ctx, func(ctx context.Context) error {
 		return c.db.UpdateTaskListPartitionConfig(toPersistenceConfig(version+1, newConfig))
 	})
 	if err != nil {
@@ -757,6 +760,21 @@ func (c *taskListManagerImpl) DescribeTaskList(includeTaskListStatus bool) *type
 	return response
 }
 
+func (c *taskListManagerImpl) ReleaseBlockedPollers() error {
+	c.stoppedLock.RLock()
+	defer c.stoppedLock.RUnlock()
+
+	if atomic.LoadInt32(&c.stopped) == 1 {
+		c.logger.Info("Task list manager is already stopped")
+		return errShutdown
+	}
+
+	c.matcher.DisconnectBlockedPollers()
+	c.matcher.RefreshCancelContext()
+
+	return nil
+}
+
 func (c *taskListManagerImpl) String() string {
 	buf := new(bytes.Buffer)
 	if c.taskListID.GetType() == persistence.TaskListTypeActivity {
@@ -787,7 +805,7 @@ func (c *taskListManagerImpl) executeWithRetry(
 	operation func() (interface{}, error),
 ) (result interface{}, err error) {
 
-	op := func() error {
+	op := func(ctx context.Context) error {
 		result, err = operation()
 		return err
 	}

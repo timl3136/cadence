@@ -165,6 +165,13 @@ func (s *constantSuite) TestBoolKey() {
 			expectedDefaultValue: false,
 			expectedFilters:      []Filter{DomainName},
 		},
+		"EnableDomainDeletion": {
+			key:                  EnableDomainDeletion,
+			expectedString:       "frontend.enableDomainDeletion",
+			expectedDescription:  "EnableDomainDeletion enables Delete Domain API to remove domain records from the persistence layer.",
+			expectedDefaultValue: false,
+			expectedFilters:      nil,
+		},
 	}
 
 	for _, value := range testBoolKeys {
