@@ -465,10 +465,10 @@ func (p *taskProcessorImpl) processTaskOnce(replicationTask *types.ReplicationTa
 	scope, err := p.taskExecutor.execute(replicationTask, false)
 
 	if err != nil {
-		p.updateFailureMetric(scope, err)
+		p.updateFailureMetric(scope, err, p.shard.GetShardID())
 	} else {
 		now := ts.Now()
-		mScope := p.metricsClient.Scope(scope, metrics.TargetClusterTag(p.sourceCluster), metrics.InstanceTag(strconv.Itoa(p.shard.GetShardID())))
+		mScope := p.metricsClient.Scope(scope, metrics.TargetClusterTag(p.sourceCluster))
 		domainID := replicationTask.HistoryTaskV2Attributes.GetDomainID()
 		if domainID != "" {
 			domainName, errorDomainName := p.shard.GetDomainCache().GetDomainName(domainID)
@@ -477,8 +477,6 @@ func (p *taskProcessorImpl) processTaskOnce(replicationTask *types.ReplicationTa
 			}
 			mScope = mScope.Tagged(metrics.DomainTag(domainName))
 		}
-		// emit the number of replication tasks
-		mScope.IncCounter(metrics.ReplicationTasksAppliedPerDomain)
 		// emit single task processing latency
 		mScope.RecordTimer(metrics.TaskProcessingLatency, now.Sub(startTime))
 		// emit latency from task generated to task received
@@ -486,6 +484,9 @@ func (p *taskProcessorImpl) processTaskOnce(replicationTask *types.ReplicationTa
 			metrics.ReplicationTaskLatency,
 			now.Sub(time.Unix(0, replicationTask.GetCreationTime())),
 		)
+		// emit the number of replication tasks
+		shardScope := mScope.Tagged(metrics.InstanceTag(strconv.Itoa(p.shard.GetShardID())))
+		shardScope.IncCounter(metrics.ReplicationTasksAppliedPerDomain)
 	}
 
 	return err
@@ -660,29 +661,30 @@ func (p *taskProcessorImpl) shouldRetryDLQ(err error) bool {
 	}
 }
 
-func (p *taskProcessorImpl) updateFailureMetric(scope int, err error) {
+func (p *taskProcessorImpl) updateFailureMetric(scope int, err error, shardID int) {
 	// Always update failure counter for all replicator errors
-	p.metricsClient.IncCounter(scope, metrics.ReplicatorFailures)
+	shardScope := p.metricsClient.Scope(scope, metrics.InstanceTag(strconv.Itoa(shardID)))
+	shardScope.IncCounter(metrics.ReplicatorFailures)
 
 	// Also update counter to distinguish between type of failures
 	switch err := err.(type) {
 	case *types.ShardOwnershipLostError:
-		p.metricsClient.IncCounter(scope, metrics.CadenceErrShardOwnershipLostCounter)
+		shardScope.IncCounter(metrics.CadenceErrShardOwnershipLostCounter)
 	case *types.BadRequestError:
-		p.metricsClient.IncCounter(scope, metrics.CadenceErrBadRequestCounter)
+		shardScope.IncCounter(metrics.CadenceErrBadRequestCounter)
 	case *types.DomainNotActiveError:
-		p.metricsClient.IncCounter(scope, metrics.CadenceErrDomainNotActiveCounter)
+		shardScope.IncCounter(metrics.CadenceErrDomainNotActiveCounter)
 	case *types.WorkflowExecutionAlreadyStartedError:
-		p.metricsClient.IncCounter(scope, metrics.CadenceErrExecutionAlreadyStartedCounter)
+		shardScope.IncCounter(metrics.CadenceErrExecutionAlreadyStartedCounter)
 	case *types.EntityNotExistsError:
-		p.metricsClient.IncCounter(scope, metrics.CadenceErrEntityNotExistsCounter)
+		shardScope.IncCounter(metrics.CadenceErrEntityNotExistsCounter)
 	case *types.WorkflowExecutionAlreadyCompletedError:
-		p.metricsClient.IncCounter(scope, metrics.CadenceErrWorkflowExecutionAlreadyCompletedCounter)
+		shardScope.IncCounter(metrics.CadenceErrWorkflowExecutionAlreadyCompletedCounter)
 	case *types.LimitExceededError:
-		p.metricsClient.IncCounter(scope, metrics.CadenceErrLimitExceededCounter)
+		shardScope.IncCounter(metrics.CadenceErrLimitExceededCounter)
 	case *yarpcerrors.Status:
 		if err.Code() == yarpcerrors.CodeDeadlineExceeded {
-			p.metricsClient.IncCounter(scope, metrics.CadenceErrContextTimeoutCounter)
+			shardScope.IncCounter(metrics.CadenceErrContextTimeoutCounter)
 		}
 	}
 }
