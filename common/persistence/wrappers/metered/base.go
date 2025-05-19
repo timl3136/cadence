@@ -23,6 +23,7 @@
 package metered
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -33,6 +34,10 @@ import (
 	"github.com/uber/cadence/common/persistence"
 	"github.com/uber/cadence/common/types"
 )
+
+type retryCountKeyType string
+
+const retryCountKey = retryCountKeyType("retryCount")
 
 type base struct {
 	metricClient                  metrics.Client
@@ -160,9 +165,9 @@ func (p *base) callWithoutDomainTag(scope int, op func() error, tags ...metrics.
 	return err
 }
 
-func (p *base) callWithDomainAndShardScope(scope int, op func() error, domainTag metrics.Tag, shardIDTag metrics.Tag) error {
-	domainMetricsScope := p.metricClient.Scope(scope, domainTag)
-	shardOperationsMetricsScope := p.metricClient.Scope(scope, shardIDTag)
+func (p *base) callWithDomainAndShardScope(scope int, op func() error, domainTag metrics.Tag, shardIDTag metrics.Tag, additionalTags ...metrics.Tag) error {
+	domainMetricsScope := p.metricClient.Scope(scope, append([]metrics.Tag{domainTag}, additionalTags...)...)
+	shardOperationsMetricsScope := p.metricClient.Scope(scope, append([]metrics.Tag{shardIDTag}, additionalTags...)...)
 	shardOverallMetricsScope := p.metricClient.Scope(metrics.PersistenceShardRequestCountScope, shardIDTag)
 
 	domainMetricsScope.IncCounter(metrics.PersistenceRequestsPerDomain)
@@ -331,4 +336,11 @@ func getCustomMetricTags(req any) (res []metrics.Tag) {
 		res = d.MetricTags()
 	}
 	return res
+}
+
+func getRetryCountFromContext(ctx context.Context) int {
+	if retryCount, ok := ctx.Value(retryCountKey).(int); ok {
+		return retryCount
+	}
+	return 0
 }

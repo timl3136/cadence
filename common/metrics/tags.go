@@ -69,6 +69,7 @@ const (
 	leakCause                 = "leak_cause"
 	topic                     = "topic"
 	mode                      = "mode"
+	isRetry                   = "is_retry"
 
 	// limiter-side tags
 	globalRatelimitKey            = "global_ratelimit_key"
@@ -334,6 +335,11 @@ func TopicTag(value string) Tag {
 
 func ModeTag(value string) Tag {
 	return metricWithUnknown(mode, value)
+}
+
+// IsRetryTag returns a new is_retry tag.
+func IsRetryTag(retry bool) Tag {
+	return simpleMetric{key: isRetry, value: strconv.FormatBool(retry)}
 }
 
 func NamespaceTag(namespace string) Tag {
