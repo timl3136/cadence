@@ -486,7 +486,7 @@ func (p *taskProcessorImpl) processTaskOnce(replicationTask *types.ReplicationTa
 		)
 		// emit the number of replication tasks
 		mScope.IncCounter(metrics.ReplicationTasksAppliedPerDomain)
-		shardScope := p.metricsClient.Scope(scope, metrics.InstanceTag(strconv.Itoa(p.shard.GetShardID())))
+		shardScope := p.metricsClient.Scope(scope, metrics.TargetClusterTag(p.sourceCluster), metrics.InstanceTag(strconv.Itoa(p.shard.GetShardID())))
 		shardScope.IncCounter(metrics.ReplicationTasksApplied)
 
 	}
