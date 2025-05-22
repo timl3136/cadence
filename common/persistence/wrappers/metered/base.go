@@ -348,5 +348,5 @@ func getRetryCountFromContext(ctx context.Context) int {
 	if retryCount, ok := ctx.Value(retryCountKey).(int); ok {
 		return retryCount
 	}
-	return 0
+	return -1
 }

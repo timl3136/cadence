@@ -6,6 +6,7 @@ package metered
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/uber/cadence/common/config"
 	"github.com/uber/cadence/common/dynamicconfig/dynamicproperties"
@@ -54,6 +55,9 @@ func (c *meteredExecutionManager) CompleteHistoryTask(ctx context.Context, reque
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "CompleteHistoryTask"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence CompleteHistoryTask called", c.sampleLoggingRate(), logTags...)
@@ -79,6 +83,9 @@ func (c *meteredExecutionManager) ConflictResolveWorkflowExecution(ctx context.C
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "ConflictResolveWorkflowExecution"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence ConflictResolveWorkflowExecution called", c.sampleLoggingRate(), logTags...)
@@ -103,6 +110,9 @@ func (c *meteredExecutionManager) CreateFailoverMarkerTasks(ctx context.Context,
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "CreateFailoverMarkerTasks"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence CreateFailoverMarkerTasks called", c.sampleLoggingRate(), logTags...)
@@ -128,6 +138,9 @@ func (c *meteredExecutionManager) CreateWorkflowExecution(ctx context.Context, r
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "CreateWorkflowExecution"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence CreateWorkflowExecution called", c.sampleLoggingRate(), logTags...)
@@ -152,6 +165,9 @@ func (c *meteredExecutionManager) DeleteCurrentWorkflowExecution(ctx context.Con
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "DeleteCurrentWorkflowExecution"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence DeleteCurrentWorkflowExecution called", c.sampleLoggingRate(), logTags...)
@@ -176,6 +192,9 @@ func (c *meteredExecutionManager) DeleteReplicationTaskFromDLQ(ctx context.Conte
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "DeleteReplicationTaskFromDLQ"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence DeleteReplicationTaskFromDLQ called", c.sampleLoggingRate(), logTags...)
@@ -200,6 +219,9 @@ func (c *meteredExecutionManager) DeleteWorkflowExecution(ctx context.Context, r
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "DeleteWorkflowExecution"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence DeleteWorkflowExecution called", c.sampleLoggingRate(), logTags...)
@@ -225,6 +247,9 @@ func (c *meteredExecutionManager) GetCurrentExecution(ctx context.Context, reque
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "GetCurrentExecution"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence GetCurrentExecution called", c.sampleLoggingRate(), logTags...)
@@ -250,6 +275,9 @@ func (c *meteredExecutionManager) GetHistoryTasks(ctx context.Context, request *
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "GetHistoryTasks"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence GetHistoryTasks called", c.sampleLoggingRate(), logTags...)
@@ -279,6 +307,9 @@ func (c *meteredExecutionManager) GetReplicationDLQSize(ctx context.Context, req
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "GetReplicationDLQSize"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence GetReplicationDLQSize called", c.sampleLoggingRate(), logTags...)
@@ -304,6 +335,9 @@ func (c *meteredExecutionManager) GetReplicationTasksFromDLQ(ctx context.Context
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "GetReplicationTasksFromDLQ"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence GetReplicationTasksFromDLQ called", c.sampleLoggingRate(), logTags...)
@@ -333,6 +367,9 @@ func (c *meteredExecutionManager) GetWorkflowExecution(ctx context.Context, requ
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "GetWorkflowExecution"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence GetWorkflowExecution called", c.sampleLoggingRate(), logTags...)
@@ -358,6 +395,9 @@ func (c *meteredExecutionManager) IsWorkflowExecutionExists(ctx context.Context,
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "IsWorkflowExecutionExists"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence IsWorkflowExecutionExists called", c.sampleLoggingRate(), logTags...)
@@ -383,6 +423,9 @@ func (c *meteredExecutionManager) ListConcreteExecutions(ctx context.Context, re
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "ListConcreteExecutions"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence ListConcreteExecutions called", c.sampleLoggingRate(), logTags...)
@@ -408,6 +451,9 @@ func (c *meteredExecutionManager) ListCurrentExecutions(ctx context.Context, req
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "ListCurrentExecutions"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence ListCurrentExecutions called", c.sampleLoggingRate(), logTags...)
@@ -432,6 +478,9 @@ func (c *meteredExecutionManager) PutReplicationTaskToDLQ(ctx context.Context, r
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "PutReplicationTaskToDLQ"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence PutReplicationTaskToDLQ called", c.sampleLoggingRate(), logTags...)
@@ -457,6 +506,9 @@ func (c *meteredExecutionManager) RangeCompleteHistoryTask(ctx context.Context, 
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "RangeCompleteHistoryTask"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence RangeCompleteHistoryTask called", c.sampleLoggingRate(), logTags...)
@@ -482,6 +534,9 @@ func (c *meteredExecutionManager) RangeDeleteReplicationTaskFromDLQ(ctx context.
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "RangeDeleteReplicationTaskFromDLQ"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence RangeDeleteReplicationTaskFromDLQ called", c.sampleLoggingRate(), logTags...)
@@ -507,6 +562,9 @@ func (c *meteredExecutionManager) UpdateWorkflowExecution(ctx context.Context, r
 	}
 
 	retryCount := getRetryCountFromContext(ctx)
+	if retryCount == -1 {
+		c.logger.Info(fmt.Sprintf("Unable to get retry count from context for operation: %s", "UpdateWorkflowExecution"))
+	}
 	if domainName, hasDomainName := getDomainNameFromRequest(request); hasDomainName {
 		logTags := append([]tag.Tag{tag.WorkflowDomainName(domainName)}, getCustomLogTags(request)...)
 		c.logger.SampleInfo("Persistence UpdateWorkflowExecution called", c.sampleLoggingRate(), logTags...)
