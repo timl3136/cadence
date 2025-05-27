@@ -518,19 +518,24 @@ func (t *timerQueueProcessorBase) getTimerTasks(readLevel, maxReadLevel task.Key
 		PageSize:            batchSize,
 		NextPageToken:       nextPageToken,
 	}
-	var err error
+
 	var response *persistence.GetHistoryTasksResponse
-	retryCount := t.shard.GetConfig().TimerProcessorGetFailureRetryCount()
-	for attempt := 0; attempt < retryCount; attempt++ {
-		response, err = t.shard.GetExecutionManager().GetHistoryTasks(context.Background(), request)
-		if err == nil {
-			return response, nil
-		}
-		backoff := time.Duration(attempt*100) * time.Millisecond
-		t.logger.Debugf("Failed to get timer tasks from execution manager. error: %v, attempt: %d, retryCount: %d, backoff: %v", err, attempt, retryCount, backoff)
-		time.Sleep(backoff)
+	op := func(ctx context.Context) error {
+		var err error
+		response, err = t.shard.GetExecutionManager().GetHistoryTasks(ctx, request)
+		return err
 	}
-	return nil, err
+
+	throttleRetry := backoff.NewThrottleRetry(
+		backoff.WithRetryPolicy(persistenceOperationRetryPolicy),
+		backoff.WithRetryableError(persistence.IsBackgroundTransientError),
+	)
+	err := throttleRetry.Do(context.Background(), op)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
 }
 
 func (t *timerQueueProcessorBase) isProcessNow(expiryTime time.Time) bool {
