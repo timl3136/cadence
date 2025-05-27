@@ -527,7 +527,7 @@ func (t *timerQueueProcessorBase) getTimerTasks(readLevel, maxReadLevel task.Key
 	}
 
 	throttleRetry := backoff.NewThrottleRetry(
-		backoff.WithRetryPolicy(persistenceOperationRetryPolicy),
+		backoff.WithRetryPolicy(common.CreateTaskProcessingRetryPolicy()),
 		backoff.WithRetryableError(persistence.IsBackgroundTransientError),
 	)
 	err := throttleRetry.Do(context.Background(), op)
