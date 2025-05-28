@@ -2018,7 +2018,7 @@ const (
 	// Default value: false
 	Lockdown
 
-	// PendingActivityValidationEnabled is feature flag if pending activity count validation is enabled
+	// EnablePendingActivityValidation is feature flag if pending activity count validation is enabled
 	// KeyName: limit.pendingActivityCount.enabled
 	// Value type: bool
 	// Default value: false
