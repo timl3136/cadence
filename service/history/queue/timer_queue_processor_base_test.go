@@ -495,7 +495,7 @@ func (s *timerQueueProcessorBaseSuite) TestReadAndFilterTasks_LookAheadFailed_No
 
 	mockExecutionMgr := s.mockShard.Resource.ExecutionMgr
 	mockExecutionMgr.On("GetHistoryTasks", mock.Anything, request).Return(response, nil).Once()
-	mockExecutionMgr.On("GetHistoryTasks", mock.Anything, lookAheadRequest).Return(nil, errors.New("some random error")).Once()
+	mockExecutionMgr.On("GetHistoryTasks", mock.Anything, lookAheadRequest).Return(nil, errors.New("some random error")).Times(0)
 
 	timerQueueProcessBase, done := s.newTestTimerQueueProcessorBase(nil, nil, nil, nil, nil)
 	defer done()
