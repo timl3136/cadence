@@ -59,27 +59,36 @@ func GetBackoffForNextSchedule(
 	startTime time.Time,
 	closeTime time.Time,
 	jitterStartSeconds int32,
+	bufferOneCronWorkflow bool,
 ) (time.Duration, error) {
 	startUTCTime := startTime.In(time.UTC)
 	closeUTCTime := closeTime.In(time.UTC)
 	nextScheduleTime := sched.Next(startUTCTime)
+	roundedInterval := time.Duration(0)
 	if nextScheduleTime.IsZero() {
 		// this should only occur for bad specs, e.g. impossible dates like Feb 30,
 		// which should be prevented from being saved by the valid check.
 		return NoBackoff, fmt.Errorf("invalid CronSchedule, no next firing time found")
 	}
 
-	// Calculate the next schedule start time which is nearest to the close time
-	for nextScheduleTime.Before(closeUTCTime) {
-		nextScheduleTime = sched.Next(nextScheduleTime)
-		if nextScheduleTime.IsZero() {
-			// this should only occur for bad specs, e.g. impossible dates like Feb 30,
-			// which should be prevented from being saved by the valid check.
-			return NoBackoff, fmt.Errorf("invalid CronSchedule, no next firing time found")
+	// If bufferOneCronWorkflow is true, we need to calculate the next schedule start time from the close time
+	if !bufferOneCronWorkflow {
+		// Calculate the next schedule start time which is nearest to the close time
+		for nextScheduleTime.Before(closeUTCTime) {
+			nextScheduleTime = sched.Next(nextScheduleTime)
+			if nextScheduleTime.IsZero() {
+				// this should only occur for bad specs, e.g. impossible dates like Feb 30,
+				// which should be prevented from being saved by the valid check.
+				return NoBackoff, fmt.Errorf("invalid CronSchedule, no next firing time found")
+			}
 		}
+		backoffInterval := nextScheduleTime.Sub(closeUTCTime)
+		roundedInterval = time.Second * time.Duration(math.Ceil(backoffInterval.Seconds()))
+	} else if nextScheduleTime.After(closeUTCTime) {
+		// there is no miss cron run since next schedule time is after previous run close time
+		backoffInterval := nextScheduleTime.Sub(closeUTCTime)
+		roundedInterval = time.Second * time.Duration(math.Ceil(backoffInterval.Seconds()))
 	}
-	backoffInterval := nextScheduleTime.Sub(closeUTCTime)
-	roundedInterval := time.Second * time.Duration(math.Ceil(backoffInterval.Seconds()))
 
 	var jitter time.Duration
 	if jitterStartSeconds > 0 {
@@ -101,7 +110,7 @@ func GetBackoffForNextScheduleInSeconds(
 	if err != nil {
 		return 0, err
 	}
-	backoffDuration, err := GetBackoffForNextSchedule(sched, startTime, closeTime, jitterStartSeconds)
+	backoffDuration, err := GetBackoffForNextSchedule(sched, startTime, closeTime, jitterStartSeconds, false)
 	if err != nil {
 		return 0, err
 	}

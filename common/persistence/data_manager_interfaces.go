@@ -411,9 +411,10 @@ type (
 		NonRetriableErrors []string
 		BranchToken        []byte
 		// Cron
-		CronSchedule      string
-		IsCron            bool
-		ExpirationSeconds int32 // TODO: is this field useful?
+		CronSchedule          string
+		IsCron                bool
+		BufferOneCronWorkflow bool
+		ExpirationSeconds     int32 // TODO: is this field useful?
 	}
 
 	// ExecutionStats is the statistics about workflow execution
