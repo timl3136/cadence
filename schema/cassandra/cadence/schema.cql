@@ -96,7 +96,6 @@ CREATE TYPE workflow_execution (
   search_attributes                map<text, blob>,
   memo                             map<text, blob>,
   partition_config                 map<text, text>
-  cron_overlap_policy             int, -- enum CronOverlapPolicy {disabled, bufferone}
 );
 
 -- Replication information for each cluster
