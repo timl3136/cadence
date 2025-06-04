@@ -326,3 +326,7 @@ const (
 	// ActiveActiveEntityKeyHeaderKey is the header key in workflow start request header for active-active entity key
 	ActiveActiveEntityKeyHeaderKey = "active-active-entity-key"
 )
+const (
+	// CronOverlapPolicyBufferOne means buffer one cron workflow
+	CronOverlapPolicyBufferOne = 1
+)

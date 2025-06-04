@@ -8700,3 +8700,26 @@ type AutoConfigHint struct {
 	EnableAutoConfig   bool  `json:"enableAutoConfig"`
 	PollerWaitTimeInMs int64 `json:"pollerWaitTimeInMs"`
 }
+
+type CronOverlapPolicy int32
+
+const (
+	CronOverlapPolicySkip CronOverlapPolicy = iota
+	CronOverlapPolicyBufferOne
+)
+
+func (v CronOverlapPolicy) String() string {
+	switch v {
+	case CronOverlapPolicySkip:
+		return "SKIP"
+	case CronOverlapPolicyBufferOne:
+		return "BUFFERONE"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// Ptr is a helper function for getting pointer to CronOverlapPolicy
+func (v CronOverlapPolicy) Ptr() *CronOverlapPolicy {
+	return &v
+}

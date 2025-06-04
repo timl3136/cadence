@@ -59,7 +59,7 @@ func GetBackoffForNextSchedule(
 	startTime time.Time,
 	closeTime time.Time,
 	jitterStartSeconds int32,
-	bufferOneCronWorkflow bool,
+	cronOverlapPolicy types.CronOverlapPolicy,
 ) (time.Duration, error) {
 	startUTCTime := startTime.In(time.UTC)
 	closeUTCTime := closeTime.In(time.UTC)
@@ -72,7 +72,7 @@ func GetBackoffForNextSchedule(
 	}
 
 	// If bufferOneCronWorkflow is true, we need to calculate the next schedule start time from the close time
-	if !bufferOneCronWorkflow {
+	if cronOverlapPolicy != types.CronOverlapPolicyBufferOne {
 		// Calculate the next schedule start time which is nearest to the close time
 		for nextScheduleTime.Before(closeUTCTime) {
 			nextScheduleTime = sched.Next(nextScheduleTime)
@@ -110,7 +110,7 @@ func GetBackoffForNextScheduleInSeconds(
 	if err != nil {
 		return 0, err
 	}
-	backoffDuration, err := GetBackoffForNextSchedule(sched, startTime, closeTime, jitterStartSeconds, false)
+	backoffDuration, err := GetBackoffForNextSchedule(sched, startTime, closeTime, jitterStartSeconds, types.CronOverlapPolicyBufferOne)
 	if err != nil {
 		return 0, err
 	}
