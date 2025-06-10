@@ -316,6 +316,7 @@ type (
 		Memo               map[string][]byte
 		SearchAttributes   map[string][]byte
 		PartitionConfig    map[string]string
+		CronOverlapPolicy  types.CronOverlapPolicy
 
 		// attributes which are not related to mutable state at all
 		HistorySize int64

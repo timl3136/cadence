@@ -823,7 +823,7 @@ func (s *cliAppSuite) TestAnyToString_DecodeMapValues() {
 	execution := &types.WorkflowExecutionInfo{
 		Memo: &types.Memo{Fields: fields},
 	}
-	s.Equal("{HistoryLength:0, Memo:{Fields:map{TestKey:testValue}}, IsCron:false, PartitionConfig:map{}}", anyToString(execution, true, 0))
+	s.Equal("{HistoryLength:0, Memo:{Fields:map{TestKey:testValue}}, IsCron:false, PartitionConfig:map{}, CronOverlapPolicy:SKIP}", anyToString(execution, true, 0))
 
 	fields["TestKey2"] = []byte(`anotherTestValue`)
 	execution.Memo = &types.Memo{Fields: fields}

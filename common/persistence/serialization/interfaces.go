@@ -174,6 +174,7 @@ type (
 		PartitionConfig                    map[string]string
 		Checksum                           []byte
 		ChecksumEncoding                   string
+		CronOverlapPolicy                  types.CronOverlapPolicy
 	}
 
 	// ActivityInfo blob in a serialization agnostic format

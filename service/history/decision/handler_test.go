@@ -869,7 +869,8 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 			},
 			mutableState: &persistence.WorkflowMutableState{
 				ExecutionInfo: &persistence.WorkflowExecutionInfo{
-					CronSchedule: "0 1 * * 1", //some random cron schedule
+					CronSchedule:      "0 1 * * 1", //some random cron schedule
+					CronOverlapPolicy: types.CronOverlapPolicySkip,
 				},
 			},
 		},
@@ -911,10 +912,11 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 					Return(&persistence.GetWorkflowExecutionResponse{
 						State: &persistence.WorkflowMutableState{
 							ExecutionInfo: &persistence.WorkflowExecutionInfo{
-								DomainID:     constants.TestDomainID,
-								WorkflowID:   constants.TestWorkflowID,
-								RunID:        constants.TestRunID,
-								CronSchedule: "0 1 * * 1", //some random cron schedule
+								DomainID:          constants.TestDomainID,
+								WorkflowID:        constants.TestWorkflowID,
+								RunID:             constants.TestRunID,
+								CronSchedule:      "0 1 * * 1", //some random cron schedule
+								CronOverlapPolicy: types.CronOverlapPolicySkip,
 							},
 							ExecutionStats: &persistence.ExecutionStats{},
 						},
@@ -965,10 +967,11 @@ func TestHandleDecisionTaskCompleted(t *testing.T) {
 						return &persistence.GetWorkflowExecutionResponse{
 							State: &persistence.WorkflowMutableState{
 								ExecutionInfo: &persistence.WorkflowExecutionInfo{
-									DomainID:     constants.TestDomainID,
-									WorkflowID:   constants.TestWorkflowID,
-									RunID:        constants.TestRunID,
-									CronSchedule: "0 1 * * 1", //some random cron schedule
+									DomainID:          constants.TestDomainID,
+									WorkflowID:        constants.TestWorkflowID,
+									RunID:             constants.TestRunID,
+									CronSchedule:      "0 1 * * 1", //some random cron schedule
+									CronOverlapPolicy: types.CronOverlapPolicySkip,
 								},
 								ExecutionStats: &persistence.ExecutionStats{},
 							},

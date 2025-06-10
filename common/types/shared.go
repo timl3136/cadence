@@ -804,6 +804,7 @@ type ContinueAsNewWorkflowExecutionDecisionAttributes struct {
 	FailureDetails                      []byte                  `json:"failureDetails,omitempty"`
 	LastCompletionResult                []byte                  `json:"lastCompletionResult,omitempty"`
 	CronSchedule                        string                  `json:"cronSchedule,omitempty"`
+	CronOverlapPolicy                   *CronOverlapPolicy      `json:"cronOverlapPolicy,omitempty"`
 	Header                              *Header                 `json:"header,omitempty"`
 	Memo                                *Memo                   `json:"memo,omitempty"`
 	SearchAttributes                    *SearchAttributes       `json:"searchAttributes,omitempty"`
@@ -6178,6 +6179,7 @@ type SignalWithStartWorkflowExecutionRequest struct {
 	Control                             []byte                 `json:"control,omitempty"`
 	RetryPolicy                         *RetryPolicy           `json:"retryPolicy,omitempty"`
 	CronSchedule                        string                 `json:"cronSchedule,omitempty"`
+	CronOverlapPolicy                   *CronOverlapPolicy     `json:"cronOverlapPolicy,omitempty"`
 	Memo                                *Memo                  `json:"-"` // Filtering PII
 	SearchAttributes                    *SearchAttributes      `json:"-"` // Filtering PII
 	Header                              *Header                `json:"header,omitempty"`
@@ -6367,6 +6369,7 @@ type StartChildWorkflowExecutionDecisionAttributes struct {
 	Header                              *Header                `json:"header,omitempty"`
 	Memo                                *Memo                  `json:"memo,omitempty"`
 	SearchAttributes                    *SearchAttributes      `json:"searchAttributes,omitempty"`
+	CronOverlapPolicy                   *CronOverlapPolicy     `json:"cronOverlapPolicy,omitempty"`
 }
 
 // GetDomain is an internal getter (TBD...)
@@ -7684,6 +7687,7 @@ type WorkflowExecutionInfo struct {
 	IsCron            bool                          `json:"isCron,omitempty"`
 	UpdateTime        *int64                        `json:"updateTime,omitempty"`
 	PartitionConfig   map[string]string
+	CronOverlapPolicy *CronOverlapPolicy `json:"cronOverlapPolicy,omitempty"`
 }
 
 // GetExecution is an internal getter (TBD...)
@@ -7827,6 +7831,7 @@ type WorkflowExecutionStartedEventAttributes struct {
 	Attempt                             int32                   `json:"attempt,omitempty"`
 	ExpirationTimestamp                 *int64                  `json:"expirationTimestamp,omitempty"`
 	CronSchedule                        string                  `json:"cronSchedule,omitempty"`
+	CronOverlapPolicy                   *CronOverlapPolicy      `json:"cronOverlapPolicy,omitempty"`
 	FirstDecisionTaskBackoffSeconds     *int32                  `json:"firstDecisionTaskBackoffSeconds,omitempty"`
 	Memo                                *Memo                   `json:"memo,omitempty"`
 	SearchAttributes                    *SearchAttributes       `json:"searchAttributes,omitempty"`
@@ -7893,7 +7898,7 @@ func (v *WorkflowExecutionStartedEventAttributes) GetFirstExecutionRunID() (o st
 	return
 }
 
-// Get
+// GetFirstScheduledTime is an internal getter (TBD...)
 func (v *WorkflowExecutionStartedEventAttributes) GetFirstScheduledTime() (o time.Time) {
 	if v != nil && v.FirstScheduleTime != nil {
 		return *v.FirstScheduleTime

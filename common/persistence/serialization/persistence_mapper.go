@@ -75,6 +75,7 @@ func ToInternalWorkflowExecutionInfo(info *WorkflowExecutionInfo) *persistence.I
 		FirstExecutionRunID:                info.FirstExecutionRunID.String(),
 		PartitionConfig:                    info.PartitionConfig,
 		IsCron:                             info.IsCron,
+		CronOverlapPolicy:                  info.CronOverlapPolicy,
 	}
 	if info.ParentDomainID != nil {
 		result.ParentDomainID = info.ParentDomainID.String()
@@ -158,6 +159,7 @@ func FromInternalWorkflowExecutionInfo(executionInfo *persistence.InternalWorkfl
 		FirstExecutionRunID:                MustParseUUID(executionInfo.FirstExecutionRunID),
 		PartitionConfig:                    executionInfo.PartitionConfig,
 		IsCron:                             executionInfo.IsCron,
+		CronOverlapPolicy:                  executionInfo.CronOverlapPolicy,
 	}
 
 	if executionInfo.CompletionEvent != nil {
