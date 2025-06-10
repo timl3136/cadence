@@ -67,7 +67,7 @@ func TestCron(t *testing.T) {
 				require.ErrorContains(t, err, "Invalid CronSchedule")
 			} else {
 				require.NoError(t, err)
-				backoff, err := GetBackoffForNextSchedule(sched, start, end, 0, types.CronOverlapPolicySkip)
+				backoff, err := GetBackoffForNextSchedule(sched, start, end, 0, types.CronOverlapPolicySkipped)
 				require.NoError(t, err)
 				assert.Equal(t, tt.result, backoff, "The cron spec is %s and the expected result is %s", tt.cron, tt.result)
 			}
@@ -112,7 +112,7 @@ func TestCronWithJitterStart(t *testing.T) {
 			if tt.expectedResultSeconds != NoBackoff {
 				assert.NoError(t, err)
 			}
-			backoff, err := GetBackoffForNextSchedule(sched, start, end, tt.jitterStartSeconds, types.CronOverlapPolicySkip)
+			backoff, err := GetBackoffForNextSchedule(sched, start, end, tt.jitterStartSeconds, types.CronOverlapPolicySkipped)
 			require.NoError(t, err)
 			fmt.Printf("Backoff time for test %d = %v\n", idx, backoff)
 			delta := time.Duration(tt.jitterStartSeconds) * time.Second
@@ -130,7 +130,7 @@ func TestCronWithJitterStart(t *testing.T) {
 			for i := 1; i < caseCount; i++ {
 				startTime := expectedResultTime
 
-				backoff, err := GetBackoffForNextSchedule(sched, startTime, startTime, tt.jitterStartSeconds, types.CronOverlapPolicySkip)
+				backoff, err := GetBackoffForNextSchedule(sched, startTime, startTime, tt.jitterStartSeconds, types.CronOverlapPolicySkipped)
 				require.NoError(t, err)
 				expectedResultTime := startTime.Add(tt.expectedResultSeconds2)
 				backoffTime := startTime.Add(backoff)
@@ -190,7 +190,7 @@ func TestCronWithoutBufferOneCronWorkflow(t *testing.T) {
 			sched, err := ValidateSchedule("0 10 * * *")
 			require.NoError(t, err)
 
-			backoff, err := GetBackoffForNextSchedule(sched, start, close, 0, types.CronOverlapPolicySkip)
+			backoff, err := GetBackoffForNextSchedule(sched, start, close, 0, types.CronOverlapPolicySkipped)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedBackoff, backoff,
 				"Test case %d failed: %s\nStart: %s\nClose: %s",

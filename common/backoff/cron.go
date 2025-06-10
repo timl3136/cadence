@@ -74,7 +74,7 @@ func GetBackoffForNextSchedule(
 	if nextScheduleTime.Before(closeUTCTime) {
 		// Cron overlap policy only applies if there were runs skipped
 		switch cronOverlapPolicy {
-		case types.CronOverlapPolicySkip:
+		case types.CronOverlapPolicySkipped:
 			for nextScheduleTime.Before(closeUTCTime) {
 				nextScheduleTime = sched.Next(nextScheduleTime)
 				if nextScheduleTime.IsZero() {

@@ -808,6 +808,7 @@ type ContinueAsNewWorkflowExecutionDecisionAttributes struct {
 	Memo                                *Memo                   `json:"memo,omitempty"`
 	SearchAttributes                    *SearchAttributes       `json:"searchAttributes,omitempty"`
 	JitterStartSeconds                  *int32                  `json:"jitterStartSeconds,omitempty"`
+	CronOverlapPolicy                   *CronOverlapPolicy      `json:"cronOverlapPolicy,omitempty"`
 }
 
 // GetExecutionStartToCloseTimeoutSeconds is an internal getter (TBD...)
@@ -6184,6 +6185,7 @@ type SignalWithStartWorkflowExecutionRequest struct {
 	DelayStartSeconds                   *int32                 `json:"delayStartSeconds,omitempty"`
 	JitterStartSeconds                  *int32                 `json:"jitterStartSeconds,omitempty"`
 	FirstRunAtTimestamp                 *int64                 `json:"firstRunAtTimestamp,omitempty"`
+	CronOverlapPolicy                   *CronOverlapPolicy     `json:"cronOverlapPolicy,omitempty"`
 }
 
 // GetDomain is an internal getter (TBD...)
@@ -6367,6 +6369,7 @@ type StartChildWorkflowExecutionDecisionAttributes struct {
 	Header                              *Header                `json:"header,omitempty"`
 	Memo                                *Memo                  `json:"memo,omitempty"`
 	SearchAttributes                    *SearchAttributes      `json:"searchAttributes,omitempty"`
+	CronOverlapPolicy                   *CronOverlapPolicy     `json:"cronOverlapPolicy,omitempty"`
 }
 
 // GetDomain is an internal getter (TBD...)
@@ -6470,6 +6473,7 @@ type StartChildWorkflowExecutionInitiatedEventAttributes struct {
 	DelayStartSeconds                   *int32                 `json:"delayStartSeconds,omitempty"`
 	JitterStartSeconds                  *int32                 `json:"jitterStartSeconds,omitempty"`
 	FirstRunAtTimestamp                 *int64                 `json:"firstRunAtTimestamp,omitempty"`
+	CronOverlapPolicy                   *CronOverlapPolicy     `json:"cronOverlapPolicy,omitempty"`
 }
 
 // GetDomain is an internal getter (TBD...)
@@ -7683,7 +7687,8 @@ type WorkflowExecutionInfo struct {
 	TaskList          string                        `json:"taskList,omitempty"`
 	IsCron            bool                          `json:"isCron,omitempty"`
 	UpdateTime        *int64                        `json:"updateTime,omitempty"`
-	PartitionConfig   map[string]string
+	PartitionConfig   map[string]string             `json:"partitionConfig,omitempty"`
+	CronOverlapPolicy *CronOverlapPolicy            `json:"cronOverlapPolicy,omitempty"`
 }
 
 // GetExecution is an internal getter (TBD...)
@@ -7833,8 +7838,9 @@ type WorkflowExecutionStartedEventAttributes struct {
 	PrevAutoResetPoints                 *ResetPoints            `json:"prevAutoResetPoints,omitempty"`
 	Header                              *Header                 `json:"header,omitempty"`
 	JitterStartSeconds                  *int32                  `json:"jitterStartSeconds,omitempty"`
-	PartitionConfig                     map[string]string
-	RequestID                           string `json:"requestId,omitempty"`
+	PartitionConfig                     map[string]string       `json:"partitionConfig,omitempty"`
+	RequestID                           string                  `json:"requestId,omitempty"`
+	CronOverlapPolicy                   *CronOverlapPolicy      `json:"cronOverlapPolicy,omitempty"`
 }
 
 // GetParentWorkflowDomain is an internal getter (TBD...)
@@ -8713,19 +8719,18 @@ type AutoConfigHint struct {
 type CronOverlapPolicy int32
 
 const (
-	CronOverlapPolicySkip CronOverlapPolicy = iota
+	CronOverlapPolicySkipped CronOverlapPolicy = iota
 	CronOverlapPolicyBufferOne
 )
 
 func (v CronOverlapPolicy) String() string {
 	switch v {
-	case CronOverlapPolicySkip:
+	case CronOverlapPolicySkipped:
 		return "SKIP"
 	case CronOverlapPolicyBufferOne:
 		return "BUFFERONE"
-	default:
-		return "UNKNOWN"
 	}
+	return "UNKNOWN"
 }
 
 // Ptr is a helper function for getting pointer to CronOverlapPolicy
