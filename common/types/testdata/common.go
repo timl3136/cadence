@@ -365,6 +365,7 @@ var (
 		AutoResetPoints:   &ResetPoints,
 		TaskList:          TaskListName,
 		PartitionConfig:   PartitionConfig,
+		CronOverlapPolicy: &CronOverlapPolicy,
 	}
 	CronWorkflowExecutionInfo = types.WorkflowExecutionInfo{
 		Execution:         &WorkflowExecution,
@@ -477,4 +478,5 @@ var (
 		},
 		ExclusiveMaxReadLevel: &TaskKey,
 	}
+	CronOverlapPolicy = types.CronOverlapPolicySkipped
 )

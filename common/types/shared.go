@@ -7899,7 +7899,7 @@ func (v *WorkflowExecutionStartedEventAttributes) GetFirstExecutionRunID() (o st
 	return
 }
 
-// Get
+// GetFirstScheduledTime is an internal getter (TBD...)
 func (v *WorkflowExecutionStartedEventAttributes) GetFirstScheduledTime() (o time.Time) {
 	if v != nil && v.FirstScheduleTime != nil {
 		return *v.FirstScheduleTime

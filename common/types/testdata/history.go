@@ -276,6 +276,7 @@ var (
 		Header:                              &Header,
 		PartitionConfig:                     PartitionConfig,
 		RequestID:                           RequestID,
+		CronOverlapPolicy:                   &CronOverlapPolicy,
 	}
 	WorkflowExecutionCompletedEventAttributes = types.WorkflowExecutionCompletedEventAttributes{
 		Result:                       Payload1,
@@ -495,6 +496,7 @@ var (
 		DelayStartSeconds:                   &Duration3,
 		JitterStartSeconds:                  &Duration4,
 		FirstRunAtTimestamp:                 &Timestamp1,
+		CronOverlapPolicy:                   &CronOverlapPolicy,
 	}
 	StartChildWorkflowExecutionFailedEventAttributes = types.StartChildWorkflowExecutionFailedEventAttributes{
 		Domain:                       DomainName,
