@@ -8456,7 +8456,7 @@ func FromCronOverlapPolicy(t *types.CronOverlapPolicy) *shared.CronOverlapPolicy
 	case types.CronOverlapPolicySkipped:
 		return shared.CronOverlapPolicySkipped.Ptr()
 	}
-	return nil
+	panic("unexpected enum value")
 }
 
 func ToCronOverlapPolicy(t *shared.CronOverlapPolicy) *types.CronOverlapPolicy {
@@ -8469,5 +8469,5 @@ func ToCronOverlapPolicy(t *shared.CronOverlapPolicy) *types.CronOverlapPolicy {
 	case shared.CronOverlapPolicySkipped:
 		return types.CronOverlapPolicySkipped.Ptr()
 	}
-	return nil
+	panic("unexpected enum value")
 }
