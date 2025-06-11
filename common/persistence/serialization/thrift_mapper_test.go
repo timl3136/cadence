@@ -253,6 +253,7 @@ func TestWorkflowExecutionInfo(t *testing.T) {
 		RetryNonRetryableErrors:            []string{"RetryNonRetryableErrors"},
 		HasRetryPolicy:                     true,
 		CronSchedule:                       "CronSchedule",
+		CronOverlapPolicy:                  int32(types.CronOverlapPolicyBufferOne),
 		EventStoreVersion:                  int32(rand.Intn(1000)),
 		EventBranchToken:                   []byte("EventBranchToken"),
 		SignalCount:                        int64(rand.Intn(1000)),
@@ -311,6 +312,7 @@ func TestWorkflowExecutionInfo(t *testing.T) {
 	assert.Equal(t, expected.RetryNonRetryableErrors, actual.RetryNonRetryableErrors)
 	assert.Equal(t, expected.HasRetryPolicy, actual.HasRetryPolicy)
 	assert.Equal(t, expected.CronSchedule, actual.CronSchedule)
+	assert.Equal(t, expected.CronOverlapPolicy, actual.CronOverlapPolicy)
 	assert.Equal(t, expected.EventStoreVersion, actual.EventStoreVersion)
 	assert.Equal(t, expected.EventBranchToken, actual.EventBranchToken)
 	assert.Equal(t, expected.SignalCount, actual.SignalCount)

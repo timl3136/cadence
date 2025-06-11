@@ -168,6 +168,8 @@ func parseWorkflowExecutionInfo(result map[string]interface{}) *persistence.Inte
 			info.BranchToken = v.([]byte)
 		case "cron_schedule":
 			info.CronSchedule = v.(string)
+		case "cron_overlap_policy":
+			info.CronOverlapPolicy = int32(v.(int))
 		case "expiration_seconds":
 			info.ExpirationInterval = common.SecondsToDuration(int64(v.(int)))
 		case "search_attributes":

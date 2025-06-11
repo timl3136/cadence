@@ -413,7 +413,7 @@ type (
 		// Cron
 		CronSchedule      string
 		IsCron            bool
-		CronOverlapPolicy types.CronOverlapPolicy
+		CronOverlapPolicy int32
 		ExpirationSeconds int32 // TODO: is this field useful?
 	}
 

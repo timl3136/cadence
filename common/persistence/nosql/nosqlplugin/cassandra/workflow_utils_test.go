@@ -2600,7 +2600,7 @@ func TestUpdateWorkflowExecution(t *testing.T) {
 					`cancel_requested: false, cancel_request_id: , sticky_task_list: , sticky_schedule_to_start_timeout: 0,client_library_version: , ` +
 					`client_feature_version: , client_impl: , auto_reset_points: [], auto_reset_points_encoding: , attempt: 0, has_retry_policy: false, ` +
 					`init_interval: 0, backoff_coefficient: 0, max_interval: 0, expiration_time: 0001-01-01T00:00:00Z, max_attempts: 0, ` +
-					`non_retriable_errors: [], event_store_version: 2, branch_token: [], cron_schedule: , expiration_seconds: 0, search_attributes: map[], ` +
+					`non_retriable_errors: [], event_store_version: 2, branch_token: [], cron_schedule: , cron_overlap_policy: 0, expiration_seconds: 0, search_attributes: map[], ` +
 					`memo: map[], partition_config: map[] ` +
 					`}, next_event_id = 0 , version_histories = [] , version_histories_encoding =  , checksum = {version: 0, flavor: 0, value: [] }, workflow_last_write_version = 0 , workflow_state = 0 , last_updated_time = 2025-01-06T15:00:00Z ` +
 					`WHERE ` +
@@ -2680,7 +2680,7 @@ func TestCreateWorkflowExecution(t *testing.T) {
 					`cancel_requested: false, cancel_request_id: , sticky_task_list: , sticky_schedule_to_start_timeout: 0,client_library_version: , client_feature_version: , ` +
 					`client_impl: , auto_reset_points: [], auto_reset_points_encoding: , attempt: 0, has_retry_policy: false, init_interval: 0, ` +
 					`backoff_coefficient: 0, max_interval: 0, expiration_time: 0001-01-01T00:00:00Z, max_attempts: 0, non_retriable_errors: [], ` +
-					`event_store_version: 2, branch_token: [], cron_schedule: , expiration_seconds: 0, search_attributes: map[], memo: map[], partition_config: map[] ` +
+					`event_store_version: 2, branch_token: [], cron_schedule: , cron_overlap_policy: 0, expiration_seconds: 0, search_attributes: map[], memo: map[], partition_config: map[] ` +
 					`}, 0, 946684800000, -10, [], , {version: 0, flavor: 0, value: [] }, 0, 0, 2025-01-06T15:00:00Z) IF NOT EXISTS `,
 			},
 		},

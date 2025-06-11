@@ -181,7 +181,7 @@ func (s *stateBuilderSuite) TestApplyEvents_EventTypeWorkflowExecutionStarted_Wi
 
 	now := time.Now()
 	evenType := types.EventTypeWorkflowExecutionStarted
-	next, err := backoff.GetBackoffForNextSchedule(parsedSchedule, now, now, 0, types.CronOverlapPolicySkipped)
+	next, err := backoff.GetBackoffForNextSchedule(parsedSchedule, now, now, 0, int32(types.CronOverlapPolicySkipped))
 	require.NoError(s.T(), err)
 	startWorkflowAttribute := &types.WorkflowExecutionStartedEventAttributes{
 		ParentWorkflowDomainID: common.StringPtr(constants.TestDomainID),

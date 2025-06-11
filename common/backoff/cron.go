@@ -59,7 +59,7 @@ func GetBackoffForNextSchedule(
 	startTime time.Time,
 	closeTime time.Time,
 	jitterStartSeconds int32,
-	cronOverlapPolicy types.CronOverlapPolicy,
+	cronOverlapPolicy int32,
 ) (time.Duration, error) {
 	startUTCTime := startTime.In(time.UTC)
 	closeUTCTime := closeTime.In(time.UTC)
@@ -73,7 +73,7 @@ func GetBackoffForNextSchedule(
 
 	if nextScheduleTime.Before(closeUTCTime) {
 		// Cron overlap policy only applies if there were runs skipped
-		switch cronOverlapPolicy {
+		switch types.CronOverlapPolicy(cronOverlapPolicy) {
 		case types.CronOverlapPolicySkipped:
 			for nextScheduleTime.Before(closeUTCTime) {
 				nextScheduleTime = sched.Next(nextScheduleTime)
@@ -109,7 +109,7 @@ func GetBackoffForNextScheduleInSeconds(
 	startTime time.Time,
 	closeTime time.Time,
 	jitterStartSeconds int32,
-	overlapPolicy types.CronOverlapPolicy,
+	overlapPolicy int32,
 ) (int32, error) {
 	sched, err := ValidateSchedule(cronSchedule)
 	if err != nil {

@@ -259,6 +259,7 @@ func workflowExecutionInfoToThrift(info *WorkflowExecutionInfo) *sqlblobs.Workfl
 		RetryNonRetryableErrors:                 info.RetryNonRetryableErrors,
 		HasRetryPolicy:                          &info.HasRetryPolicy,
 		CronSchedule:                            &info.CronSchedule,
+		CronOverlapPolicy:                       int32ToCronOverlapPolicyPtr(info.CronOverlapPolicy),
 		EventStoreVersion:                       &info.EventStoreVersion,
 		EventBranchToken:                        info.EventBranchToken,
 		SignalCount:                             &info.SignalCount,
@@ -329,6 +330,7 @@ func workflowExecutionInfoFromThrift(info *sqlblobs.WorkflowExecutionInfo) *Work
 		RetryNonRetryableErrors:            info.RetryNonRetryableErrors,
 		HasRetryPolicy:                     info.GetHasRetryPolicy(),
 		CronSchedule:                       info.GetCronSchedule(),
+		CronOverlapPolicy:                  int32(info.GetCronOverlapPolicy()),
 		EventStoreVersion:                  info.GetEventStoreVersion(),
 		EventBranchToken:                   info.EventBranchToken,
 		SignalCount:                        info.GetSignalCount(),
@@ -830,4 +832,9 @@ func durationToSecondsInt64Ptr(t time.Duration) *int64 {
 
 func durationToDaysInt16Ptr(t time.Duration) *int16 {
 	return common.Int16Ptr(int16(common.DurationToDays(t)))
+}
+
+func int32ToCronOverlapPolicyPtr(i int32) *shared.CronOverlapPolicy {
+	v := shared.CronOverlapPolicy(i)
+	return &v
 }

@@ -312,11 +312,11 @@ type (
 		NonRetriableErrors []string
 		BranchToken        []byte
 		CronSchedule       string
+		CronOverlapPolicy  int32
 		ExpirationInterval time.Duration
 		Memo               map[string][]byte
 		SearchAttributes   map[string][]byte
 		PartitionConfig    map[string]string
-
 		// attributes which are not related to mutable state at all
 		HistorySize int64
 		IsCron      bool
