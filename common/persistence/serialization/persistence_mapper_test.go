@@ -32,6 +32,7 @@ import (
 
 	"github.com/uber/cadence/common/constants"
 	"github.com/uber/cadence/common/persistence"
+	"github.com/uber/cadence/common/types"
 )
 
 func TestInternalWorkflowExecutionInfo(t *testing.T) {
@@ -90,6 +91,7 @@ func TestInternalWorkflowExecutionInfo(t *testing.T) {
 		HistorySize:                        int64(rand.Intn(1000)),
 		PartitionConfig:                    map[string]string{"zone": "dca1"},
 		IsCron:                             true,
+		CronOverlapPolicy:                  types.CronOverlapPolicySkipped,
 	}
 	actual := ToInternalWorkflowExecutionInfo(FromInternalWorkflowExecutionInfo(expected))
 	assert.Equal(t, expected.ParentDomainID, actual.ParentDomainID)
@@ -140,6 +142,7 @@ func TestInternalWorkflowExecutionInfo(t *testing.T) {
 	assert.Equal(t, expected.NonRetriableErrors, actual.NonRetriableErrors)
 	assert.Equal(t, expected.BranchToken, actual.BranchToken)
 	assert.Equal(t, expected.CronSchedule, actual.CronSchedule)
+	assert.Equal(t, expected.CronOverlapPolicy, actual.CronOverlapPolicy)
 	assert.True(t, (expected.ExpirationInterval-actual.ExpirationInterval) < time.Second)
 	assert.Equal(t, expected.Memo, actual.Memo)
 	assert.Equal(t, expected.SearchAttributes, actual.SearchAttributes)
