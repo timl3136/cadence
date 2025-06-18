@@ -30,6 +30,8 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/uber/cadence/.gen/go/shared"
+
 	"github.com/uber/cadence/common"
 	"github.com/uber/cadence/common/types"
 )
@@ -596,4 +598,18 @@ func TestReplicationTaskInfo(t *testing.T) {
 	assert.Equal(t, expected, actual)
 	assert.Nil(t, replicationTaskInfoFromThrift(nil))
 	assert.Nil(t, replicationTaskInfoToThrift(nil))
+}
+
+func TestCronOverlapPolicyFromThrift(t *testing.T) {
+	cases := []struct {
+		thrift *shared.CronOverlapPolicy
+		actual types.CronOverlapPolicy
+	}{
+		{nil, types.CronOverlapPolicySkipped},
+		{shared.CronOverlapPolicyBufferone.Ptr(), types.CronOverlapPolicyBufferOne},
+		{shared.CronOverlapPolicySkipped.Ptr(), types.CronOverlapPolicySkipped},
+	}
+	for _, c := range cases {
+		assert.Equal(t, c.actual, cronOverlapPolicyFromThrift(c.thrift))
+	}
 }
