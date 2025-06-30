@@ -1892,6 +1892,8 @@ func (s *IntegrationSuite) TestDescribeWorkflowExecution() {
 		ExecutionStartToCloseTimeoutSeconds: common.Int32Ptr(100),
 		TaskStartToCloseTimeoutSeconds:      common.Int32Ptr(1),
 		Identity:                            identity,
+		CronSchedule:                        "@every 1s",
+		CronOverlapPolicy:                   types.CronOverlapPolicySkipped.Ptr(),
 	}
 
 	ctx, cancel := createContext()
@@ -1951,6 +1953,8 @@ func (s *IntegrationSuite) TestDescribeWorkflowExecution() {
 						ExecutionStartToCloseTimeoutSeconds: common.Int32Ptr(200),
 						TaskStartToCloseTimeoutSeconds:      common.Int32Ptr(2),
 						Control:                             nil,
+						CronSchedule:                        "@every 1s",
+						CronOverlapPolicy:                   types.CronOverlapPolicySkipped.Ptr(),
 					},
 				},
 			}, nil
@@ -2007,6 +2011,8 @@ func (s *IntegrationSuite) TestDescribeWorkflowExecution() {
 	s.Equal(s.DomainName, dweResponse.PendingChildren[0].GetDomain())
 	s.Equal(childID, dweResponse.PendingChildren[0].GetWorkflowID())
 	s.Equal(childType, dweResponse.PendingChildren[0].GetWorkflowTypeName())
+	s.Equal(types.CronOverlapPolicySkipped, *dweResponse.WorkflowExecutionInfo.CronOverlapPolicy)
+	s.Equal(true, dweResponse.WorkflowExecutionInfo.IsCron)
 
 	// process activity task
 	err = poller.PollAndProcessActivityTask(false)
