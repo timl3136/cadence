@@ -448,6 +448,10 @@ func constructStartWorkflowRequest(c *cli.Context) (*types.StartWorkflowExecutio
 		startRequest.FirstRunAtTimeStamp = common.Int64Ptr(t.UnixNano())
 	}
 
+	if c.IsSet(FlagCronOverlapPolicy) {
+		startRequest.CronOverlapPolicy = types.CronOverlapPolicy(c.Int(FlagCronOverlapPolicy)).Ptr()
+	}
+
 	headerFields, err := processHeader(c)
 	if err != nil {
 		return nil, fmt.Errorf("error when process header: %w", err)
