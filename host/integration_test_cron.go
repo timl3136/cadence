@@ -171,7 +171,7 @@ func (s *IntegrationSuite) TestCronWorkflowOverlapBehavior() {
 	wt := "integration-wf-cron-overlap-behavior-type"
 	tl := "integration-wf-cron-overlap-behavior-tasklist"
 	identity := "worker1"
-	cronSchedule := "@every 5s"
+	cronSchedule := "@every 1s"
 
 	workflowType := &types.WorkflowType{}
 	workflowType.Name = wt
