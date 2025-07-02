@@ -262,7 +262,6 @@ $(STABLE_BIN)/$(PROTOC_VERSION_BIN): | $(STABLE_BIN)
 # and last but not least: this avoids using `go` to make this check take only a couple seconds in CI,
 # so the whole docker container doesn't have to be prepared.
 .idl-status:
-	$(Q) git submodule update --init --force idls
 	$(Q) cd idls && \
 		SUBMODULE_COMMIT=$$(git rev-parse HEAD) && \
 		BRANCH_INFO=$$(git branch -r --contains "$$SUBMODULE_COMMIT" | head -n1) && \
