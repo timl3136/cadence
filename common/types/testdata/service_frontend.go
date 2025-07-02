@@ -447,6 +447,7 @@ var (
 		Pollers:         PollerInfoArray,
 		TaskListStatus:  &TaskListStatus,
 		PartitionConfig: &TaskListPartitionConfig,
+		TaskList:        &TaskList,
 	}
 	ListTaskListPartitionsRequest = types.ListTaskListPartitionsRequest{
 		Domain:   DomainName,
