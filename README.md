@@ -17,7 +17,7 @@ Once you have Cadence backend and worker(s) running, you can trigger workflows b
 1. Start cadence backend components locally
 
 ```
-docker-compose -f docker/docker-compose.yml up
+docker compose -f docker/docker-compose.yml up
 ```
 
 2. Run the Samples

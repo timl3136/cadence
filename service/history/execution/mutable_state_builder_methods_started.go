@@ -23,7 +23,6 @@
 package execution
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/pborman/uuid"
@@ -195,12 +194,6 @@ func (e *mutableStateBuilder) ReplicateWorkflowExecutionStartedEvent(
 	}
 	e.executionInfo.CreateRequestID = requestID
 
-	activeClusterSelectionPolicy, err := e.getActiveClusterSelectionPolicy(event)
-	if err != nil {
-		return err
-	}
-	e.executionInfo.ActiveClusterSelectionPolicy = activeClusterSelectionPolicy
-
 	e.insertWorkflowRequest(persistence.WorkflowRequest{
 		RequestID:   requestID,
 		Version:     startEvent.Version,
@@ -214,6 +207,7 @@ func (e *mutableStateBuilder) ReplicateWorkflowExecutionStartedEvent(
 		e.executionInfo.FirstExecutionRunID = execution.GetRunID()
 	}
 	e.executionInfo.TaskList = event.TaskList.GetName()
+	e.executionInfo.TaskListKind = event.TaskList.GetKind()
 	e.executionInfo.WorkflowTypeName = event.WorkflowType.GetName()
 	e.executionInfo.WorkflowTimeout = event.GetExecutionStartToCloseTimeoutSeconds()
 	e.executionInfo.DecisionStartToCloseTimeout = event.GetTaskStartToCloseTimeoutSeconds()
@@ -277,6 +271,7 @@ func (e *mutableStateBuilder) ReplicateWorkflowExecutionStartedEvent(
 		e.executionInfo.SearchAttributes = event.SearchAttributes.GetIndexedFields()
 	}
 	e.executionInfo.PartitionConfig = event.PartitionConfig
+	e.executionInfo.ActiveClusterSelectionPolicy = event.ActiveClusterSelectionPolicy
 
 	e.writeEventToCache(startEvent)
 
@@ -292,29 +287,4 @@ func (e *mutableStateBuilder) ReplicateWorkflowExecutionStartedEvent(
 		}
 	}
 	return nil
-}
-
-func (e *mutableStateBuilder) getActiveClusterSelectionPolicy(attr *types.WorkflowExecutionStartedEventAttributes) (*types.ActiveClusterSelectionPolicy, error) {
-	if !e.domainEntry.GetReplicationConfig().IsActiveActive() {
-		return nil, nil
-	}
-
-	if attr.ActiveClusterSelectionPolicy == nil {
-		return nil, nil
-	}
-
-	policy := attr.ActiveClusterSelectionPolicy
-	if policy.GetStrategy() == types.ActiveClusterSelectionStrategyExternalEntity {
-		if !e.shard.GetActiveClusterManager().SupportedExternalEntityType(policy.ExternalEntityType) {
-			return nil, fmt.Errorf("external entity type %s is not supported", policy.ExternalEntityType)
-		}
-		return policy, nil
-	}
-
-	// default to region sticky policy if it is not external entity policy
-	// always replace the user provided region with the current region
-	return &types.ActiveClusterSelectionPolicy{
-		ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
-		StickyRegion:                   e.shard.GetActiveClusterManager().CurrentRegion(),
-	}, nil
 }

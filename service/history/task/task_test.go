@@ -111,7 +111,10 @@ func (s *taskSuite) TestExecute_ExecutionErr() {
 	}, nil)
 
 	executionErr := errors.New("some random error")
-	s.mockTaskExecutor.EXPECT().Execute(task).Return(metrics.NoopScope, executionErr).Times(1)
+	s.mockTaskExecutor.EXPECT().Execute(task).Return(ExecuteResponse{
+		Scope:        metrics.NoopScope,
+		IsActiveTask: true,
+	}, executionErr).Times(1)
 
 	err := task.Execute()
 	s.Equal(executionErr, err)
@@ -122,7 +125,10 @@ func (s *taskSuite) TestExecute_Success() {
 		return true, nil
 	}, nil)
 
-	s.mockTaskExecutor.EXPECT().Execute(task).Return(metrics.NoopScope, nil).Times(1)
+	s.mockTaskExecutor.EXPECT().Execute(task).Return(ExecuteResponse{
+		Scope:        metrics.NoopScope,
+		IsActiveTask: true,
+	}, nil).Times(1)
 
 	err := task.Execute()
 	s.NoError(err)
@@ -164,10 +170,10 @@ func (s *taskSuite) TestHandleErr_ErrTargetDomainNotActive() {
 
 	// we should always return the target domain not active error
 	// no matter that the submit time is
-	taskBase.submitTime = time.Now().Add(-cache.DomainCacheRefreshInterval*time.Duration(5) - time.Second)
+	taskBase.initialSubmitTime = time.Now().Add(-cache.DomainCacheRefreshInterval*time.Duration(5) - time.Second)
 	s.Equal(nil, taskBase.HandleErr(err), "should drop errors after a reasonable time")
 
-	taskBase.submitTime = time.Now()
+	taskBase.initialSubmitTime = time.Now()
 	s.Equal(err, taskBase.HandleErr(err))
 }
 
@@ -178,10 +184,10 @@ func (s *taskSuite) TestHandleErr_ErrDomainNotActive() {
 
 	err := &types.DomainNotActiveError{}
 
-	taskBase.submitTime = time.Now().Add(-cache.DomainCacheRefreshInterval*time.Duration(5) - time.Second)
+	taskBase.initialSubmitTime = time.Now().Add(-cache.DomainCacheRefreshInterval*time.Duration(5) - time.Second)
 	s.NoError(taskBase.HandleErr(err))
 
-	taskBase.submitTime = time.Now()
+	taskBase.initialSubmitTime = time.Now()
 	s.Equal(err, taskBase.HandleErr(err))
 }
 
@@ -190,7 +196,7 @@ func (s *taskSuite) TestHandleErr_ErrWorkflowRateLimited() {
 		return true, nil
 	}, nil)
 
-	taskBase.submitTime = time.Now()
+	taskBase.initialSubmitTime = time.Now()
 	s.Equal(errWorkflowRateLimited, taskBase.HandleErr(errWorkflowRateLimited))
 }
 
@@ -199,7 +205,7 @@ func (s *taskSuite) TestHandleErr_ErrShardRecentlyClosed() {
 		return true, nil
 	}, nil)
 
-	taskBase.submitTime = time.Now()
+	taskBase.initialSubmitTime = time.Now()
 
 	shardClosedError := &shard.ErrShardClosed{
 		Msg: "shard closed",
@@ -215,7 +221,7 @@ func (s *taskSuite) TestHandleErr_ErrTaskListNotOwnedByHost() {
 		return true, nil
 	}, nil)
 
-	taskBase.submitTime = time.Now()
+	taskBase.initialSubmitTime = time.Now()
 
 	taskListNotOwnedByHost := &cadence_errors.TaskListNotOwnedByHostError{
 		OwnedByIdentity: "HostNameOwnedBy",

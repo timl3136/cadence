@@ -72,15 +72,15 @@ We recommend to use [docker-compose](https://docs.docker.com/compose/) to start 
 
 * If you want to start Cassandra dependency, use `./docker/dev/cassandra.yml`:
 ```
-docker-compose -f ./docker/dev/cassandra.yml up
+docker compose -f ./docker/dev/cassandra.yml up
 ```
-You will use `CTRL+C` to stop it. Then `docker-compose -f ./docker/dev/cassandra.yml down` to clean up the resources.
+You will use `CTRL+C` to stop it. Then `docker compose -f ./docker/dev/cassandra.yml down` to clean up the resources.
 
 Or to run in the background
 ```
-docker-compose -f ./docker/dev/cassandra.yml up -d
+docker compose -f ./docker/dev/cassandra.yml up -d
 ```
-Also use `docker-compose -f ./docker/dev/cassandra.yml down` to stop and clean up the resources.
+Also use `docker compose -f ./docker/dev/cassandra.yml down` to stop and clean up the resources.
 
 * Alternatively, use `./docker/dev/mysql.yml` for MySQL dependency. (MySQL has been updated from 5.7 to 8.0)
 * Alternatively, use `./docker/dev/postgres.yml` for PostgreSQL dependency

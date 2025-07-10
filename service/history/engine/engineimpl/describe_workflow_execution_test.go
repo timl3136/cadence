@@ -242,12 +242,14 @@ func TestDescribeWorkflowExecution(t *testing.T) {
 			Memo:              &types.Memo{Fields: memoFields},
 			SearchAttributes:  &types.SearchAttributes{IndexedFields: searchAttributes},
 			AutoResetPoints:   autoResetPoints,
-			// This field isn't set, maybe a bug?
-			// TaskList:          taskList,
-			IsCron:            isCron,
+			TaskList: &types.TaskList{
+				Name: taskList,
+				Kind: types.TaskListKindNormal.Ptr(),
+			},
+			IsCron:          isCron,
+			UpdateTime:      common.Int64Ptr(lastUpdatedTime.UnixNano()),
+			PartitionConfig: partitionConfig,
 			CronOverlapPolicy: &constants.CronSkip,
-			UpdateTime:        common.Int64Ptr(lastUpdatedTime.UnixNano()),
-			PartitionConfig:   partitionConfig,
 		},
 		PendingActivities: []*types.PendingActivityInfo{
 			activity1,

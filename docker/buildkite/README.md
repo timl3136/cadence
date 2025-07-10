@@ -13,36 +13,36 @@ Build the container for
 
 unit tests:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml build unit-test
+docker compose -f docker/buildkite/docker-compose-local.yml build unit-test
 ```
 
 NOTE: You would expect TestServerStartup to fail here as we don't have a way to install the schema like we do in pipeline.yml 
 
 integration tests:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml build integration-test-cassandra
+docker compose -f docker/buildkite/docker-compose-local.yml build integration-test-cassandra
 ```
 
 cross DC integration tests:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml build integration-test-ndc-cassandra
+docker compose -f docker/buildkite/docker-compose-local.yml build integration-test-ndc-cassandra
 ```
 
 Run the integration tests:
 
 unit tests:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml run unit-test
+docker compose -f docker/buildkite/docker-compose-local.yml run unit-test
 ```
 
 integration tests:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml run integration-test-cassandra
+docker compose -f docker/buildkite/docker-compose-local.yml run integration-test-cassandra
 ```
 
 cross DC integration tests:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml run integration-test-ndc-cassandra
+docker compose -f docker/buildkite/docker-compose-local.yml run integration-test-ndc-cassandra
 ```
 
 Note that BuildKite will run basically the same commands.

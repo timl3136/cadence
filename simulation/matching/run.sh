@@ -16,7 +16,7 @@ eventLogsFile="$resultFolder/$testName-events.json"
 testSummaryFile="$resultFolder/$testName-summary.txt"
 
 echo "Building test image"
-docker-compose -f docker/buildkite/docker-compose-local-matching-simulation.yml \
+docker compose -f docker/buildkite/docker-compose-local-matching-simulation.yml \
   build matching-simulator
 
 function check_test_failure()
@@ -37,7 +37,7 @@ function check_test_failure()
 trap check_test_failure EXIT
 
 echo "Running the test $testCase"
-docker-compose \
+docker compose \
   -f docker/buildkite/docker-compose-local-matching-simulation.yml \
   run -e MATCHING_SIMULATION_CONFIG=$testCfg --rm --remove-orphans --service-ports --use-aliases \
   matching-simulator \
