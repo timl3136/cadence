@@ -229,6 +229,9 @@ func (e *mutableStateBuilder) ReplicateWorkflowExecutionStartedEvent(
 	e.executionInfo.DecisionTimeout = 0
 
 	e.executionInfo.CronSchedule = event.GetCronSchedule()
+	if event.CronOverlapPolicy != nil {
+		e.executionInfo.CronOverlapPolicy = *event.CronOverlapPolicy
+	}
 
 	if parentDomainID != nil {
 		e.executionInfo.ParentDomainID = *parentDomainID

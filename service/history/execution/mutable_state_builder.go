@@ -248,6 +248,7 @@ func newMutableStateBuilder(
 		State:              persistence.WorkflowStateCreated,
 		CloseStatus:        persistence.WorkflowCloseStatusNone,
 		LastProcessedEvent: constants.EmptyEventID,
+		CronOverlapPolicy:  types.CronOverlapPolicySkipped,
 	}
 	s.hBuilder = NewHistoryBuilder(s)
 	s.taskGenerator = NewMutableStateTaskGenerator(shard.GetLogger(), shard.GetClusterMetadata(), shard.GetDomainCache(), s)

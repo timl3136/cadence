@@ -1052,6 +1052,8 @@ func (handler *taskHandlerImpl) retryCronContinueAsNew(
 		Memo:                                attr.Memo,
 		SearchAttributes:                    attr.SearchAttributes,
 		JitterStartSeconds:                  attr.JitterStartSeconds,
+		CronOverlapPolicy:                   attr.CronOverlapPolicy,
+		ActiveClusterSelectionPolicy:        attr.ActiveClusterSelectionPolicy,
 	}
 
 	_, newStateBuilder, err := handler.mutableState.AddContinueAsNewEvent(

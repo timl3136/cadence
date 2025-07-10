@@ -28,17 +28,14 @@ func (s *IntegrationSuite) TestCronWorkflowWithOverlapPolicy() {
 	testCases := []struct {
 		name              string
 		cronOverlapPolicy types.CronOverlapPolicy
-		expectedBehavior  string
 	}{
 		{
 			name:              "SkippedPolicy",
 			cronOverlapPolicy: types.CronOverlapPolicySkipped,
-			expectedBehavior:  "skip_overlapped_runs",
 		},
 		{
 			name:              "BufferOnePolicy",
 			cronOverlapPolicy: types.CronOverlapPolicyBufferOne,
-			expectedBehavior:  "start_immediately_after_completion",
 		},
 	}
 
