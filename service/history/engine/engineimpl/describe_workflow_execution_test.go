@@ -246,9 +246,9 @@ func TestDescribeWorkflowExecution(t *testing.T) {
 				Name: taskList,
 				Kind: types.TaskListKindNormal.Ptr(),
 			},
-			IsCron:          isCron,
-			UpdateTime:      common.Int64Ptr(lastUpdatedTime.UnixNano()),
-			PartitionConfig: partitionConfig,
+			IsCron:            isCron,
+			UpdateTime:        common.Int64Ptr(lastUpdatedTime.UnixNano()),
+			PartitionConfig:   partitionConfig,
 			CronOverlapPolicy: &constants.CronSkip,
 		},
 		PendingActivities: []*types.PendingActivityInfo{
