@@ -94,6 +94,7 @@ func (b *HistoryBuilder) AddWorkflowExecutionStartedEvent(
 		Attempt:                             startRequest.GetAttempt(),
 		ExpirationTimestamp:                 startRequest.ExpirationTimestamp,
 		CronSchedule:                        request.CronSchedule,
+		CronOverlapPolicy:                   request.CronOverlapPolicy,
 		LastCompletionResult:                startRequest.LastCompletionResult,
 		ContinuedFailureReason:              startRequest.ContinuedFailureReason,
 		ContinuedFailureDetails:             startRequest.ContinuedFailureDetails,
@@ -710,6 +711,7 @@ func (b *HistoryBuilder) AddStartChildWorkflowExecutionInitiatedEvent(
 		SearchAttributes:                    attributes.SearchAttributes,
 		ParentClosePolicy:                   attributes.GetParentClosePolicy().Ptr(),
 		CronOverlapPolicy:                   attributes.CronOverlapPolicy,
+		ActiveClusterSelectionPolicy:        attributes.ActiveClusterSelectionPolicy,
 	}
 
 	return b.addEventToHistory(event)

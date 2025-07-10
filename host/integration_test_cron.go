@@ -161,7 +161,10 @@ func (s *IntegrationSuite) TestCronWorkflowWithOverlapPolicy() {
 				},
 			})
 			s.Nil(err)
+			// Verify that the workflow execution info is returned after termination
 			s.NotNil(dweResponse.WorkflowExecutionInfo)
+			s.True(dweResponse.WorkflowExecutionInfo.IsCron, "Expected workflow to be marked as cron")
+			s.Equal(tc.cronOverlapPolicy, *dweResponse.WorkflowExecutionInfo.CronOverlapPolicy)
 		})
 	}
 }
