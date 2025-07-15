@@ -1746,7 +1746,7 @@ func TestHandleFailWorkflowError(t *testing.T) {
 				test.expectMockCalls(taskHandler)
 			}
 
-			err := taskHandler.handleFailWorkflowError()
+			err := taskHandler.handleFailWorkflowError("Workflow failed due to too many pending activities")
 			test.asserts(t, taskHandler, err)
 		})
 	}

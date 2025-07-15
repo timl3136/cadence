@@ -296,7 +296,7 @@ func (handler *taskHandlerImpl) handleDecisionScheduleActivity(
 		)
 	case *types.InternalServiceError:
 		// Check if this is ErrTooManyPendingActivities
-		if err.Error() == "Too many pending activities" {
+		if err.Error() == execution.ErrTooManyPendingActivities.Error() {
 			return nil, handler.handleFailWorkflowError(err.Error())
 		}
 		return nil, err
