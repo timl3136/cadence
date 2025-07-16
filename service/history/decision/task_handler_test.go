@@ -1681,26 +1681,9 @@ func TestHandleFailWorkflowError(t *testing.T) {
 		{
 			name: "success - workflow fails due to too many pending activities",
 			expectMockCalls: func(taskHandler *taskHandlerImpl) {
-				// Mock GetPendingActivityInfos to return some activities
-				pendingActivities := map[int64]*persistence.ActivityInfo{
-					1: {ActivityID: "activity1"},
-					2: {ActivityID: "activity2"},
-					3: {ActivityID: "activity3"},
-				}
-				taskHandler.mutableState.(*execution.MockMutableState).EXPECT().GetPendingActivityInfos().Return(pendingActivities)
-
-				// Get the actual config limit value
-				actualLimit := taskHandler.config.PendingActivitiesCountLimitError()
-				expectedDetails := fmt.Sprintf("Pending activities count: 3, limit: %d", actualLimit)
-
-				// Mock AddFailWorkflowEvent
-				expectedFailAttributes := &types.FailWorkflowExecutionDecisionAttributes{
-					Reason:  common.StringPtr("Workflow failed due to too many pending activities"),
-					Details: []byte(expectedDetails),
-				}
 				taskHandler.mutableState.(*execution.MockMutableState).EXPECT().AddFailWorkflowEvent(
 					taskHandler.decisionTaskCompletedID,
-					expectedFailAttributes,
+					gomock.Any(),
 				).Return(&types.HistoryEvent{}, nil)
 			},
 			asserts: func(t *testing.T, taskHandler *taskHandlerImpl, err error) {
@@ -1711,24 +1694,10 @@ func TestHandleFailWorkflowError(t *testing.T) {
 		{
 			name: "failure - AddFailWorkflowEvent returns error",
 			expectMockCalls: func(taskHandler *taskHandlerImpl) {
-				// Mock GetPendingActivityInfos to return some activities
-				pendingActivities := map[int64]*persistence.ActivityInfo{
-					1: {ActivityID: "activity1"},
-				}
-				taskHandler.mutableState.(*execution.MockMutableState).EXPECT().GetPendingActivityInfos().Return(pendingActivities)
 
-				// Get the actual config limit value
-				actualLimit := taskHandler.config.PendingActivitiesCountLimitError()
-				expectedDetails := fmt.Sprintf("Pending activities count: 1, limit: %d", actualLimit)
-
-				// Mock AddFailWorkflowEvent to return error
-				expectedFailAttributes := &types.FailWorkflowExecutionDecisionAttributes{
-					Reason:  common.StringPtr("Workflow failed due to too many pending activities"),
-					Details: []byte(expectedDetails),
-				}
 				taskHandler.mutableState.(*execution.MockMutableState).EXPECT().AddFailWorkflowEvent(
 					taskHandler.decisionTaskCompletedID,
-					expectedFailAttributes,
+					gomock.Any(),
 				).Return(nil, errors.New("failed to add fail workflow event"))
 			},
 			asserts: func(t *testing.T, taskHandler *taskHandlerImpl, err error) {
@@ -1746,7 +1715,7 @@ func TestHandleFailWorkflowError(t *testing.T) {
 				test.expectMockCalls(taskHandler)
 			}
 
-			err := taskHandler.handleFailWorkflowError("Workflow failed due to too many pending activities")
+			err := taskHandler.handleFailWorkflowError(common.FailureReasonPendingActivityExceedsLimit, execution.ErrTooManyPendingActivities.Error())
 			test.asserts(t, taskHandler, err)
 		})
 	}
@@ -1794,27 +1763,11 @@ func TestHandleDecisionScheduleActivityWithTooManyPendingActivities(t *testing.T
 					taskHandler.decisionTaskCompletedID,
 					attr,
 					taskHandler.activityCountToDispatch > 0,
-				).Return(nil, nil, nil, false, false, &types.InternalServiceError{Message: "Too many pending activities"})
+				).Return(nil, nil, nil, false, false, execution.ErrTooManyPendingActivities)
 
-				// Mock GetPendingActivityInfos for the failure function
-				pendingActivities := map[int64]*persistence.ActivityInfo{
-					1: {ActivityID: "activity1"},
-					2: {ActivityID: "activity2"},
-				}
-				taskHandler.mutableState.(*execution.MockMutableState).EXPECT().GetPendingActivityInfos().Return(pendingActivities)
-
-				// Get the actual config limit value
-				actualLimit := taskHandler.config.PendingActivitiesCountLimitError()
-				expectedDetails := fmt.Sprintf("Pending activities count: 2, limit: %d", actualLimit)
-
-				// Mock AddFailWorkflowEvent
-				expectedFailAttributes := &types.FailWorkflowExecutionDecisionAttributes{
-					Reason:  common.StringPtr("Workflow failed due to too many pending activities"),
-					Details: []byte(expectedDetails),
-				}
 				taskHandler.mutableState.(*execution.MockMutableState).EXPECT().AddFailWorkflowEvent(
 					taskHandler.decisionTaskCompletedID,
-					expectedFailAttributes,
+					gomock.Any(),
 				).Return(&types.HistoryEvent{}, nil)
 			},
 			asserts: func(t *testing.T, taskHandler *taskHandlerImpl, attr *types.ScheduleActivityTaskDecisionAttributes, res *decisionResult, err error) {

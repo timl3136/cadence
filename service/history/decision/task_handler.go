@@ -297,7 +297,7 @@ func (handler *taskHandlerImpl) handleDecisionScheduleActivity(
 	case *types.InternalServiceError:
 		// Check if this is ErrTooManyPendingActivities
 		if err.Error() == execution.ErrTooManyPendingActivities.Error() {
-			return nil, handler.handleFailWorkflowError(err.Error())
+			return nil, handler.handleFailWorkflowError(common.FailureReasonPendingActivityExceedsLimit, err.Error())
 		}
 		return nil, err
 	default:
@@ -306,12 +306,13 @@ func (handler *taskHandlerImpl) handleDecisionScheduleActivity(
 }
 
 // handleFailWorkflowError handles the certain types of error by failing the workflow
-func (handler *taskHandlerImpl) handleFailWorkflowError(failReason string) error {
+func (handler *taskHandlerImpl) handleFailWorkflowError(failReason string, failDetails string) error {
 	// Fail the workflow immediately instead of just returning the error
 	handler.stopProcessing = true
 
 	failAttributes := &types.FailWorkflowExecutionDecisionAttributes{
-		Reason: &failReason,
+		Reason:  common.StringPtr(failReason),
+		Details: []byte(failDetails),
 	}
 
 	if _, failErr := handler.mutableState.AddFailWorkflowEvent(
