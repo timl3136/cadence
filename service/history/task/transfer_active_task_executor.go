@@ -1637,6 +1637,7 @@ func startWorkflowWithRetry(
 		WorkflowIDReusePolicy: attributes.WorkflowIDReusePolicy,
 		RetryPolicy:           attributes.RetryPolicy,
 		CronSchedule:          attributes.CronSchedule,
+		CronOverlapPolicy:     attributes.CronOverlapPolicy,
 		Memo:                  attributes.Memo,
 		SearchAttributes:      attributes.SearchAttributes,
 		DelayStartSeconds:     attributes.DelayStartSeconds,
