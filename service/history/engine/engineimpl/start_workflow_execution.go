@@ -504,6 +504,7 @@ func getStartRequest(
 		DelayStartSeconds:                   request.DelayStartSeconds,
 		JitterStartSeconds:                  request.JitterStartSeconds,
 		FirstRunAtTimeStamp:                 request.FirstRunAtTimestamp,
+		ActiveClusterSelectionPolicy:        request.ActiveClusterSelectionPolicy,
 	}
 
 	return common.CreateHistoryStartWorkflowRequest(domainID, req, time.Now(), partitionConfig)
