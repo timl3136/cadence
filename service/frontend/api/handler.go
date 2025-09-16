@@ -2580,7 +2580,8 @@ func (wh *WorkflowHandler) RestartWorkflowExecution(ctx context.Context, request
 
 	isolationGroup := wh.getIsolationGroup(ctx, domainName)
 	if !wh.isIsolationGroupHealthy(ctx, domainName, isolationGroup) {
-		return nil, &types.BadRequestError{fmt.Sprintf("Domain %s is drained from isolation group %s.", domainName, isolationGroup)}
+		return nil, &types.BadRequestError{
+			Message: fmt.Sprintf("Domain %s is drained from isolation group %s.", domainName, isolationGroup)}
 	}
 
 	history, err := wh.GetWorkflowExecutionHistory(ctx, &types.GetWorkflowExecutionHistoryRequest{
@@ -3295,6 +3296,7 @@ func (wh *WorkflowHandler) normalizeVersionedErrors(ctx context.Context, err err
 		return err
 	}
 }
+
 func constructRestartWorkflowRequest(w *types.WorkflowExecutionStartedEventAttributes, domain string, identity string, workflowID string) *types.StartWorkflowExecutionRequest {
 	startRequest := &types.StartWorkflowExecutionRequest{
 		RequestID:  uuid.New().String(),
@@ -3312,6 +3314,7 @@ func constructRestartWorkflowRequest(w *types.WorkflowExecutionStartedEventAttri
 		TaskStartToCloseTimeoutSeconds:      w.TaskStartToCloseTimeoutSeconds,
 		Identity:                            identity,
 		WorkflowIDReusePolicy:               types.WorkflowIDReusePolicyTerminateIfRunning.Ptr(),
+		ActiveClusterSelectionPolicy:        w.ActiveClusterSelectionPolicy,
 	}
 	startRequest.CronSchedule = w.CronSchedule
 	startRequest.RetryPolicy = w.RetryPolicy

@@ -4556,3 +4556,326 @@ type counterSnapshotMock struct {
 func (cs *counterSnapshotMock) Name() string            { return cs.name }
 func (cs *counterSnapshotMock) Tags() map[string]string { return cs.tags }
 func (cs *counterSnapshotMock) Value() int64            { return cs.value }
+
+// TestRestartWorkflowExecution_ActiveClusterSelectionPolicy tests that ActiveClusterSelectionPolicy
+// is correctly propagated through RestartWorkflowExecution flow for all permutations
+func (s *workflowHandlerSuite) TestRestartWorkflowExecution_ActiveClusterSelectionPolicy() {
+	testCases := []struct {
+		name                    string
+		originalPolicy          *types.ActiveClusterSelectionPolicy
+		expectedPolicyInRestart *types.ActiveClusterSelectionPolicy
+		description             string
+	}{
+		{
+			name:                    "nil_policy_should_default_to_region_sticky",
+			originalPolicy:          nil,
+			expectedPolicyInRestart: nil, // nil is preserved and handled by GetStrategy() method
+			description:             "When original workflow has nil ActiveClusterSelectionPolicy, restarted workflow should also have nil (defaults to RegionSticky)",
+		},
+		{
+			name: "region_sticky_with_sticky_region_should_be_preserved",
+			originalPolicy: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
+				StickyRegion:                   "us-west-1",
+			},
+			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
+				StickyRegion:                   "us-west-1",
+			},
+			description: "RegionSticky strategy with StickyRegion should be preserved in restarted workflow",
+		},
+		{
+			name: "region_sticky_without_sticky_region_should_be_preserved",
+			originalPolicy: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
+			},
+			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
+			},
+			description: "RegionSticky strategy without StickyRegion should be preserved in restarted workflow",
+		},
+		{
+			name: "external_entity_with_type_and_key_should_be_preserved",
+			originalPolicy: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
+				ExternalEntityType:             "customer",
+				ExternalEntityKey:              "customer-123",
+			},
+			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
+				ExternalEntityType:             "customer",
+				ExternalEntityKey:              "customer-123",
+			},
+			description: "ExternalEntity strategy with both type and key should be preserved in restarted workflow",
+		},
+		{
+			name: "external_entity_with_only_type_should_be_preserved",
+			originalPolicy: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
+				ExternalEntityType:             "customer",
+			},
+			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
+				ExternalEntityType:             "customer",
+			},
+			description: "ExternalEntity strategy with only type should be preserved in restarted workflow",
+		},
+		{
+			name: "external_entity_with_only_key_should_be_preserved",
+			originalPolicy: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
+				ExternalEntityKey:              "customer-123",
+			},
+			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
+				ExternalEntityKey:              "customer-123",
+			},
+			description: "ExternalEntity strategy with only key should be preserved in restarted workflow",
+		},
+		{
+			name: "complex_policy_with_all_fields_should_be_preserved",
+			originalPolicy: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
+				StickyRegion:                   "eu-west-1", // Even though this shouldn't be used with ExternalEntity, we preserve it
+				ExternalEntityType:             "tenant",
+				ExternalEntityKey:              "tenant-456",
+			},
+			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
+				StickyRegion:                   "eu-west-1",
+				ExternalEntityType:             "tenant",
+				ExternalEntityKey:              "tenant-456",
+			},
+			description: "Complex policy with all fields should be completely preserved in restarted workflow",
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			// Setup
+			dynamicClient := dc.NewInMemoryClient()
+			err := dynamicClient.UpdateValue(dynamicproperties.SendRawWorkflowHistory, false)
+			s.NoError(err)
+
+			wh := s.getWorkflowHandler(
+				frontendcfg.NewConfig(
+					dc.NewCollection(
+						dynamicClient,
+						s.mockResource.GetLogger()),
+					numHistoryShards,
+					false,
+					"hostname",
+					s.mockResource.GetLogger(),
+				),
+			)
+
+			ctx := context.Background()
+
+			// Mock domain cache
+			s.mockDomainCache.EXPECT().GetDomainID(gomock.Any()).Return(s.testDomainID, nil).AnyTimes()
+
+			// Mock PollMutableState for the workflow history retrieval
+			s.mockHistoryClient.EXPECT().PollMutableState(gomock.Any(), gomock.Any()).Return(&types.PollMutableStateResponse{
+				CurrentBranchToken: []byte(""),
+				Execution: &types.WorkflowExecution{
+					WorkflowID: testRunID,
+				},
+				LastFirstEventID: 0,
+				NextEventID:      2,
+				VersionHistories: &types.VersionHistories{
+					CurrentVersionHistoryIndex: 0,
+					Histories: []*types.VersionHistory{
+						{
+							BranchToken: []byte("token"),
+							Items: []*types.VersionHistoryItem{
+								{
+									EventID: 1,
+									Version: 1,
+								},
+							},
+						},
+					},
+				},
+			}, nil).AnyTimes()
+
+			// Mock version checker
+			s.mockVersionChecker.EXPECT().SupportsRawHistoryQuery(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+			// Mock history manager with the original workflow's ActiveClusterSelectionPolicy
+			s.mockHistoryV2Mgr.On("ReadHistoryBranch", mock.Anything, mock.Anything).Return(&persistence.ReadHistoryBranchResponse{
+				HistoryEvents: []*types.HistoryEvent{
+					{
+						ID: 1,
+						WorkflowExecutionStartedEventAttributes: &types.WorkflowExecutionStartedEventAttributes{
+							WorkflowType: &types.WorkflowType{
+								Name: "workflowtype",
+							},
+							TaskList: &types.TaskList{
+								Name: "tasklist",
+							},
+							ActiveClusterSelectionPolicy: tc.originalPolicy,
+						},
+					},
+				},
+			}, nil).Once()
+
+			// Capture the start workflow request to verify ActiveClusterSelectionPolicy is preserved
+			var capturedStartRequest *types.HistoryStartWorkflowExecutionRequest
+			s.mockHistoryClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
+				func(ctx context.Context, request *types.HistoryStartWorkflowExecutionRequest) (*types.StartWorkflowExecutionResponse, error) {
+					capturedStartRequest = request
+					return &types.StartWorkflowExecutionResponse{RunID: testRunID}, nil
+				},
+			)
+
+			// Execute RestartWorkflowExecution
+			resp, err := wh.RestartWorkflowExecution(ctx, &types.RestartWorkflowExecutionRequest{
+				Domain: s.testDomain,
+				WorkflowExecution: &types.WorkflowExecution{
+					WorkflowID: testWorkflowID,
+				},
+				Identity: "",
+			})
+
+			// Verify successful execution
+			s.NoError(err)
+			s.Equal(testRunID, resp.GetRunID())
+
+			// Verify that the ActiveClusterSelectionPolicy was correctly preserved in the start request
+			s.NotNil(capturedStartRequest)
+			s.NotNil(capturedStartRequest.StartRequest)
+
+			if tc.expectedPolicyInRestart == nil {
+				s.Nil(capturedStartRequest.StartRequest.ActiveClusterSelectionPolicy,
+					"Expected nil ActiveClusterSelectionPolicy in restart request for case: %s", tc.description)
+			} else {
+				s.NotNil(capturedStartRequest.StartRequest.ActiveClusterSelectionPolicy,
+					"Expected non-nil ActiveClusterSelectionPolicy in restart request for case: %s", tc.description)
+
+				actualPolicy := capturedStartRequest.StartRequest.ActiveClusterSelectionPolicy
+
+				// Compare ActiveClusterSelectionStrategy
+				if tc.expectedPolicyInRestart.ActiveClusterSelectionStrategy == nil {
+					s.Nil(actualPolicy.ActiveClusterSelectionStrategy,
+						"Expected nil ActiveClusterSelectionStrategy for case: %s", tc.description)
+				} else {
+					s.NotNil(actualPolicy.ActiveClusterSelectionStrategy,
+						"Expected non-nil ActiveClusterSelectionStrategy for case: %s", tc.description)
+					s.Equal(*tc.expectedPolicyInRestart.ActiveClusterSelectionStrategy,
+						*actualPolicy.ActiveClusterSelectionStrategy,
+						"ActiveClusterSelectionStrategy mismatch for case: %s", tc.description)
+				}
+
+				// Compare StickyRegion
+				s.Equal(tc.expectedPolicyInRestart.StickyRegion, actualPolicy.StickyRegion,
+					"StickyRegion mismatch for case: %s", tc.description)
+
+				// Compare ExternalEntityType
+				s.Equal(tc.expectedPolicyInRestart.ExternalEntityType, actualPolicy.ExternalEntityType,
+					"ExternalEntityType mismatch for case: %s", tc.description)
+
+				// Compare ExternalEntityKey
+				s.Equal(tc.expectedPolicyInRestart.ExternalEntityKey, actualPolicy.ExternalEntityKey,
+					"ExternalEntityKey mismatch for case: %s", tc.description)
+			}
+		})
+	}
+}
+
+// TestConstructRestartWorkflowRequest_ActiveClusterSelectionPolicy tests the specific function that
+// constructs the restart workflow request to ensure ActiveClusterSelectionPolicy is correctly copied
+func TestConstructRestartWorkflowRequest_ActiveClusterSelectionPolicy(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		originalAttributes      *types.WorkflowExecutionStartedEventAttributes
+		expectedPolicyInRestart *types.ActiveClusterSelectionPolicy
+		description             string
+	}{
+		{
+			name: "nil_policy_should_be_preserved_as_nil",
+			originalAttributes: &types.WorkflowExecutionStartedEventAttributes{
+				WorkflowType:                 &types.WorkflowType{Name: "testWorkflow"},
+				TaskList:                     &types.TaskList{Name: "testTaskList"},
+				ActiveClusterSelectionPolicy: nil,
+			},
+			expectedPolicyInRestart: nil,
+			description:             "nil ActiveClusterSelectionPolicy should remain nil in restart request",
+		},
+		{
+			name: "region_sticky_policy_should_be_preserved",
+			originalAttributes: &types.WorkflowExecutionStartedEventAttributes{
+				WorkflowType: &types.WorkflowType{Name: "testWorkflow"},
+				TaskList:     &types.TaskList{Name: "testTaskList"},
+				ActiveClusterSelectionPolicy: &types.ActiveClusterSelectionPolicy{
+					ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
+					StickyRegion:                   "us-east-1",
+				},
+			},
+			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
+				StickyRegion:                   "us-east-1",
+			},
+			description: "RegionSticky policy should be completely preserved",
+		},
+		{
+			name: "external_entity_policy_should_be_preserved",
+			originalAttributes: &types.WorkflowExecutionStartedEventAttributes{
+				WorkflowType: &types.WorkflowType{Name: "testWorkflow"},
+				TaskList:     &types.TaskList{Name: "testTaskList"},
+				ActiveClusterSelectionPolicy: &types.ActiveClusterSelectionPolicy{
+					ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
+					ExternalEntityType:             "order",
+					ExternalEntityKey:              "order-789",
+				},
+			},
+			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
+				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
+				ExternalEntityType:             "order",
+				ExternalEntityKey:              "order-789",
+			},
+			description: "ExternalEntity policy should be completely preserved",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Execute constructRestartWorkflowRequest
+			startRequest := constructRestartWorkflowRequest(
+				tc.originalAttributes,
+				"test-domain",
+				"test-identity",
+				"test-workflow-id",
+			)
+
+			// Verify the ActiveClusterSelectionPolicy is correctly copied
+			if tc.expectedPolicyInRestart == nil {
+				assert.Nil(t, startRequest.ActiveClusterSelectionPolicy, tc.description)
+			} else {
+				assert.NotNil(t, startRequest.ActiveClusterSelectionPolicy, tc.description)
+
+				actualPolicy := startRequest.ActiveClusterSelectionPolicy
+
+				// Compare strategy
+				if tc.expectedPolicyInRestart.ActiveClusterSelectionStrategy == nil {
+					assert.Nil(t, actualPolicy.ActiveClusterSelectionStrategy, tc.description)
+				} else {
+					assert.NotNil(t, actualPolicy.ActiveClusterSelectionStrategy, tc.description)
+					assert.Equal(t, *tc.expectedPolicyInRestart.ActiveClusterSelectionStrategy,
+						*actualPolicy.ActiveClusterSelectionStrategy, tc.description)
+				}
+
+				// Compare other fields
+				assert.Equal(t, tc.expectedPolicyInRestart.StickyRegion, actualPolicy.StickyRegion, tc.description)
+				assert.Equal(t, tc.expectedPolicyInRestart.ExternalEntityType, actualPolicy.ExternalEntityType, tc.description)
+				assert.Equal(t, tc.expectedPolicyInRestart.ExternalEntityKey, actualPolicy.ExternalEntityKey, tc.description)
+			}
+
+			// Verify other basic fields are set correctly
+			assert.Equal(t, "test-domain", startRequest.Domain)
+			assert.Equal(t, "test-identity", startRequest.Identity)
+			assert.Equal(t, "test-workflow-id", startRequest.WorkflowID)
+			assert.NotEmpty(t, startRequest.RequestID)
+			assert.Equal(t, types.WorkflowIDReusePolicyTerminateIfRunning, *startRequest.WorkflowIDReusePolicy)
+		})
+	}
+}
