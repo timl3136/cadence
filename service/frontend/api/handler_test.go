@@ -35,6 +35,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/uber-go/tally"
 	"go.uber.org/mock/gomock"
+	"go.uber.org/yarpc"
 	"go.uber.org/yarpc/yarpctest"
 
 	"github.com/uber/cadence/.gen/go/shared"
@@ -1902,93 +1903,406 @@ func (s *workflowHandlerSuite) TestGetWorkflowExecutionHistory__Success__RawHist
 	}, []*types.HistoryEvent{{}, {}, {}})
 }
 
-func (s *workflowHandlerSuite) TestRestartWorkflowExecution_IsolationGroupDrained() {
-	dynamicClient := dc.NewInMemoryClient()
-	err := dynamicClient.UpdateValue(dynamicproperties.SendRawWorkflowHistory, false)
-	s.NoError(err)
-	config := s.newConfig(dc.NewInMemoryClient())
-	config.EnableTasklistIsolation = dynamicproperties.GetBoolPropertyFnFilteredByDomain(true)
-	wh := s.getWorkflowHandler(config)
-	isolationGroup := "dca1"
-	ctx := isolationgroup.ContextWithIsolationGroup(context.Background(), isolationGroup)
-	s.mockDomainCache.EXPECT().GetDomainID(s.testDomain).Return(s.testDomainID, nil)
-	s.mockResource.IsolationGroups.EXPECT().IsDrained(gomock.Any(), s.testDomain, isolationGroup).Return(true, nil)
-	_, err = wh.RestartWorkflowExecution(ctx, &types.RestartWorkflowExecutionRequest{
-		Domain: s.testDomain,
-		WorkflowExecution: &types.WorkflowExecution{
-			WorkflowID: testWorkflowID,
+func (s *workflowHandlerSuite) TestRestartWorkflowExecution() {
+	testCases := []struct {
+		name                    string
+		setupMocks              func()
+		request                 *types.RestartWorkflowExecutionRequest
+		setupContext            func() context.Context
+		enableTaskListIsolation bool
+		expectError             bool
+		expectedErrType         interface{}
+		expectedRunID           string
+		description             string
+	}{
+		{
+			name:       "When request is nil it should return RequestNotSet error",
+			setupMocks: func() {},
+			request:    nil,
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			enableTaskListIsolation: false,
+			expectError:             true,
+			expectedErrType:         validate.ErrRequestNotSet,
+			description:             "nil request should be rejected",
 		},
-		Identity: "",
-	})
-	s.Error(err)
-	s.IsType(err, &types.BadRequestError{})
-}
-
-func (s *workflowHandlerSuite) TestRestartWorkflowExecution__Success() {
-	dynamicClient := dc.NewInMemoryClient()
-	err := dynamicClient.UpdateValue(dynamicproperties.SendRawWorkflowHistory, false)
-	s.NoError(err)
-	wh := s.getWorkflowHandler(
-		frontendcfg.NewConfig(
-			dc.NewCollection(
-				dynamicClient,
-				s.mockResource.GetLogger()),
-			numHistoryShards,
-			false,
-			"hostname",
-			s.mockResource.GetLogger(),
-		),
-	)
-	ctx := context.Background()
-	s.mockHistoryClient.EXPECT().PollMutableState(gomock.Any(), gomock.Any()).Return(&types.PollMutableStateResponse{
-		CurrentBranchToken: []byte(""),
-		Execution: &types.WorkflowExecution{
-			WorkflowID: testRunID,
+		{
+			name:       "When domain is empty it should return DomainNotSet error",
+			setupMocks: func() {},
+			request: &types.RestartWorkflowExecutionRequest{
+				Domain: "",
+			},
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			enableTaskListIsolation: false,
+			expectError:             true,
+			expectedErrType:         validate.ErrDomainNotSet,
+			description:             "empty domain should be rejected",
 		},
-		LastFirstEventID: 0,
-		NextEventID:      2,
-		VersionHistories: &types.VersionHistories{
-			CurrentVersionHistoryIndex: 0,
-			Histories: []*types.VersionHistory{
-				{
-					BranchToken: []byte("token"),
-					Items: []*types.VersionHistoryItem{
-						{
-							EventID: 1,
-							Version: 1,
+		{
+			name:       "When workflow execution is nil it should return ExecutionNotSet error",
+			setupMocks: func() {},
+			request: &types.RestartWorkflowExecutionRequest{
+				Domain:            s.testDomain,
+				WorkflowExecution: nil,
+			},
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			enableTaskListIsolation: false,
+			expectError:             true,
+			expectedErrType:         validate.ErrExecutionNotSet,
+			description:             "nil workflow execution should be rejected",
+		},
+		{
+			name:       "When workflow ID is empty it should return WorkflowIDNotSet error",
+			setupMocks: func() {},
+			request: &types.RestartWorkflowExecutionRequest{
+				Domain: s.testDomain,
+				WorkflowExecution: &types.WorkflowExecution{
+					WorkflowID: "",
+				},
+			},
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			enableTaskListIsolation: false,
+			expectError:             true,
+			expectedErrType:         validate.ErrWorkflowIDNotSet,
+			description:             "empty workflow ID should be rejected",
+		},
+		{
+			name: "When domain cache returns error it should propagate the error",
+			setupMocks: func() {
+				s.mockDomainCache.EXPECT().GetDomainID(s.testDomain).Return("", errors.New("domain cache error"))
+			},
+			request: &types.RestartWorkflowExecutionRequest{
+				Domain: s.testDomain,
+				WorkflowExecution: &types.WorkflowExecution{
+					WorkflowID: testWorkflowID,
+				},
+			},
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			enableTaskListIsolation: false,
+			expectError:             true,
+			description:             "domain cache errors should be propagated",
+		},
+		{
+			name: "When isolation group is drained it should return BadRequest error",
+			setupMocks: func() {
+				s.mockDomainCache.EXPECT().GetDomainID(s.testDomain).Return(s.testDomainID, nil)
+				s.mockResource.IsolationGroups.EXPECT().IsDrained(gomock.Any(), s.testDomain, "dca1").Return(true, nil)
+			},
+			request: &types.RestartWorkflowExecutionRequest{
+				Domain: s.testDomain,
+				WorkflowExecution: &types.WorkflowExecution{
+					WorkflowID: testWorkflowID,
+				},
+				Identity: "",
+			},
+			setupContext: func() context.Context {
+				isolationGroup := "dca1"
+				return isolationgroup.ContextWithIsolationGroup(context.Background(), isolationGroup)
+			},
+			enableTaskListIsolation: true,
+			expectError:             true,
+			expectedErrType:         &types.BadRequestError{},
+			description:             "drained isolation group should be rejected",
+		},
+		{
+			name: "When PollMutableState fails it should propagate the error",
+			setupMocks: func() {
+				s.mockDomainCache.EXPECT().GetDomainID(gomock.Any()).Return(s.testDomainID, nil).AnyTimes()
+				s.mockHistoryClient.EXPECT().PollMutableState(gomock.Any(), gomock.Any()).Return(nil, errors.New("poll mutable state error"))
+			},
+			request: &types.RestartWorkflowExecutionRequest{
+				Domain: s.testDomain,
+				WorkflowExecution: &types.WorkflowExecution{
+					WorkflowID: testWorkflowID,
+				},
+			},
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			enableTaskListIsolation: false,
+			expectError:             true,
+			description:             "PollMutableState errors should be propagated",
+		},
+		{
+			name: "When history read fails it should propagate the error",
+			setupMocks: func() {
+				s.mockDomainCache.EXPECT().GetDomainID(gomock.Any()).Return(s.testDomainID, nil).AnyTimes()
+				s.mockHistoryClient.EXPECT().PollMutableState(gomock.Any(), gomock.Any()).Return(&types.PollMutableStateResponse{
+					CurrentBranchToken: []byte(""),
+					Execution: &types.WorkflowExecution{
+						WorkflowID: testRunID,
+					},
+					LastFirstEventID: 0,
+					NextEventID:      2,
+					VersionHistories: &types.VersionHistories{
+						CurrentVersionHistoryIndex: 0,
+						Histories: []*types.VersionHistory{
+							{
+								BranchToken: []byte("token"),
+								Items: []*types.VersionHistoryItem{
+									{
+										EventID: 1,
+										Version: 1,
+									},
+								},
+							},
 						},
 					},
+				}, nil).AnyTimes()
+				s.mockVersionChecker.EXPECT().SupportsRawHistoryQuery(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+				s.mockHistoryV2Mgr.On("ReadHistoryBranch", mock.Anything, mock.Anything).Return(nil, errors.New("history read error")).Once()
+			},
+			request: &types.RestartWorkflowExecutionRequest{
+				Domain: s.testDomain,
+				WorkflowExecution: &types.WorkflowExecution{
+					WorkflowID: testWorkflowID,
 				},
 			},
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			enableTaskListIsolation: false,
+			expectError:             true,
+			description:             "history read errors should be propagated",
 		},
-	}, nil).AnyTimes()
-	s.mockDomainCache.EXPECT().GetDomainID(gomock.Any()).Return(s.testDomainID, nil).AnyTimes()
-	s.mockVersionChecker.EXPECT().SupportsRawHistoryQuery(gomock.Any(), gomock.Any()).Return(nil).Times(1)
-	s.mockHistoryV2Mgr.On("ReadHistoryBranch", mock.Anything, mock.Anything).Return(&persistence.ReadHistoryBranchResponse{
-		HistoryEvents: []*types.HistoryEvent{&types.HistoryEvent{
-			ID: 1,
-			WorkflowExecutionStartedEventAttributes: &types.WorkflowExecutionStartedEventAttributes{
-				WorkflowType: &types.WorkflowType{
-					Name: "workflowtype",
-				},
-				TaskList: &types.TaskList{
-					Name: "tasklist",
+		{
+			name: "When StartWorkflowExecution fails it should propagate the error",
+			setupMocks: func() {
+				s.mockDomainCache.EXPECT().GetDomainID(gomock.Any()).Return(s.testDomainID, nil).AnyTimes()
+				s.mockHistoryClient.EXPECT().PollMutableState(gomock.Any(), gomock.Any()).Return(&types.PollMutableStateResponse{
+					CurrentBranchToken: []byte(""),
+					Execution: &types.WorkflowExecution{
+						WorkflowID: testRunID,
+					},
+					LastFirstEventID: 0,
+					NextEventID:      2,
+					VersionHistories: &types.VersionHistories{
+						CurrentVersionHistoryIndex: 0,
+						Histories: []*types.VersionHistory{
+							{
+								BranchToken: []byte("token"),
+								Items: []*types.VersionHistoryItem{
+									{
+										EventID: 1,
+										Version: 1,
+									},
+								},
+							},
+						},
+					},
+				}, nil).AnyTimes()
+				s.mockVersionChecker.EXPECT().SupportsRawHistoryQuery(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+				s.mockHistoryV2Mgr.On("ReadHistoryBranch", mock.Anything, mock.Anything).Return(&persistence.ReadHistoryBranchResponse{
+					HistoryEvents: []*types.HistoryEvent{&types.HistoryEvent{
+						ID: 1,
+						WorkflowExecutionStartedEventAttributes: &types.WorkflowExecutionStartedEventAttributes{
+							WorkflowType: &types.WorkflowType{
+								Name: "workflowtype",
+							},
+							TaskList: &types.TaskList{
+								Name: "tasklist",
+							},
+						},
+					}},
+				}, nil).Once()
+				s.mockHistoryClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).Return(nil, errors.New("start workflow error"))
+			},
+			request: &types.RestartWorkflowExecutionRequest{
+				Domain: s.testDomain,
+				WorkflowExecution: &types.WorkflowExecution{
+					WorkflowID: testWorkflowID,
 				},
 			},
-		}},
-	}, nil).Once()
-	s.mockHistoryClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).Return(&types.StartWorkflowExecutionResponse{
-		RunID: testRunID,
-	}, nil)
-	resp, err := wh.RestartWorkflowExecution(ctx, &types.RestartWorkflowExecutionRequest{
-		Domain: s.testDomain,
-		WorkflowExecution: &types.WorkflowExecution{
-			WorkflowID: testWorkflowID,
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			enableTaskListIsolation: false,
+			expectError:             true,
+			description:             "StartWorkflowExecution errors should be propagated",
 		},
-		Identity: "",
-	})
-	s.Equal(testRunID, resp.GetRunID())
-	s.NoError(err)
+		{
+			name: "When all conditions are valid it should successfully restart workflow",
+			setupMocks: func() {
+				s.mockDomainCache.EXPECT().GetDomainID(gomock.Any()).Return(s.testDomainID, nil).AnyTimes()
+				s.mockHistoryClient.EXPECT().PollMutableState(gomock.Any(), gomock.Any()).Return(&types.PollMutableStateResponse{
+					CurrentBranchToken: []byte(""),
+					Execution: &types.WorkflowExecution{
+						WorkflowID: testRunID,
+					},
+					LastFirstEventID: 0,
+					NextEventID:      2,
+					VersionHistories: &types.VersionHistories{
+						CurrentVersionHistoryIndex: 0,
+						Histories: []*types.VersionHistory{
+							{
+								BranchToken: []byte("token"),
+								Items: []*types.VersionHistoryItem{
+									{
+										EventID: 1,
+										Version: 1,
+									},
+								},
+							},
+						},
+					},
+				}, nil).AnyTimes()
+				s.mockVersionChecker.EXPECT().SupportsRawHistoryQuery(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+				s.mockHistoryV2Mgr.On("ReadHistoryBranch", mock.Anything, mock.Anything).Return(&persistence.ReadHistoryBranchResponse{
+					HistoryEvents: []*types.HistoryEvent{&types.HistoryEvent{
+						ID: 1,
+						WorkflowExecutionStartedEventAttributes: &types.WorkflowExecutionStartedEventAttributes{
+							WorkflowType: &types.WorkflowType{
+								Name: "workflowtype",
+							},
+							TaskList: &types.TaskList{
+								Name: "tasklist",
+							},
+						},
+					}},
+				}, nil).Once()
+				s.mockHistoryClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).Return(&types.StartWorkflowExecutionResponse{
+					RunID: testRunID,
+				}, nil)
+			},
+			request: &types.RestartWorkflowExecutionRequest{
+				Domain: s.testDomain,
+				WorkflowExecution: &types.WorkflowExecution{
+					WorkflowID: testWorkflowID,
+				},
+				Identity: "",
+			},
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			enableTaskListIsolation: false,
+			expectError:             false,
+			expectedRunID:           testRunID,
+			description:             "valid request should successfully restart workflow",
+		},
+		{
+			name: "When ActiveClusterSelectionPolicy is preserved it should copy policy to new workflow",
+			setupMocks: func() {
+				s.mockDomainCache.EXPECT().GetDomainID(gomock.Any()).Return(s.testDomainID, nil).AnyTimes()
+				s.mockHistoryClient.EXPECT().PollMutableState(gomock.Any(), gomock.Any()).Return(&types.PollMutableStateResponse{
+					CurrentBranchToken: []byte(""),
+					Execution: &types.WorkflowExecution{
+						WorkflowID: testRunID,
+					},
+					LastFirstEventID: 0,
+					NextEventID:      2,
+					VersionHistories: &types.VersionHistories{
+						CurrentVersionHistoryIndex: 0,
+						Histories: []*types.VersionHistory{
+							{
+								BranchToken: []byte("token"),
+								Items: []*types.VersionHistoryItem{
+									{
+										EventID: 1,
+										Version: 1,
+									},
+								},
+							},
+						},
+					},
+				}, nil).AnyTimes()
+				s.mockVersionChecker.EXPECT().SupportsRawHistoryQuery(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+				s.mockHistoryV2Mgr.On("ReadHistoryBranch", mock.Anything, mock.Anything).Return(&persistence.ReadHistoryBranchResponse{
+					HistoryEvents: []*types.HistoryEvent{&types.HistoryEvent{
+						ID: 1,
+						WorkflowExecutionStartedEventAttributes: &types.WorkflowExecutionStartedEventAttributes{
+							WorkflowType: &types.WorkflowType{
+								Name: "workflowtype",
+							},
+							TaskList: &types.TaskList{
+								Name: "tasklist",
+							},
+							ActiveClusterSelectionPolicy: &types.ActiveClusterSelectionPolicy{
+								ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
+								StickyRegion:                   "us-west-1",
+							},
+						},
+					}},
+				}, nil).Once()
+				// Capture the start request to verify ActiveClusterSelectionPolicy
+				s.mockHistoryClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(ctx context.Context, request *types.HistoryStartWorkflowExecutionRequest, opts ...yarpc.CallOption) (*types.StartWorkflowExecutionResponse, error) {
+						// Verify ActiveClusterSelectionPolicy is preserved
+						if request.StartRequest.ActiveClusterSelectionPolicy == nil {
+							return nil, errors.New("expected ActiveClusterSelectionPolicy to be preserved")
+						}
+						if *request.StartRequest.ActiveClusterSelectionPolicy.ActiveClusterSelectionStrategy != types.ActiveClusterSelectionStrategyRegionSticky {
+							return nil, errors.New("ActiveClusterSelectionStrategy not preserved")
+						}
+						if request.StartRequest.ActiveClusterSelectionPolicy.StickyRegion != "us-west-1" {
+							return nil, errors.New("StickyRegion not preserved")
+						}
+						return &types.StartWorkflowExecutionResponse{RunID: testRunID}, nil
+					},
+				)
+			},
+			request: &types.RestartWorkflowExecutionRequest{
+				Domain: s.testDomain,
+				WorkflowExecution: &types.WorkflowExecution{
+					WorkflowID: testWorkflowID,
+				},
+				Identity: "",
+			},
+			setupContext: func() context.Context {
+				return context.Background()
+			},
+			enableTaskListIsolation: false,
+			expectError:             false,
+			expectedRunID:           testRunID,
+			description:             "ActiveClusterSelectionPolicy should be preserved in restarted workflow",
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			// Setup dynamic client
+			dynamicClient := dc.NewInMemoryClient()
+			err := dynamicClient.UpdateValue(dynamicproperties.SendRawWorkflowHistory, false)
+			s.NoError(err)
+
+			// Setup config
+			config := s.newConfig(dynamicClient)
+			config.EnableTasklistIsolation = dynamicproperties.GetBoolPropertyFnFilteredByDomain(tc.enableTaskListIsolation)
+
+			wh := s.getWorkflowHandler(config)
+
+			// Setup mocks
+			tc.setupMocks()
+
+			// Setup context
+			ctx := tc.setupContext()
+
+			// Execute
+			resp, err := wh.RestartWorkflowExecution(ctx, tc.request)
+
+			// Verify
+			if tc.expectError {
+				s.Error(err, tc.description)
+				if tc.expectedErrType != nil {
+					s.IsType(tc.expectedErrType, err)
+				}
+			} else {
+				s.NoError(err, tc.description)
+				s.NotNil(resp)
+				if tc.expectedRunID != "" {
+					s.Equal(tc.expectedRunID, resp.GetRunID())
+				}
+			}
+		})
+	}
 }
 
 func (s *workflowHandlerSuite) getWorkflowExecutionHistory(nextEventID int64, transientDecision *types.TransientDecisionInfo, historyEvents []*types.HistoryEvent) {
@@ -4557,268 +4871,85 @@ func (cs *counterSnapshotMock) Name() string            { return cs.name }
 func (cs *counterSnapshotMock) Tags() map[string]string { return cs.tags }
 func (cs *counterSnapshotMock) Value() int64            { return cs.value }
 
-// TestRestartWorkflowExecution_ActiveClusterSelectionPolicy tests that ActiveClusterSelectionPolicy
-// is correctly propagated through RestartWorkflowExecution flow for all permutations
-func (s *workflowHandlerSuite) TestRestartWorkflowExecution_ActiveClusterSelectionPolicy() {
+func TestConstructRestartWorkflowRequest(t *testing.T) {
 	testCases := []struct {
-		name                    string
-		originalPolicy          *types.ActiveClusterSelectionPolicy
-		expectedPolicyInRestart *types.ActiveClusterSelectionPolicy
-		description             string
+		name               string
+		originalAttributes *types.WorkflowExecutionStartedEventAttributes
+		domain             string
+		identity           string
+		workflowID         string
+		expectPanic        bool
+		description        string
 	}{
 		{
-			name:                    "nil_policy_should_default_to_region_sticky",
-			originalPolicy:          nil,
-			expectedPolicyInRestart: nil, // nil is preserved and handled by GetStrategy() method
-			description:             "When original workflow has nil ActiveClusterSelectionPolicy, restarted workflow should also have nil (defaults to RegionSticky)",
+			// TODO(tim): This should not panic, return an error
+			name:               "nil originalAttributes should panic",
+			originalAttributes: nil,
+			domain:             "test-domain",
+			identity:           "test-identity",
+			workflowID:         "test-workflow-id",
+			expectPanic:        true,
+			description:        "nil originalAttributes should cause panic to prevent nil pointer dereference",
 		},
 		{
-			name: "region_sticky_with_sticky_region_should_be_preserved",
-			originalPolicy: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
-				StickyRegion:                   "us-west-1",
-			},
-			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
-				StickyRegion:                   "us-west-1",
-			},
-			description: "RegionSticky strategy with StickyRegion should be preserved in restarted workflow",
-		},
-		{
-			name: "region_sticky_without_sticky_region_should_be_preserved",
-			originalPolicy: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
-			},
-			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
-			},
-			description: "RegionSticky strategy without StickyRegion should be preserved in restarted workflow",
-		},
-		{
-			name: "external_entity_with_type_and_key_should_be_preserved",
-			originalPolicy: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
-				ExternalEntityType:             "customer",
-				ExternalEntityKey:              "customer-123",
-			},
-			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
-				ExternalEntityType:             "customer",
-				ExternalEntityKey:              "customer-123",
-			},
-			description: "ExternalEntity strategy with both type and key should be preserved in restarted workflow",
-		},
-		{
-			name: "external_entity_with_only_type_should_be_preserved",
-			originalPolicy: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
-				ExternalEntityType:             "customer",
-			},
-			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
-				ExternalEntityType:             "customer",
-			},
-			description: "ExternalEntity strategy with only type should be preserved in restarted workflow",
-		},
-		{
-			name: "external_entity_with_only_key_should_be_preserved",
-			originalPolicy: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
-				ExternalEntityKey:              "customer-123",
-			},
-			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
-				ExternalEntityKey:              "customer-123",
-			},
-			description: "ExternalEntity strategy with only key should be preserved in restarted workflow",
-		},
-		{
-			name: "complex_policy_with_all_fields_should_be_preserved",
-			originalPolicy: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
-				StickyRegion:                   "eu-west-1", // Even though this shouldn't be used with ExternalEntity, we preserve it
-				ExternalEntityType:             "tenant",
-				ExternalEntityKey:              "tenant-456",
-			},
-			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
-				StickyRegion:                   "eu-west-1",
-				ExternalEntityType:             "tenant",
-				ExternalEntityKey:              "tenant-456",
-			},
-			description: "Complex policy with all fields should be completely preserved in restarted workflow",
-		},
-	}
-
-	for _, tc := range testCases {
-		s.Run(tc.name, func() {
-			// Setup
-			dynamicClient := dc.NewInMemoryClient()
-			err := dynamicClient.UpdateValue(dynamicproperties.SendRawWorkflowHistory, false)
-			s.NoError(err)
-
-			wh := s.getWorkflowHandler(
-				frontendcfg.NewConfig(
-					dc.NewCollection(
-						dynamicClient,
-						s.mockResource.GetLogger()),
-					numHistoryShards,
-					false,
-					"hostname",
-					s.mockResource.GetLogger(),
-				),
-			)
-
-			ctx := context.Background()
-
-			// Mock domain cache
-			s.mockDomainCache.EXPECT().GetDomainID(gomock.Any()).Return(s.testDomainID, nil).AnyTimes()
-
-			// Mock PollMutableState for the workflow history retrieval
-			s.mockHistoryClient.EXPECT().PollMutableState(gomock.Any(), gomock.Any()).Return(&types.PollMutableStateResponse{
-				CurrentBranchToken: []byte(""),
-				Execution: &types.WorkflowExecution{
-					WorkflowID: testRunID,
-				},
-				LastFirstEventID: 0,
-				NextEventID:      2,
-				VersionHistories: &types.VersionHistories{
-					CurrentVersionHistoryIndex: 0,
-					Histories: []*types.VersionHistory{
-						{
-							BranchToken: []byte("token"),
-							Items: []*types.VersionHistoryItem{
-								{
-									EventID: 1,
-									Version: 1,
-								},
-							},
-						},
-					},
-				},
-			}, nil).AnyTimes()
-
-			// Mock version checker
-			s.mockVersionChecker.EXPECT().SupportsRawHistoryQuery(gomock.Any(), gomock.Any()).Return(nil).Times(1)
-
-			// Mock history manager with the original workflow's ActiveClusterSelectionPolicy
-			s.mockHistoryV2Mgr.On("ReadHistoryBranch", mock.Anything, mock.Anything).Return(&persistence.ReadHistoryBranchResponse{
-				HistoryEvents: []*types.HistoryEvent{
-					{
-						ID: 1,
-						WorkflowExecutionStartedEventAttributes: &types.WorkflowExecutionStartedEventAttributes{
-							WorkflowType: &types.WorkflowType{
-								Name: "workflowtype",
-							},
-							TaskList: &types.TaskList{
-								Name: "tasklist",
-							},
-							ActiveClusterSelectionPolicy: tc.originalPolicy,
-						},
-					},
-				},
-			}, nil).Once()
-
-			// Capture the start workflow request to verify ActiveClusterSelectionPolicy is preserved
-			var capturedStartRequest *types.HistoryStartWorkflowExecutionRequest
-			s.mockHistoryClient.EXPECT().StartWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
-				func(ctx context.Context, request *types.HistoryStartWorkflowExecutionRequest) (*types.StartWorkflowExecutionResponse, error) {
-					capturedStartRequest = request
-					return &types.StartWorkflowExecutionResponse{RunID: testRunID}, nil
-				},
-			)
-
-			// Execute RestartWorkflowExecution
-			resp, err := wh.RestartWorkflowExecution(ctx, &types.RestartWorkflowExecutionRequest{
-				Domain: s.testDomain,
-				WorkflowExecution: &types.WorkflowExecution{
-					WorkflowID: testWorkflowID,
-				},
-				Identity: "",
-			})
-
-			// Verify successful execution
-			s.NoError(err)
-			s.Equal(testRunID, resp.GetRunID())
-
-			// Verify that the ActiveClusterSelectionPolicy was correctly preserved in the start request
-			s.NotNil(capturedStartRequest)
-			s.NotNil(capturedStartRequest.StartRequest)
-
-			if tc.expectedPolicyInRestart == nil {
-				s.Nil(capturedStartRequest.StartRequest.ActiveClusterSelectionPolicy,
-					"Expected nil ActiveClusterSelectionPolicy in restart request for case: %s", tc.description)
-			} else {
-				s.NotNil(capturedStartRequest.StartRequest.ActiveClusterSelectionPolicy,
-					"Expected non-nil ActiveClusterSelectionPolicy in restart request for case: %s", tc.description)
-
-				actualPolicy := capturedStartRequest.StartRequest.ActiveClusterSelectionPolicy
-
-				// Compare ActiveClusterSelectionStrategy
-				if tc.expectedPolicyInRestart.ActiveClusterSelectionStrategy == nil {
-					s.Nil(actualPolicy.ActiveClusterSelectionStrategy,
-						"Expected nil ActiveClusterSelectionStrategy for case: %s", tc.description)
-				} else {
-					s.NotNil(actualPolicy.ActiveClusterSelectionStrategy,
-						"Expected non-nil ActiveClusterSelectionStrategy for case: %s", tc.description)
-					s.Equal(*tc.expectedPolicyInRestart.ActiveClusterSelectionStrategy,
-						*actualPolicy.ActiveClusterSelectionStrategy,
-						"ActiveClusterSelectionStrategy mismatch for case: %s", tc.description)
-				}
-
-				// Compare StickyRegion
-				s.Equal(tc.expectedPolicyInRestart.StickyRegion, actualPolicy.StickyRegion,
-					"StickyRegion mismatch for case: %s", tc.description)
-
-				// Compare ExternalEntityType
-				s.Equal(tc.expectedPolicyInRestart.ExternalEntityType, actualPolicy.ExternalEntityType,
-					"ExternalEntityType mismatch for case: %s", tc.description)
-
-				// Compare ExternalEntityKey
-				s.Equal(tc.expectedPolicyInRestart.ExternalEntityKey, actualPolicy.ExternalEntityKey,
-					"ExternalEntityKey mismatch for case: %s", tc.description)
-			}
-		})
-	}
-}
-
-// TestConstructRestartWorkflowRequest_ActiveClusterSelectionPolicy tests the specific function that
-// constructs the restart workflow request to ensure ActiveClusterSelectionPolicy is correctly copied
-func TestConstructRestartWorkflowRequest_ActiveClusterSelectionPolicy(t *testing.T) {
-	testCases := []struct {
-		name                    string
-		originalAttributes      *types.WorkflowExecutionStartedEventAttributes
-		expectedPolicyInRestart *types.ActiveClusterSelectionPolicy
-		description             string
-	}{
-		{
-			name: "nil_policy_should_be_preserved_as_nil",
+			// TODO(tim): This should not panic, return an error
+			name: "nil WorkflowType should panic",
 			originalAttributes: &types.WorkflowExecutionStartedEventAttributes{
-				WorkflowType:                 &types.WorkflowType{Name: "testWorkflow"},
-				TaskList:                     &types.TaskList{Name: "testTaskList"},
-				ActiveClusterSelectionPolicy: nil,
+				WorkflowType: nil,
+				TaskList:     &types.TaskList{Name: "testTaskList"},
 			},
-			expectedPolicyInRestart: nil,
-			description:             "nil ActiveClusterSelectionPolicy should remain nil in restart request",
+			domain:      "test-domain",
+			identity:    "test-identity",
+			workflowID:  "test-workflow-id",
+			expectPanic: true,
+			description: "nil WorkflowType should cause panic",
 		},
 		{
-			name: "region_sticky_policy_should_be_preserved",
+			// TODO(tim): This should not panic, return an error
+			name: "nil TaskList should panic",
 			originalAttributes: &types.WorkflowExecutionStartedEventAttributes{
 				WorkflowType: &types.WorkflowType{Name: "testWorkflow"},
-				TaskList:     &types.TaskList{Name: "testTaskList"},
-				ActiveClusterSelectionPolicy: &types.ActiveClusterSelectionPolicy{
-					ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
-					StickyRegion:                   "us-east-1",
-				},
+				TaskList:     nil,
 			},
-			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
-				StickyRegion:                   "us-east-1",
-			},
-			description: "RegionSticky policy should be completely preserved",
+			domain:      "test-domain",
+			identity:    "test-identity",
+			workflowID:  "test-workflow-id",
+			expectPanic: true,
+			description: "nil TaskList should cause panic",
 		},
 		{
-			name: "external_entity_policy_should_be_preserved",
+			name: "complete field validation for restart request",
+			originalAttributes: &types.WorkflowExecutionStartedEventAttributes{
+				WorkflowType:                        &types.WorkflowType{Name: "testWorkflow"},
+				TaskList:                            &types.TaskList{Name: "testTaskList", Kind: types.TaskListKindNormal.Ptr()},
+				Input:                               []byte("test-input"),
+				ExecutionStartToCloseTimeoutSeconds: common.Int32Ptr(3600),
+				TaskStartToCloseTimeoutSeconds:      common.Int32Ptr(60),
+				Header:                              &types.Header{Fields: map[string][]byte{"key": []byte("value")}},
+				Memo:                                &types.Memo{Fields: map[string][]byte{"memo": []byte("data")}},
+				SearchAttributes:                    &types.SearchAttributes{IndexedFields: map[string][]byte{"attr": []byte("val")}},
+				RetryPolicy: &types.RetryPolicy{
+					InitialIntervalInSeconds:    1,
+					BackoffCoefficient:          2.0,
+					MaximumIntervalInSeconds:    10,
+					MaximumAttempts:             3,
+					ExpirationIntervalInSeconds: 100,
+				},
+				CronSchedule:                    "0 */2 * * *",
+				FirstDecisionTaskBackoffSeconds: common.Int32Ptr(30),
+				ActiveClusterSelectionPolicy: &types.ActiveClusterSelectionPolicy{
+					ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyRegionSticky.Ptr(),
+					StickyRegion:                   "us-west-2",
+				},
+			},
+			domain:      "test-domain",
+			identity:    "test-identity",
+			workflowID:  "test-workflow-id",
+			expectPanic: false,
+			description: "complete field validation ensures all fields are properly set",
+		},
+		{
+			name: "ActiveClusterSelectionPolicy with ExternalEntity strategy",
 			originalAttributes: &types.WorkflowExecutionStartedEventAttributes{
 				WorkflowType: &types.WorkflowType{Name: "testWorkflow"},
 				TaskList:     &types.TaskList{Name: "testTaskList"},
@@ -4828,54 +4959,81 @@ func TestConstructRestartWorkflowRequest_ActiveClusterSelectionPolicy(t *testing
 					ExternalEntityKey:              "order-789",
 				},
 			},
-			expectedPolicyInRestart: &types.ActiveClusterSelectionPolicy{
-				ActiveClusterSelectionStrategy: types.ActiveClusterSelectionStrategyExternalEntity.Ptr(),
-				ExternalEntityType:             "order",
-				ExternalEntityKey:              "order-789",
-			},
+			domain:      "test-domain",
+			identity:    "test-identity",
+			workflowID:  "test-workflow-id",
+			expectPanic: false,
 			description: "ExternalEntity policy should be completely preserved",
+		},
+		{
+			name: "nil ActiveClusterSelectionPolicy should remain nil",
+			originalAttributes: &types.WorkflowExecutionStartedEventAttributes{
+				WorkflowType:                 &types.WorkflowType{Name: "testWorkflow"},
+				TaskList:                     &types.TaskList{Name: "testTaskList"},
+				ActiveClusterSelectionPolicy: nil,
+			},
+			domain:      "test-domain",
+			identity:    "test-identity",
+			workflowID:  "test-workflow-id",
+			expectPanic: false,
+			description: "nil ActiveClusterSelectionPolicy should remain nil in restart request",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.expectPanic {
+				assert.Panics(t, func() {
+					constructRestartWorkflowRequest(
+						tc.originalAttributes,
+						tc.domain,
+						tc.identity,
+						tc.workflowID,
+					)
+				}, tc.description)
+				return
+			}
+
 			// Execute constructRestartWorkflowRequest
 			startRequest := constructRestartWorkflowRequest(
 				tc.originalAttributes,
-				"test-domain",
-				"test-identity",
-				"test-workflow-id",
+				tc.domain,
+				tc.identity,
+				tc.workflowID,
 			)
 
-			// Verify the ActiveClusterSelectionPolicy is correctly copied
-			if tc.expectedPolicyInRestart == nil {
-				assert.Nil(t, startRequest.ActiveClusterSelectionPolicy, tc.description)
-			} else {
-				assert.NotNil(t, startRequest.ActiveClusterSelectionPolicy, tc.description)
+			// Validate RequestID is a non-empty UUID
+			assert.NotEmpty(t, startRequest.RequestID, "RequestID should be non-empty")
+			parsedUUID := uuid.Parse(startRequest.RequestID)
+			assert.NotNil(t, parsedUUID, "RequestID should be a valid UUID")
 
-				actualPolicy := startRequest.ActiveClusterSelectionPolicy
+			// Validate input parameters are correctly set
+			assert.Equal(t, tc.domain, startRequest.Domain, "Domain should match input")
+			assert.Equal(t, tc.workflowID, startRequest.WorkflowID, "WorkflowID should match input")
+			assert.Equal(t, tc.identity, startRequest.Identity, "Identity should match input")
 
-				// Compare strategy
-				if tc.expectedPolicyInRestart.ActiveClusterSelectionStrategy == nil {
-					assert.Nil(t, actualPolicy.ActiveClusterSelectionStrategy, tc.description)
-				} else {
-					assert.NotNil(t, actualPolicy.ActiveClusterSelectionStrategy, tc.description)
-					assert.Equal(t, *tc.expectedPolicyInRestart.ActiveClusterSelectionStrategy,
-						*actualPolicy.ActiveClusterSelectionStrategy, tc.description)
-				}
+			// Validate fields from workflow attributes
+			assert.Equal(t, tc.originalAttributes.WorkflowType.Name, startRequest.WorkflowType.Name, "WorkflowType.Name should match")
+			assert.Equal(t, tc.originalAttributes.TaskList.Name, startRequest.TaskList.Name, "TaskList.Name should match")
+			assert.Equal(t, tc.originalAttributes.TaskList.Kind, startRequest.TaskList.Kind, "TaskList.Kind should match")
+			assert.Equal(t, tc.originalAttributes.Input, startRequest.Input, "Input should match")
+			assert.Equal(t, tc.originalAttributes.ExecutionStartToCloseTimeoutSeconds, startRequest.ExecutionStartToCloseTimeoutSeconds, "ExecutionStartToCloseTimeoutSeconds should match")
+			assert.Equal(t, tc.originalAttributes.TaskStartToCloseTimeoutSeconds, startRequest.TaskStartToCloseTimeoutSeconds, "TaskStartToCloseTimeoutSeconds should match")
 
-				// Compare other fields
-				assert.Equal(t, tc.expectedPolicyInRestart.StickyRegion, actualPolicy.StickyRegion, tc.description)
-				assert.Equal(t, tc.expectedPolicyInRestart.ExternalEntityType, actualPolicy.ExternalEntityType, tc.description)
-				assert.Equal(t, tc.expectedPolicyInRestart.ExternalEntityKey, actualPolicy.ExternalEntityKey, tc.description)
-			}
+			// Validate WorkflowIDReusePolicy is correctly set
+			assert.NotNil(t, startRequest.WorkflowIDReusePolicy, "WorkflowIDReusePolicy should not be nil")
+			assert.Equal(t, types.WorkflowIDReusePolicyTerminateIfRunning, *startRequest.WorkflowIDReusePolicy, "WorkflowIDReusePolicy should be TerminateIfRunning")
 
-			// Verify other basic fields are set correctly
-			assert.Equal(t, "test-domain", startRequest.Domain)
-			assert.Equal(t, "test-identity", startRequest.Identity)
-			assert.Equal(t, "test-workflow-id", startRequest.WorkflowID)
-			assert.NotEmpty(t, startRequest.RequestID)
-			assert.Equal(t, types.WorkflowIDReusePolicyTerminateIfRunning, *startRequest.WorkflowIDReusePolicy)
+			// Validate optional fields from workflow attributes
+			assert.Equal(t, tc.originalAttributes.ActiveClusterSelectionPolicy, startRequest.ActiveClusterSelectionPolicy, "ActiveClusterSelectionPolicy should match")
+			assert.Equal(t, tc.originalAttributes.CronSchedule, startRequest.CronSchedule, "CronSchedule should match")
+			assert.Equal(t, tc.originalAttributes.RetryPolicy, startRequest.RetryPolicy, "RetryPolicy should match")
+			assert.Equal(t, tc.originalAttributes.Header, startRequest.Header, "Header should match")
+			assert.Equal(t, tc.originalAttributes.Memo, startRequest.Memo, "Memo should match")
+			assert.Equal(t, tc.originalAttributes.SearchAttributes, startRequest.SearchAttributes, "SearchAttributes should match")
+
+			// Validate DelayStartSeconds equals FirstDecisionTaskBackoffSeconds
+			assert.Equal(t, tc.originalAttributes.FirstDecisionTaskBackoffSeconds, startRequest.DelayStartSeconds, "DelayStartSeconds should equal FirstDecisionTaskBackoffSeconds")
 		})
 	}
 }
