@@ -2276,19 +2276,12 @@ func (s *workflowHandlerSuite) TestRestartWorkflowExecution() {
 			// Setup config
 			config := s.newConfig(dynamicClient)
 			config.EnableTasklistIsolation = dynamicproperties.GetBoolPropertyFnFilteredByDomain(tc.enableTaskListIsolation)
-
 			wh := s.getWorkflowHandler(config)
 
-			// Setup mocks
 			tc.setupMocks()
-
-			// Setup context
 			ctx := tc.setupContext()
-
-			// Execute
 			resp, err := wh.RestartWorkflowExecution(ctx, tc.request)
 
-			// Verify
 			if tc.expectError {
 				s.Error(err, tc.description)
 				if tc.expectedErrType != nil {
