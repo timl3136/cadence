@@ -49,10 +49,11 @@ const (
 )
 
 type shardDistributorResolver struct {
-	shardDistributionMode dynamicproperties.StringPropertyFn
-	spectator             spectatorclient.Spectator
-	ring                  SingleProvider
-	logger                log.Logger
+	shardDistributionMode      dynamicproperties.StringPropertyFn
+	excludeShortLivedTaskLists dynamicproperties.BoolPropertyFn
+	spectator                  spectatorclient.Spectator
+	ring                       SingleProvider
+	logger                     log.Logger
 }
 
 func (s shardDistributorResolver) AddressToHost(owner string) (HostInfo, error) {
@@ -62,14 +63,16 @@ func (s shardDistributorResolver) AddressToHost(owner string) (HostInfo, error) 
 func NewShardDistributorResolver(
 	spectator spectatorclient.Spectator,
 	shardDistributionMode dynamicproperties.StringPropertyFn,
+	excludeShortLivedTaskLists dynamicproperties.BoolPropertyFn,
 	ring SingleProvider,
 	logger log.Logger,
 ) SingleProvider {
 	return &shardDistributorResolver{
-		spectator:             spectator,
-		shardDistributionMode: shardDistributionMode,
-		ring:                  ring,
-		logger:                logger,
+		spectator:                  spectator,
+		shardDistributionMode:      shardDistributionMode,
+		excludeShortLivedTaskLists: excludeShortLivedTaskLists,
+		ring:                       ring,
+		logger:                     logger,
 	}
 }
 
@@ -88,6 +91,10 @@ func (s shardDistributorResolver) Lookup(key string) (HostInfo, error) {
 		// This will avoid panics when the shard distributor is not configured
 		s.logger.Warn("No shard distributor client, defaulting to hash ring", tag.Value(s.shardDistributionMode()))
 
+		return s.ring.Lookup(key)
+	}
+
+	if s.excludeShortLivedTaskLists() && TaskListExcludedFromShardDistributor(key) {
 		return s.ring.Lookup(key)
 	}
 

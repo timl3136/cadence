@@ -327,6 +327,7 @@ func (*server) wrapHashRingsWithShardDistributor(
 		hashRings[service.Matching] = membership.NewShardDistributorResolver(
 			spectator,
 			dc.GetStringProperty(dynamicproperties.MatchingShardDistributionMode),
+			dc.GetBoolProperty(dynamicproperties.MatchingExcludeShortLivedTaskListsFromShardManager),
 			hashRings[service.Matching],
 			logger,
 		)
