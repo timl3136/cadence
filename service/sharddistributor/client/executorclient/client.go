@@ -3,6 +3,7 @@ package executorclient
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/google/uuid"
 	"github.com/uber-go/tally"
@@ -119,9 +120,18 @@ func newExecutorWithConfig[SP ShardProcessor](params Params[SP], namespaceConfig
 	// TODO: get executor ID from environment
 	executorID := uuid.New().String()
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("get hostname: %w", err)
+	}
+
 	metricsScope := params.MetricsScope.Tagged(map[string]string{
 		metrics.OperationTagName: metricsconstants.ShardDistributorExecutorOperationTagName,
 		"namespace":              namespaceConfig.Namespace,
+	})
+
+	hostMetricsScope := metricsScope.Tagged(map[string]string{
+		"host": hostname,
 	})
 
 	executor := &executorImpl[SP]{
@@ -135,6 +145,7 @@ func newExecutorWithConfig[SP ShardProcessor](params Params[SP], namespaceConfig
 		timeSource:             params.TimeSource,
 		stopC:                  make(chan struct{}),
 		metrics:                metricsScope,
+		hostMetrics:            hostMetricsScope,
 		metadata: syncExecutorMetadata{
 			data: params.Metadata,
 		},

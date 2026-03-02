@@ -81,6 +81,7 @@ func newTestExecutor(
 	return &executorImpl[*MockShardProcessor]{
 		logger:                 log.NewNoop(),
 		metrics:                tally.NoopScope,
+		hostMetrics:            tally.NoopScope,
 		shardDistributorClient: client,
 		shardProcessorFactory:  factory,
 		namespace:              "test-namespace",

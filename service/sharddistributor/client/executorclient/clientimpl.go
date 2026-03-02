@@ -107,6 +107,7 @@ type executorImpl[SP ShardProcessor] struct {
 	processLoopWG          sync.WaitGroup
 	assignmentMutex        sync.Mutex
 	metrics                tally.Scope
+	hostMetrics            tally.Scope
 	migrationMode          atomic.Int32
 	metadata               syncExecutorMetadata
 	drainObserver          clientcommon.DrainSignalObserver
@@ -361,7 +362,7 @@ func (e *executorImpl[SP]) sendHeartbeat(ctx context.Context, status types.Execu
 		return true
 	})
 
-	e.metrics.Gauge(metricsconstants.ShardDistributorExecutorOwnedShards).Update(float64(len(shardStatusReports)))
+	e.hostMetrics.Gauge(metricsconstants.ShardDistributorExecutorOwnedShards).Update(float64(len(shardStatusReports)))
 
 	// Create the request
 	request := &types.ExecutorHeartbeatRequest{
