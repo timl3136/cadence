@@ -1558,6 +1558,15 @@ const (
 	// Allowed filters: N/A
 	QueueMaxVirtualQueueCount
 
+	// ShardDistributorMaxEtcdTxnOps is the maximum number of operations per etcd transaction.
+	// etcd enforces a server-side limit (--max-txn-ops, default 128).
+	// This value must not exceed the etcd cluster's configured limit.
+	// KeyName: shardDistributor.maxEtcdTxnOps
+	// Value type: Int
+	// Default value: 128
+	// Allowed filters: N/A
+	ShardDistributorMaxEtcdTxnOps
+
 	// LastIntKey must be the last one in this const group
 	LastIntKey
 )
@@ -4315,6 +4324,11 @@ var IntKeys = map[IntKey]DynamicInt{
 		KeyName:      "history.queueMaxVirtualQueueCount",
 		Description:  "QueueMaxVirtualQueueCount is the max number of virtual queues",
 		DefaultValue: 2,
+	},
+	ShardDistributorMaxEtcdTxnOps: {
+		KeyName:      "shardDistributor.maxEtcdTxnOps",
+		Description:  "ShardDistributorMaxEtcdTxnOps is the maximum number of operations per etcd transaction, must not exceed the etcd cluster's configured --max-txn-ops limit",
+		DefaultValue: 128,
 	},
 }
 
