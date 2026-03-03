@@ -37,8 +37,6 @@ import (
 const defaultIdleChannelTTLInSeconds = 3600
 
 type (
-	weightedChannels[V any] []*weightedChannel[V]
-
 	weightedChannel[V any] struct {
 		weight        int
 		c             chan V
@@ -64,7 +62,7 @@ type (
 		channelMap              map[K]*weightedChannel[V]
 
 		// a snapshot of the channels to be used for the IWRR schedule
-		iwrrSchedule atomic.Value // Schedule[chan V]
+		iwrrSchedule atomic.Pointer[iwrrSchedule[*weightedChannel[V]]]
 	}
 )
 
@@ -84,7 +82,7 @@ func NewWeightedRoundRobinChannelPool[K comparable, V any](
 		shutdownCh:              make(chan struct{}),
 	}
 	// Initialize with empty channels
-	wrr.iwrrSchedule.Store(newIWRRSchedule[V](nil))
+	wrr.iwrrSchedule.Store(newIWRRSchedule[K, *weightedChannel[V]](nil))
 	return wrr
 }
 
@@ -195,33 +193,18 @@ func (p *WeightedRoundRobinChannelPool[K, V]) GetAllChannels() []chan V {
 	return allChannels
 }
 
-func (p *WeightedRoundRobinChannelPool[K, V]) GetSchedule() Schedule[chan V] {
-	return p.iwrrSchedule.Load().(Schedule[chan V])
+func (p *WeightedRoundRobinChannelPool[K, V]) GetSchedule() Schedule[*weightedChannel[V]] {
+	return p.iwrrSchedule.Load()
 }
 
 func (p *WeightedRoundRobinChannelPool[K, V]) updateScheduleLocked() {
-	// Create a snapshot of channels for the schedule
-	orderedChannels := make(weightedChannels[V], 0, len(p.channelMap))
-	for _, v := range p.channelMap {
-		orderedChannels = append(orderedChannels, v)
-	}
-
-	// Create efficient schedule from snapshot
-	p.iwrrSchedule.Store(newIWRRSchedule[V](orderedChannels))
+	p.iwrrSchedule.Store(newIWRRSchedule(p.channelMap))
 
 	// Update memory gauge - now only stores channel references once, not weight times
 	memoryBytes := len(p.channelMap) * 16 // channel map entries
 	p.metricsScope.UpdateGauge(metrics.WeightedChannelPoolSizeGauge, float64(memoryBytes))
 }
 
-func (w weightedChannels[V]) Len() int {
-	return len(w)
-}
-
-func (w weightedChannels[V]) Less(i, j int) bool {
-	return w[i].weight < w[j].weight
-}
-
-func (w weightedChannels[V]) Swap(i, j int) {
-	w[i], w[j] = w[j], w[i]
+func (w *weightedChannel[V]) Weight() int {
+	return w.weight
 }
