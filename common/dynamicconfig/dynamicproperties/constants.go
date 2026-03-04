@@ -850,6 +850,12 @@ const (
 	// Default value: 2
 	// Allowed filters: DomainName,TasklistName,TaskType
 	MatchingIsolationGroupsPerPartition
+	// MatchingPercentageOnboardedToShardManager is the percentage of task lists that will be onboarded to the shard manager.
+	// KeyName: matching.percentageOnboardedToShardManager
+	// Value type: Int
+	// Default value: 0
+	// Allowed filters: N/A
+	MatchingPercentageOnboardedToShardManager
 
 	// key for history
 
@@ -3731,6 +3737,11 @@ var IntKeys = map[IntKey]DynamicInt{
 		Filters:      []Filter{DomainName, TaskListName, TaskType},
 		Description:  "MatchingIsolationGroupsPerPartition is the target number of isolation groups to assign to each partition",
 		DefaultValue: 2,
+	},
+	MatchingPercentageOnboardedToShardManager: {
+		KeyName:      "matching.percentageOnboardedToShardManager",
+		Description:  "MatchingPercentageOnboardedToShardManager is the percentage of task lists that will be onboarded to the shard manager",
+		DefaultValue: 0,
 	},
 	HistoryRPS: {
 		KeyName:      "history.rps",
