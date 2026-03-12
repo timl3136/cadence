@@ -101,6 +101,7 @@ type AppParams struct {
 	DynamicConfig dynamicconfig.Client
 	Scope         tally.Scope
 	MetricsClient metrics.Client
+	HostName      string `name:"hostname"`
 }
 
 // NewApp created a new Application from pre initalized config and logger.
@@ -112,6 +113,7 @@ func NewApp(params AppParams) *App {
 		dynamicConfig: params.DynamicConfig,
 		scope:         params.Scope,
 		metricsClient: params.MetricsClient,
+		hostName:      params.HostName,
 	}
 
 	params.LifeCycle.Append(fx.StartHook(app.verifySchema))
@@ -128,13 +130,14 @@ type App struct {
 	dynamicConfig dynamicconfig.Client
 	scope         tally.Scope
 	metricsClient metrics.Client
+	hostName      string
 
 	daemon  common.Daemon
 	service string
 }
 
 func (a *App) Start(_ context.Context) error {
-	a.daemon = newServer(a.service, a.cfg, a.logger, a.dynamicConfig, a.scope, a.metricsClient)
+	a.daemon = newServer(a.service, a.cfg, a.logger, a.dynamicConfig, a.scope, a.metricsClient, a.hostName)
 	a.daemon.Start()
 	return nil
 }

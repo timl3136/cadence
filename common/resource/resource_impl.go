@@ -128,12 +128,10 @@ type Impl struct {
 	// persistence clients
 	persistenceBean persistenceClient.Bean
 
-	// hostName
-	hostName string
-
 	// loggers
 	logger          log.Logger
 	throttledLogger log.Logger
+	hostName        string
 
 	// for registering handlers
 	dispatcher *yarpc.Dispatcher
@@ -198,6 +196,9 @@ func New(
 	if params.NewPersistenceBeanFn != nil {
 		newPersistenceBeanFn = params.NewPersistenceBeanFn
 	}
+
+	params.PersistenceConfig.HostName = params.HostName
+
 	persistenceBean, err := newPersistenceBeanFn(persistenceClient.NewFactory(
 		&params.PersistenceConfig,
 		func() float64 {
