@@ -23,6 +23,7 @@ package cadence
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/startreedata/pinot-client-go/pinot"
@@ -82,13 +83,12 @@ type (
 		dynamicCfgClient dynamicconfig.Client
 		scope            tally.Scope
 		metricsClient    metrics.Client
-		hostName         string
 	}
 )
 
 // newServer returns a new instance of a daemon
 // that represents a cadence service
-func newServer(service string, cfg config.Config, logger log.Logger, dynamicCfgClient dynamicconfig.Client, scope tally.Scope, metricsClient metrics.Client, hostName string) common.Daemon {
+func newServer(service string, cfg config.Config, logger log.Logger, dynamicCfgClient dynamicconfig.Client, scope tally.Scope, metricsClient metrics.Client) common.Daemon {
 	return &server{
 		cfg:              cfg,
 		name:             service,
@@ -97,7 +97,6 @@ func newServer(service string, cfg config.Config, logger log.Logger, dynamicCfgC
 		dynamicCfgClient: dynamicCfgClient,
 		scope:            scope,
 		metricsClient:    metricsClient,
-		hostName:         hostName,
 	}
 }
 
@@ -131,9 +130,14 @@ func (s *server) startService() common.Daemon {
 		s.logger.Fatal(err.Error())
 	}
 
+	hostName, err := os.Hostname()
+	if err != nil {
+		s.logger.Fatal("failed to get hostname", tag.Error(err))
+	}
+
 	params := resource.Params{
 		Name:              service.FullName(s.name),
-		HostName:          s.hostName,
+		HostName:          hostName,
 		Logger:            s.logger.WithTags(tag.Service(service.FullName(s.name))),
 		PersistenceConfig: s.cfg.Persistence,
 		DynamicConfig:     s.dynamicCfgClient,

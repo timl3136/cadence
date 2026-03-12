@@ -130,7 +130,7 @@ func (p *base) recordLatencyHistogram(scope metrics.ScopeIdx, duration time.Dura
 	}
 	p.metricClient.Scope(scope).RecordHistogramDuration(metrics.PersistenceLatencyHistogram, duration)
 	if p.hostName != "" {
-		p.metricClient.Scope(scope, metrics.HostTag(p.hostName)).RecordHistogramDuration(metrics.PersistenceLatencyHistogram, duration)
+		p.metricClient.Scope(scope, metrics.HostTag(p.hostName)).RecordHistogramDuration(metrics.PersistenceLatencyHistogramPerHost, duration)
 	}
 }
 

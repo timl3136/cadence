@@ -197,7 +197,7 @@ func New(
 		newPersistenceBeanFn = params.NewPersistenceBeanFn
 	}
 
-	params.PersistenceConfig.HostName = params.HostName
+	params.PersistenceConfig.HostName = hostname
 
 	persistenceBean, err := newPersistenceBeanFn(persistenceClient.NewFactory(
 		&params.PersistenceConfig,
@@ -398,13 +398,10 @@ func New(
 		// persistence clients
 		persistenceBean: persistenceBean,
 
-		// hostname
-		hostName: hostname,
-
 		// loggers
-
 		logger:          logger,
 		throttledLogger: throttledLogger,
+		hostName:        hostname,
 
 		// for registering handlers
 		dispatcher: dispatcher,
