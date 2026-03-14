@@ -319,6 +319,8 @@ const (
 	PersistenceUpdateDynamicConfigScope
 	// PersistenceShardRequestCountScope tracks number of persistence calls made to each shard
 	PersistenceShardRequestCountScope
+	// PersistencePerHostScope is a constant scope for per-host persistence latency metrics
+	PersistencePerHostScope
 	// PersistenceGetActiveClusterSelectionPolicyScope tracks GetActiveClusterSelectionPolicy calls made by service to persistence layer
 	PersistenceGetActiveClusterSelectionPolicyScope
 	// PersistenceDeleteActiveClusterSelectionPolicyScope tracks DeleteActiveClusterSelectionPolicy calls made by service to persistence layer
@@ -1597,6 +1599,7 @@ var ScopeDefs = map[ServiceIdx]map[ScopeIdx]scopeDefinition{
 		PersistenceFetchDynamicConfigScope:                       {operation: "FetchDynamicConfig"},
 		PersistenceUpdateDynamicConfigScope:                      {operation: "UpdateDynamicConfig"},
 		PersistenceShardRequestCountScope:                        {operation: "ShardIdPersistenceRequest"},
+		PersistencePerHostScope:                                  {operation: "persistence_operations"},
 		PersistenceGetActiveClusterSelectionPolicyScope:          {operation: "GetActiveClusterSelectionPolicy"},
 		PersistenceDeleteActiveClusterSelectionPolicyScope:       {operation: "DeleteActiveClusterSelectionPolicy"},
 		ResolverHostNotFoundScope:                                {operation: "ResolverHostNotFound"},
