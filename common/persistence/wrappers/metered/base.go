@@ -125,13 +125,15 @@ func (p *base) updateErrorMetric(scope metrics.ScopeIdx, err error, metricsScope
 }
 
 func (p *base) recordLatencyHistogram(scope metrics.ScopeIdx, duration time.Duration) {
+	// this is a new metrics that we want to emit alongside with the current ongoing histogram migration
+	if p.hostName != "" {
+		p.metricClient.Scope(metrics.PersistencePerHostScope, metrics.HostTag(p.hostName)).RecordHistogramDuration(metrics.PersistenceLatencyHistogramPerHost, duration)
+	}
 	if !p.enableLatencyHistogramMetrics {
 		return
 	}
 	p.metricClient.Scope(scope).RecordHistogramDuration(metrics.PersistenceLatencyHistogram, duration)
-	if p.hostName != "" {
-		p.metricClient.Scope(metrics.PersistencePerHostScope, metrics.HostTag(p.hostName)).RecordHistogramDuration(metrics.PersistenceLatencyHistogramPerHost, duration)
-	}
+
 }
 
 func (p *base) call(scope metrics.ScopeIdx, op func() error, tags ...metrics.Tag) error {
