@@ -84,7 +84,7 @@ Use the PR template from `.github/pull_request_guidance.md`. Structure the body 
 Guidelines for the body:
 - Keep it concise — explain the *why*, not the *what* (the diff shows the what)
 - Do not use verbose qualifiers like "with proper descriptions and testing"
-- Link GitHub issues using `#<number>` or `https://github.com/uber/cadence/issues/<number>`
+- Link GitHub issues using `#<number>` or `https://github.com/cadence-workflow/cadence/issues/<number>`
 - The "How did you test it?" section must reflect the actual tests run in Step 2
 
 ## Step 4 — Link to a GitHub issue
@@ -96,7 +96,7 @@ Use that directly — no further lookup needed.
 
 1. **Fetch open issues**:
    ```bash
-   gh issue list --repo uber/cadence --state open --limit 100 --json number,title,labels,body
+     gh issue list --repo cadence-workflow/cadence --state open --limit 100 --json number,title,labels,body
    ```
 
 2. **Evaluate relevance**: Compare the PR's changes (files modified, commit messages, diff content) against each open issue's title, body, and labels. Consider:
